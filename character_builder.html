@@ -238,6 +238,10 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
               <input id="manual-attack" type="number" placeholder="Auto">
             </div>
             <div>
+              <label>Gold</label>
+              <input id="gold" type="number" min="0" value="0">
+            </div>
+            <div>
               <label>Background</label>
               <input id="background" placeholder="Soldier, Acolyte, Criminal">
             </div>
@@ -599,6 +603,7 @@ function hydrateCharacter(raw={}){
     position:{x:raw.position?.x??raw.x??null,y:raw.position?.y??raw.y??null},
     icon:raw.icon||raw.em||'🧙',
     color:raw.color||randomColor(),
+    gold:Math.max(0,Number(raw.gold)||0),
     currentHP:Number(raw.currentHP??raw.derived?.HP??0),
     statuses:Array.isArray(raw.statuses)?raw.statuses:[],
     overrides:raw.overrides||{},
@@ -704,7 +709,7 @@ function setup(){
   renderSubclassOptions();
   document.getElementById('icons').innerHTML=PLAYER_ICONS.map(icon=>`<button class="icon-btn" data-icon="${icon}" onclick="selectIcon('${icon}')">${icon}</button>`).join('');
   document.getElementById('stats').innerHTML=ABILITIES.map(ab=>`<div class="stat"><div class="stat-top"><span>${ab}</span><b id="mod-${ab}">+0</b></div><input id="stat-${ab}" type="number" min="1" max="30" value="10"></div>`).join('');
-  ['name','race','class','subclass','custom-race','custom-class','custom-subclass','level','color','manual-ac','manual-hp','manual-attack','background','alignment','notes',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
+  ['name','race','class','subclass','custom-race','custom-class','custom-subclass','level','color','manual-ac','manual-hp','manual-attack','gold','background','alignment','notes',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
     document.getElementById(id).addEventListener('input',()=>{renderLive();scheduleSave()});
     document.getElementById(id).addEventListener('change',()=>{renderLive();scheduleSave()});
   });
@@ -728,6 +733,7 @@ function fillForm(ch){
   document.getElementById('manual-ac').value=ch.overrides?.AC ?? '';
   document.getElementById('manual-hp').value=ch.overrides?.maxHP ?? '';
   document.getElementById('manual-attack').value=ch.overrides?.attackBonus ?? '';
+  document.getElementById('gold').value=Math.max(0,Number(ch.gold)||0);
   document.getElementById('background').value=ch.background||'';
   document.getElementById('alignment').value=ch.alignment||'True Neutral';
   document.getElementById('notes').value=ch.notes||'';
@@ -756,6 +762,7 @@ function readFormFor(existing=null){
     background:document.getElementById('background').value.trim(),
     alignment:document.getElementById('alignment').value,
     notes:document.getElementById('notes').value.trim(),
+    gold:Math.max(0,Number(document.getElementById('gold').value)||0),
     stats,
     skills:readSkills(),
     position:existing?.position||{x:null,y:null},
@@ -842,7 +849,7 @@ function renderLive(){
   const usedSlots=Object.values(ch.spellSlotUsage||{}).reduce((sum,v)=>sum+(Number(v)||0),0);
   document.getElementById('derived').innerHTML=[
     ['HP',d.HP],['AC',d.AC],['Initiative',(d.initiative>=0?'+':'')+d.initiative],['Attack',(d.attackBonus>=0?'+':'')+d.attackBonus],
-    ['Proficiency','+'+d.proficiencyBonus],['Spell Slots',`${usedSlots}/${d.spellSlots}`],[d.resourceName,d.resourceMax],['Reveal',d.revealRadius]
+    ['Proficiency','+'+d.proficiencyBonus],['Spell Slots',`${usedSlots}/${d.spellSlots}`],['Gold',`${Math.max(0,Number(ch.gold)||0)} gp`],[d.resourceName,d.resourceMax],['Reveal',d.revealRadius]
   ].map(([label,value])=>`<div class="derived-card"><b>${value}</b><span>${label}</span></div>`).join('');
   const gearAbilities=equippedItems(ch).flatMap(item=>[item.ability,item.bonusAction&&`Bonus: ${item.bonusAction}`].filter(Boolean));
   const sheetAbilities=[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class']),...(ch.abilities||[]).map(a=>a.name),...(ch.bonusActions||[]).map(a=>a.name),...gearAbilities];
@@ -854,6 +861,7 @@ function renderLive(){
       <div class="sheet-box"><b>${d.AC}</b><span>AC</span></div>
       <div class="sheet-box"><b>${d.attackBonus>=0?'+':''}${d.attackBonus}</b><span>Attack</span></div>
       <div class="sheet-box"><b>${d.passivePerception}</b><span>Passive</span></div>
+      <div class="sheet-box"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
     </div>
     <div class="muted">${escapeHtml(ch.background||'No background')} · ${escapeHtml(ch.alignment)}</div>
     <div class="muted" style="margin-top:8px">Equipped: ${equippedItems(ch).map(i=>escapeHtml(i.name)).join(', ') || 'Nothing equipped'}</div>

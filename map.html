@@ -728,6 +728,7 @@ function hydrateCharacter(raw={}){
     },
     icon:raw.icon || raw.em || '🧙',
     color:raw.color || randomColor(),
+    gold:Math.max(0,Number(raw.gold)||0),
     currentHP:Number(raw.currentHP ?? raw.derived?.HP ?? 0),
     statuses:Array.isArray(raw.statuses) ? normalizeStatuses(raw.statuses) : [],
     deathSaves:raw.deathSaves || {success:0,fail:0},
@@ -793,6 +794,26 @@ function normalizeInventoryItem(item={}){
     bonusAction:item.bonusAction || '',
     description:item.description || ''
   };
+}
+function normalizeLootEntry(item={}){
+  if(item.kind==='gold' || item.type==='gold'){
+    return {
+      id:item.id || 'gold_'+Date.now()+Math.random().toString(36).slice(2,7),
+      kind:'gold',
+      name:item.name || 'Gold',
+      amount:Math.max(1,Math.round(Number(item.amount)||1)),
+      rarity:ITEM_RARITIES.includes(item.rarity) ? item.rarity : 'Uncommon',
+      description:item.description || 'Coins and loose treasure.'
+    };
+  }
+  return normalizeInventoryItem(item);
+}
+function isGoldLoot(item){ return item?.kind==='gold'; }
+function lootEntryLabel(item){
+  return isGoldLoot(item) ? `${Math.max(1,Number(item.amount)||1)} gp` : (item?.name || 'Loot');
+}
+function lootEntryMeta(item){
+  return isGoldLoot(item) ? 'Gold' : (item?.rarity || 'Common');
 }
 function spellSlotsByLevel(total=0){
   const slots={};
@@ -876,7 +897,7 @@ function hydratePlacedIcon(raw={}){
     icon.weapons=Array.isArray(icon.weapons)&&icon.weapons.length ? icon.weapons.map(hydrateActionItem) : hydrateEnemyTemplate(icon).weapons;
     icon.spells=Array.isArray(icon.spells) ? icon.spells.map(hydrateActionItem) : [];
     icon.statuses=normalizeStatuses(icon.statuses||[]);
-    icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeInventoryItem) : [];
+    icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeLootEntry) : [];
     icon.lootGenerated=icon.lootGenerated===true;
   }
   if(icon.kind==='pin'){
@@ -894,7 +915,7 @@ function hydratePlacedIcon(raw={}){
     icon.hidden=icon.hidden !== false;
     icon.chestLevel=Math.max(1,Math.min(3,Number(icon.chestLevel)||1));
     icon.opened=icon.opened===true;
-    icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeInventoryItem) : [];
+    icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeLootEntry) : [];
     icon.lootGenerated=icon.lootGenerated===true;
   }
   return icon;
@@ -2020,7 +2041,7 @@ function openEditCharModal(charId=activeCharacterId){
   const ch=myCharacters.find(c=>c.id===charId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('Only the owner or DM can edit that character','roll','Locked');
-  pendingModalSave={mode:'edit',id:ch.id};
+  pendingModalSave={mode:'edit',id:ch.id,gold:ch.gold||0};
   document.getElementById('modal-title').textContent='Edit character';
   fillBuilder(ch);
   document.getElementById('modal-overlay').classList.add('show');
@@ -2052,7 +2073,8 @@ function readBuilder(){
     stats,
     skills:pendingModalSave?.skills || {},
     icon:document.querySelector('.mi.sel')?.dataset.em || '🧙',
-    color:document.getElementById('char-color').value
+    color:document.getElementById('char-color').value,
+    gold:pendingModalSave?.gold || 0
   });
 }
 function updateBuilderPreview(){
@@ -2098,7 +2120,8 @@ function saveChar(){
     if(existing){
       const oldPosition=existing.position;
       const oldHP=existing.currentHP;
-      Object.assign(existing,data,{id:existing.id,position:oldPosition,currentHP:Math.min(data.derived.HP,oldHP || data.derived.HP),owner:myId});
+      const oldGold=existing.gold || 0;
+      Object.assign(existing,data,{id:existing.id,position:oldPosition,currentHP:Math.min(data.derived.HP,oldHP || data.derived.HP),gold:oldGold,owner:myId});
       existing.derived=calculateDerived(existing);
     }
   }
@@ -2306,6 +2329,9 @@ function updateActiveSummary(){
     <div class="mini-stat-row" style="grid-template-columns:repeat(2,1fr)">
       <div class="mini-stat"><b>${d.spellSaveDC||'-'}</b><span>Spell DC</span></div>
       <div class="mini-stat"><b>${d.spellAttackBonus>=0?'+':''}${d.spellAttackBonus||0}</b><span>Spell Atk</span></div>
+    </div>
+    <div class="mini-stat-row" style="grid-template-columns:1fr">
+      <div class="mini-stat"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
     </div>
     ${spellSlotControls(ch)}
     <div class="tracker">
@@ -2686,6 +2712,9 @@ function showSheet(ch,x,y){
       <div class="mini-stat"><b>${d.initiative>=0?'+':''}${d.initiative}</b><span>Init</span></div>
       <div class="mini-stat"><b>${d.attackBonus>=0?'+':''}${d.attackBonus}</b><span>Atk</span></div>
     </div>
+    <div class="mini-stat-row" style="grid-template-columns:1fr">
+      <div class="mini-stat"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
+    </div>
     <div class="ability-list">${[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class'])].map(t=>`<span class="ability">${t}</span>`).join('')}</div>
     <div class="action-buttons">
       ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">⚔ ${escapeHtml(w.name)}</button>`).join('')}
@@ -2719,7 +2748,7 @@ function showEnemySheet(enemy,x,y){
       ${dm?`<div class="mini-stat"><b>${enemy.hidden?'Hidden':'Visible'}</b><span>Fog</span></div>
       <div class="mini-stat"><b>${Math.round(enemy.x)},${Math.round(enemy.y)}</b><span>Pos</span></div>`:''}
     </div>
-    ${enemy.hp<=0?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${ensureEnemyLoot(enemy).map(item=>`<div><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity)}</small></span><span><button onclick="takeEnemyLoot('${enemy.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Already looted</span><span></span></div>'}</div></div>`:''}
+    ${enemy.hp<=0?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${ensureEnemyLoot(enemy).map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeEnemyLoot('${enemy.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Already looted</span><span></span></div>'}</div></div>`:''}
     ${dm&&enemy.notes?`<div class="sheet-detail"><h4>DM notes</h4><div class="hint">${escapeHtml(enemy.notes)}</div></div>`:''}
     ${dm&&(enemy.statuses||[]).length?`<div class="pill-row">${normalizeStatuses(enemy.statuses).map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>`:''}
     ${dm?`<div class="action-buttons">
@@ -2780,7 +2809,7 @@ function showChestSheet(chest,x,y){
       <button class="sheet-close" onclick="hideSheet()">×</button>
     </div>
     ${!chest.opened?`<div class="sheet-detail"><h4>Chest</h4><div class="hint">A level ${chest.chestLevel} chest. Open it to roll loot from the chest pool.</div></div>`:''}
-    ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity)}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
+    ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
     <div class="sheet-actions">
       ${!chest.opened?`<button class="primary" onclick="openChest('${chest.uid}')">Open chest</button>`:''}
       ${dm?`<button onclick="setChestLevel('${chest.uid}',1)">Lv1</button><button onclick="setChestLevel('${chest.uid}',2)">Lv2</button><button onclick="setChestLevel('${chest.uid}',3)">Lv3</button><button onclick="resetChestLoot('${chest.uid}')">Reroll</button><button class="danger" onclick="deleteMapIcon('${chest.uid}')">Remove</button>`:''}
@@ -2852,6 +2881,29 @@ function rollLootRarity(source){
   }
   return available[available.length-1];
 }
+function goldDropProfile(source={}){
+  if(source.lootGoldProfile) return source.lootGoldProfile;
+  if(source.boss) return 'boss';
+  return source.chestLevel ? `chest${Math.max(1,Math.min(3,Number(source.chestLevel)||1))}` : 'normal';
+}
+function maybeGoldDrop(source={}){
+  const rules={
+    normal:{chance:.18,min:4,max:18},
+    boss:{chance:.55,min:40,max:180},
+    chest1:{chance:.22,min:6,max:28},
+    chest2:{chance:.42,min:22,max:90},
+    chest3:{chance:.68,min:80,max:260}
+  };
+  const rule=rules[goldDropProfile(source)] || rules.normal;
+  if(Math.random()>rule.chance) return null;
+  const amount=rule.min+Math.floor(Math.random()*(rule.max-rule.min+1));
+  return normalizeLootEntry({
+    kind:'gold',
+    amount,
+    rarity:'Uncommon',
+    description:'Loose coins counted straight into character gold.'
+  });
+}
 function randomLootForSource(source,count=null){
   count=count ?? (source?.boss ? 3 : 1+Math.floor(Math.random()*2));
   const tables=lootTables();
@@ -2861,8 +2913,10 @@ function randomLootForSource(source,count=null){
     const pool=rarity ? tables[rarity] : [];
     const base=pool[Math.floor(Math.random()*pool.length)];
     if(!base) continue;
-    picks.push(normalizeInventoryItem({...base,id:'loot_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+    picks.push(normalizeLootEntry({...base,id:'loot_'+Date.now()+Math.random().toString(36).slice(2,7)}));
   }
+  const gold=maybeGoldDrop(source||{});
+  if(gold) picks.push(gold);
   return picks;
 }
 function randomLootForEnemy(enemy){
@@ -2883,11 +2937,22 @@ function ensureChestLoot(chest){
   if(!chest || chest.kind!=='chest') return [];
   if(chest.lootGenerated) return chest.loot||[];
   const level=Math.max(1,Math.min(3,Number(chest.chestLevel)||1));
-  chest.loot=randomLootForSource({lootWeights:LOOT_RARITY_WEIGHTS['chest'+level]},chestLootCount({...chest,chestLevel:level}));
+  chest.loot=randomLootForSource({lootWeights:LOOT_RARITY_WEIGHTS['chest'+level],lootGoldProfile:'chest'+level,chestLevel:level},chestLootCount({...chest,chestLevel:level}));
   chest.lootGenerated=true;
   broadcast({type:'iconUpdate',icon:chest});
   scheduleSave();
   return chest.loot;
+}
+function addLootToCharacter(ch,item,sourceName='loot'){
+  if(isGoldLoot(item)){
+    const amount=Math.max(1,Math.round(Number(item.amount)||1));
+    ch.gold=Math.max(0,Number(ch.gold)||0)+amount;
+    addChatMessage({kind:'loot',character:ch.name,label:`Took ${amount} gp`,detail:`From ${sourceName}`});
+    return;
+  }
+  ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
+  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${sourceName}`});
 }
 function takeEnemyLoot(uid,itemId){
   const enemy=enemyByUid(uid);
@@ -2896,10 +2961,8 @@ function takeEnemyLoot(uid,itemId){
   const loot=ensureEnemyLoot(enemy);
   const item=loot.find(x=>x.id===itemId);
   if(!item) return;
-  ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
-  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  addLootToCharacter(ch,item,enemy.name);
   enemy.loot=loot.filter(x=>x.id!==itemId);
-  addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${enemy.name}`});
   syncCharacter(ch);
   broadcast({type:'iconUpdate',icon:enemy});
   showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
@@ -2924,10 +2987,8 @@ function takeChestLoot(uid,itemId){
   const loot=ensureChestLoot(chest);
   const item=loot.find(x=>x.id===itemId);
   if(!item) return;
-  ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
-  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  addLootToCharacter(ch,item,chest.name||'chest');
   chest.loot=loot.filter(x=>x.id!==itemId);
-  addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${chest.name||'chest'}`});
   syncCharacter(ch);
   broadcast({type:'iconUpdate',icon:chest});
   showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
