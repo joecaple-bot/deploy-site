@@ -86,6 +86,10 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .item-row button{height:38px;padding:0 9px}
 .item-row select,.item-row input{height:38px}
 .item-row textarea{grid-column:1/-1;min-height:52px;font-size:12px}
+.combine-box{border:1px solid rgba(202,168,107,.45);background:rgba(202,168,107,.08);border-radius:var(--radius);padding:10px;margin-bottom:10px}
+.combine-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.combine-preview{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
+.combine-preview b{color:#fff2d0}
 .equipment-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .equip-row{border:1px solid var(--line);border-radius:var(--radius);padding:9px;background:#111419}
 .equip-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -349,6 +353,14 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
           <button onclick="addInventoryItem()" style="font-size:11px;padding:6px 8px">Add item</button>
         </div>
         <div class="section-body">
+          <div class="combine-box">
+            <div class="combine-grid">
+              <div><label>Combine item A</label><select id="combine-a" onchange="updateCombinePreview()"></select></div>
+              <div><label>Combine item B</label><select id="combine-b" onchange="updateCombinePreview()"></select></div>
+              <button onclick="combineInventoryItems()">Combine</button>
+            </div>
+            <div class="combine-preview" id="combine-preview">Choose two items to suggest an improvised result.</div>
+          </div>
           <div class="item-list" id="inventory-list"></div>
         </div>
       </div>
@@ -1135,6 +1147,7 @@ function equipmentStatText(item){
 function renderInventory(ch=selected()){
   const el=document.getElementById('inventory-list');
   if(!el) return;
+  renderCombineControls(ch);
   el.innerHTML=(ch.inventory||[]).map(item=>`
     <div class="item-row magic ${rarityClass(item.rarity)}" data-inventory-row data-id="${item.id}">
       <div><label>Item</label><input data-inventory-name value="${escapeHtml(item.name)}" placeholder="Rope, key, potion"></div>
@@ -1153,9 +1166,111 @@ function renderInventory(ch=selected()){
     input.addEventListener('change',()=>{syncInventoryToCharacter();renderEquipment();renderLive();scheduleSave()});
   });
 }
+function renderCombineControls(ch=selected()){
+  const a=document.getElementById('combine-a');
+  const b=document.getElementById('combine-b');
+  if(!a||!b) return;
+  const currentA=a.value;
+  const currentB=b.value;
+  const items=ch.inventory||[];
+  const options='<option value="">Choose item</option>'+items.map(item=>`<option value="${item.id}">${escapeHtml(item.name)} (${escapeHtml(item.rarity)})</option>`).join('');
+  a.innerHTML=options;
+  b.innerHTML=options;
+  if(items.some(item=>item.id===currentA)) a.value=currentA;
+  if(items.some(item=>item.id===currentB)) b.value=currentB;
+  updateCombinePreview();
+}
+function itemCraftTags(item={}){
+  const text=`${item.name||''} ${item.description||''} ${item.ability||''} ${item.bonusAction||''}`.toLowerCase();
+  const tags=new Set();
+  const addIf=(tag,words)=>{ if(words.some(w=>text.includes(w))) tags.add(tag); };
+  addIf('binding',['rope','twine','cord','string','wrap','cloth','strap']);
+  addIf('blade',['dagger','knife','blade','sharp','arrowhead','shortblade']);
+  addIf('container',['vial','flask','bottle','pouch','tube','case','goblet']);
+  addIf('trigger',['bell','alarm','chime','spring','lockpick']);
+  addIf('fire',['ember','fire','oil','candle','smoke','flame']);
+  addIf('ritual',['salt','charm','bone','bead','ink','shell','focus','crystal','holy','grave']);
+  addIf('light',['lantern','mirror','glass','crystal','moon','sun']);
+  addIf('metal',['copper','iron','silver','buckle','spike','piton','steel','arrowhead']);
+  addIf('tool',['needle','lockpick','claws','compass','whetstone','mirror','chalk']);
+  addIf('food',['ration','soup','salve','tonic']);
+  if(item.slot) tags.add('wearable');
+  if(item.acBonus) tags.add('guard');
+  return [...tags];
+}
+function strongestRarity(a,b){
+  const rank=ITEM_RARITIES.reduce((out,r,i)=>(out[r]=i,out),{});
+  return rank[a?.rarity||'Common']>=rank[b?.rarity||'Common'] ? (a?.rarity||'Common') : (b?.rarity||'Common');
+}
+function craftCategory(tags){
+  const has=t=>tags.includes(t);
+  if(has('blade')&&has('binding')) return 'weapon';
+  if(has('trigger')&&(has('fire')||has('container')||has('binding'))) return 'trap';
+  if(has('ritual')&&(has('container')||has('light')||has('metal'))) return 'ritual focus';
+  if(has('container')&&(has('fire')||has('food'))) return 'consumable';
+  if(has('tool')||has('binding')||has('metal')) return 'tool';
+  return 'improvised item';
+}
+function mergeItemName(a,b){
+  const tags=[...new Set([...itemCraftTags(a),...itemCraftTags(b)])];
+  const category=craftCategory(tags);
+  const names=[a.name,b.name].map(n=>String(n||'Item').replace(/^(bent|chipped|frayed|cracked|rusty|dented|stale|minor|odd|plain|old)\s+/i,'').trim());
+  if(tags.includes('blade')&&tags.includes('binding')) return `${names[1].includes('Dagger')||names[1].includes('Knife')?names[1]:names[0]} Snare`;
+  if(category==='trap') return `${names[0]} ${names[1]} Trap`;
+  if(category==='ritual focus') return `${names[0]}-Bound ${names[1]}`;
+  if(category==='consumable') return `${names[0]} ${names[1]} Mix`;
+  if(category==='tool') return `${names[0]}-Rigged ${names[1]}`;
+  return `${names[0]} ${names[1]}`;
+}
+function previewCombinedItem(a,b){
+  if(!a||!b||a.id===b.id) return null;
+  const tags=[...new Set([...itemCraftTags(a),...itemCraftTags(b)])];
+  const category=craftCategory(tags);
+  const rarity=strongestRarity(a,b);
+  const name=mergeItemName(a,b);
+  const slot=category==='weapon'||category==='trap'||category==='tool'||category==='consumable'||category==='ritual focus' ? '' : (a.slot||b.slot||'');
+  const acBonus=Math.max(Number(a.acBonus)||0,Number(b.acBonus)||0);
+  const description=`Improvised ${category} made by combining ${a.name} with ${b.name}. Suggested use: DM-approved creative item; may be fragile, one-use, or require a relevant tool/ability check.`;
+  return normalizeInventoryItem({name,qty:1,rarity,slot,acBonus,description});
+}
+function updateCombinePreview(){
+  const ch=selected();
+  const aId=document.getElementById('combine-a')?.value;
+  const bId=document.getElementById('combine-b')?.value;
+  const el=document.getElementById('combine-preview');
+  if(!el||!ch) return;
+  const a=(ch.inventory||[]).find(item=>item.id===aId);
+  const b=(ch.inventory||[]).find(item=>item.id===bId);
+  const item=previewCombinedItem(a,b);
+  if(!item){
+    el.textContent='Choose two different items to suggest an improvised result.';
+    return;
+  }
+  el.innerHTML=`Preview: <b>${escapeHtml(item.name)}</b> (${escapeHtml(item.rarity)}) - ${escapeHtml(item.description)}`;
+}
 function syncInventoryToCharacter(){const ch=selected(); if(ch){ ch.inventory=readInventoryItems(); ch.equipment=readEquipment(); }}
 function addInventoryItem(){syncInventoryToCharacter(); selected().inventory.push(normalizeInventoryItem({name:'New Item',qty:1,rarity:'Common'})); renderInventory(); renderEquipment(); scheduleSave();}
 function removeInventoryItem(id){syncInventoryToCharacter(); selected().inventory=(selected().inventory||[]).filter(item=>item.id!==id); for(const [slot,itemId] of Object.entries(selected().equipment||{})){ if(itemId===id) delete selected().equipment[slot]; } renderInventory(); renderEquipment(); scheduleSave();}
+function combineInventoryItems(){
+  syncInventoryToCharacter();
+  const ch=selected();
+  const aId=document.getElementById('combine-a')?.value;
+  const bId=document.getElementById('combine-b')?.value;
+  const a=(ch.inventory||[]).find(item=>item.id===aId);
+  const b=(ch.inventory||[]).find(item=>item.id===bId);
+  const crafted=previewCombinedItem(a,b);
+  if(!crafted){ toast('Choose two different items'); return; }
+  const ok=confirm(`Create ${crafted.name}? This will consume ${a.name} and ${b.name}.`);
+  if(!ok) return;
+  const used=new Set([a.id,b.id]);
+  ch.inventory=(ch.inventory||[]).filter(item=>!used.has(item.id));
+  ch.inventory.push(crafted);
+  for(const [slot,itemId] of Object.entries(ch.equipment||{})) if(used.has(itemId)) delete ch.equipment[slot];
+  renderInventory(ch);
+  renderEquipment(ch);
+  renderLive();
+  writeStorage(`Crafted ${crafted.name}`);
+}
 function autoEquipFromInventory(){
   syncInventoryToCharacter();
   const ch=selected();
