@@ -533,7 +533,10 @@ const AUDIO_PACKS = {
 };
 const LOOT_RARITY_WEIGHTS = {
   normal:{Common:64,Uncommon:20,Rare:10,'Very Rare':4,Legendary:2},
-  boss:{Common:15,Uncommon:25,Rare:20,'Very Rare':30,Legendary:10}
+  boss:{Common:15,Uncommon:25,Rare:20,'Very Rare':30,Legendary:10},
+  chest1:{Common:78,Uncommon:17,Rare:4,'Very Rare':1,Legendary:0},
+  chest2:{Common:45,Uncommon:35,Rare:15,'Very Rare':4,Legendary:1},
+  chest3:{Common:18,Uncommon:30,Rare:30,'Very Rare':17,Legendary:5}
 };
 let audioState={
   muted:localStorage.getItem('dndAudioMuted')==='1',
@@ -880,6 +883,19 @@ function hydratePlacedIcon(raw={}){
     icon.name=icon.name || icon.label || 'Map pin';
     icon.note=icon.note || icon.notes || '';
     icon.hidden=icon.hidden === true;
+  }
+  if(icon.id==='chest' || icon.kind==='chest'){
+    icon.kind='chest';
+    icon.id='chest';
+    icon.icon=icon.icon || icon.em || '📦';
+    icon.em=icon.icon;
+    icon.name=icon.name || icon.label || 'Loot Chest';
+    icon.label=icon.name;
+    icon.hidden=icon.hidden !== false;
+    icon.chestLevel=Math.max(1,Math.min(3,Number(icon.chestLevel)||1));
+    icon.opened=icon.opened===true;
+    icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeInventoryItem) : [];
+    icon.lootGenerated=icon.lootGenerated===true;
   }
   return icon;
 }
@@ -1694,7 +1710,13 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     draw();
     return;
   }
-  const icon=(!tokenLock && isDM()) ? iconAt(x,y) : null;
+  const clickedIcon=iconAt(x,y);
+  if(clickedIcon && clickedIcon.kind==='chest'){
+    showIconSheet(clickedIcon,screenX,screenY);
+    draw();
+    return;
+  }
+  const icon=(!tokenLock && isDM()) ? clickedIcon : null;
   if(icon && icon.kind!=='enemy'){
     showIconSheet(icon,screenX,screenY);
     draw();
@@ -1725,6 +1747,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     const ic={...selectedMapIcon,x,y,uid:'ic_'+Date.now()+Math.random().toString(36).slice(2,5)};
     if(ic.kind==='enemy') Object.assign(ic,hydratePlacedIcon(ic));
     if(ic.kind==='pin') Object.assign(ic,hydratePlacedIcon(ic));
+    if(ic.id==='chest') Object.assign(ic,hydratePlacedIcon({...ic,kind:'chest',name:`Level ${ic.chestLevel||1} Chest`}));
     placedIcons.push(ic);
     broadcast({type:'icon',icon:ic});
     draw();
@@ -2377,9 +2400,14 @@ function buildIconGrid(){
     const d=document.createElement('div');
     d.className='icon-cell'+(selectedMapIcon.id===ic.id?' sel':'');
     d.innerHTML=`<span class="icon-em">${ic.em}</span><span>${ic.label}${ic.hidden?' 👁':''}</span>`;
-    d.onclick=()=>{ if(!isDM()) return requireDM(); selectedMapIcon=ic; setMode('place'); buildIconGrid(); };
+    d.onclick=()=>{ if(!isDM()) return requireDM(); selectedMapIcon=prepareMapIconForPlacement(ic); setMode('place'); buildIconGrid(); };
     el.appendChild(d);
   }
+}
+function prepareMapIconForPlacement(icon){
+  if(icon.id!=='chest') return icon;
+  const level=Math.max(1,Math.min(3,Number(prompt('Chest level: 1 low, 2 better, 3 spicy','1'))||1));
+  return {...icon,kind:'chest',chestLevel:level,name:`Level ${level} Chest`,label:`Level ${level} Chest`,loot:[],lootGenerated:false,opened:false};
 }
 function createNamedPin(){
   if(!isDM()) return requireDM();
@@ -2719,6 +2747,7 @@ function showEnemySheet(enemy,x,y){
   pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
 }
 function showIconSheet(icon,x,y){
+  if(icon.kind==='chest') return showChestSheet(icon,x,y);
   const pop=document.getElementById('sheet-popup');
   pop.classList.remove('enemy');
   pop.innerHTML=`
@@ -2731,6 +2760,30 @@ function showIconSheet(icon,x,y){
     <div class="sheet-actions">
       <button onclick="renameMapIcon('${icon.uid}')">Rename</button>
       <button class="danger" onclick="deleteMapIcon('${icon.uid}')">Remove</button>
+    </div>`;
+  pop.classList.add('show');
+  const maxX=wrap.clientWidth-pop.offsetWidth-12;
+  const maxY=wrap.clientHeight-pop.offsetHeight-12;
+  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
+  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+}
+function showChestSheet(chest,x,y){
+  chest=hydratePlacedIcon(chest);
+  const dm=isDM();
+  const loot=chest.opened ? ensureChestLoot(chest) : [];
+  const pop=document.getElementById('sheet-popup');
+  pop.classList.remove('enemy');
+  pop.innerHTML=`
+    <div class="sheet-top">
+      <div class="sheet-icon">${chest.opened?'🧰':(chest.icon||chest.em||'📦')}</div>
+      <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest · ${chest.opened?'Opened':'Closed'}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">×</button>
+    </div>
+    ${!chest.opened?`<div class="sheet-detail"><h4>Chest</h4><div class="hint">A level ${chest.chestLevel} chest. Open it to roll loot from the chest pool.</div></div>`:''}
+    ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity)}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
+    <div class="sheet-actions">
+      ${!chest.opened?`<button class="primary" onclick="openChest('${chest.uid}')">Open chest</button>`:''}
+      ${dm?`<button onclick="setChestLevel('${chest.uid}',1)">Lv1</button><button onclick="setChestLevel('${chest.uid}',2)">Lv2</button><button onclick="setChestLevel('${chest.uid}',3)">Lv3</button><button onclick="resetChestLoot('${chest.uid}')">Reroll</button><button class="danger" onclick="deleteMapIcon('${chest.uid}')">Remove</button>`:''}
     </div>`;
   pop.classList.add('show');
   const maxX=wrap.clientWidth-pop.offsetWidth-12;
@@ -2786,9 +2839,9 @@ function lootTables(){
     return acc;
   },{});
 }
-function rollLootRarity(enemy){
+function rollLootRarity(source){
   const tables=lootTables();
-  const weights=enemy?.boss ? LOOT_RARITY_WEIGHTS.boss : LOOT_RARITY_WEIGHTS.normal;
+  const weights=source?.lootWeights || (source?.boss ? LOOT_RARITY_WEIGHTS.boss : LOOT_RARITY_WEIGHTS.normal);
   const available=ITEM_RARITIES.filter(rarity=>tables[rarity]?.length);
   if(!available.length) return null;
   const total=available.reduce((sum,rarity)=>sum+(Number(weights[rarity])||0),0) || available.length;
@@ -2799,18 +2852,21 @@ function rollLootRarity(enemy){
   }
   return available[available.length-1];
 }
-function randomLootForEnemy(enemy){
-  const count=enemy.boss ? 3 : 1+Math.floor(Math.random()*2);
+function randomLootForSource(source,count=null){
+  count=count ?? (source?.boss ? 3 : 1+Math.floor(Math.random()*2));
   const tables=lootTables();
   const picks=[];
   for(let i=0;i<count;i++){
-    const rarity=rollLootRarity(enemy);
+    const rarity=rollLootRarity(source);
     const pool=rarity ? tables[rarity] : [];
     const base=pool[Math.floor(Math.random()*pool.length)];
     if(!base) continue;
     picks.push(normalizeInventoryItem({...base,id:'loot_'+Date.now()+Math.random().toString(36).slice(2,7)}));
   }
   return picks;
+}
+function randomLootForEnemy(enemy){
+  return randomLootForSource(enemy);
 }
 function ensureEnemyLoot(enemy){
   if(!enemy || enemy.lootGenerated) return enemy?.loot||[];
@@ -2819,6 +2875,19 @@ function ensureEnemyLoot(enemy){
   broadcast({type:'iconUpdate',icon:enemy});
   scheduleSave();
   return enemy.loot;
+}
+function chestLootCount(chest){
+  return chest.chestLevel===3 ? 3+Math.floor(Math.random()*2) : chest.chestLevel===2 ? 2+Math.floor(Math.random()*2) : 1+Math.floor(Math.random()*2);
+}
+function ensureChestLoot(chest){
+  if(!chest || chest.kind!=='chest') return [];
+  if(chest.lootGenerated) return chest.loot||[];
+  const level=Math.max(1,Math.min(3,Number(chest.chestLevel)||1));
+  chest.loot=randomLootForSource({lootWeights:LOOT_RARITY_WEIGHTS['chest'+level]},chestLootCount({...chest,chestLevel:level}));
+  chest.lootGenerated=true;
+  broadcast({type:'iconUpdate',icon:chest});
+  scheduleSave();
+  return chest.loot;
 }
 function takeEnemyLoot(uid,itemId){
   const enemy=enemyByUid(uid);
@@ -2835,6 +2904,63 @@ function takeEnemyLoot(uid,itemId){
   broadcast({type:'iconUpdate',icon:enemy});
   showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
   updateAllPanels();
+  scheduleSave();
+}
+function openChest(uid){
+  const chest=mapIconByUid(uid);
+  if(!chest || chest.kind!=='chest') return;
+  chest.opened=true;
+  ensureChestLoot(chest);
+  addChatMessage({kind:'loot',character:'Table',label:`Opened ${chest.name||'chest'}`,detail:`Level ${chest.chestLevel} chest`});
+  broadcast({type:'iconUpdate',icon:chest});
+  showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
+  draw();
+  scheduleSave();
+}
+function takeChestLoot(uid,itemId){
+  const chest=mapIconByUid(uid);
+  const ch=getActiveCharacter();
+  if(!chest || chest.kind!=='chest' || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Loot');
+  const loot=ensureChestLoot(chest);
+  const item=loot.find(x=>x.id===itemId);
+  if(!item) return;
+  ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
+  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  chest.loot=loot.filter(x=>x.id!==itemId);
+  addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${chest.name||'chest'}`});
+  syncCharacter(ch);
+  broadcast({type:'iconUpdate',icon:chest});
+  showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
+  updateAllPanels();
+  scheduleSave();
+}
+function setChestLevel(uid,level){
+  if(!isDM()) return requireDM();
+  const chest=mapIconByUid(uid);
+  if(!chest || chest.kind!=='chest') return;
+  pushDMUndo('set chest level');
+  chest.chestLevel=Math.max(1,Math.min(3,Number(level)||1));
+  chest.name=`Level ${chest.chestLevel} Chest`;
+  chest.label=chest.name;
+  chest.opened=false;
+  chest.loot=[];
+  chest.lootGenerated=false;
+  broadcast({type:'iconUpdate',icon:chest});
+  showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
+  draw();
+  scheduleSave();
+}
+function resetChestLoot(uid){
+  if(!isDM()) return requireDM();
+  const chest=mapIconByUid(uid);
+  if(!chest || chest.kind!=='chest') return;
+  pushDMUndo('reroll chest loot');
+  chest.opened=true;
+  chest.loot=[];
+  chest.lootGenerated=false;
+  ensureChestLoot(chest);
+  broadcast({type:'iconUpdate',icon:chest});
+  showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
   scheduleSave();
 }
 function adjustEnemyHP(uid,delta){
