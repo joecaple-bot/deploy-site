@@ -2940,6 +2940,22 @@ function traderPersonalityFallback(trader){
     rareItemRumor:'Ask me again after I restock. Special pieces do not stay on the table long.'
   };
 }
+function traderContextLine(trader,ch){
+  if(!ch) return 'The trader waits for someone to step forward.';
+  const p=trader.personality||{};
+  const hp=Number(ch.currentHP ?? ch.derived?.HP ?? 0);
+  const maxHP=Math.max(1,Number(ch.derived?.HP)||1);
+  const gold=Math.max(0,Number(ch.gold)||0);
+  const weapon=(ch.weapons||[])[0]?.name || '';
+  const spell=(ch.spells||[])[0]?.name || '';
+  const kit=weapon ? `that ${weapon}` : spell ? `that ${spell}` : 'your kit';
+  if(hp/maxHP<=.3) return `${p.name||'The trader'} eyes your wounds. "You look half-done already. Buy something that keeps you standing."`;
+  if(gold<10) return `${p.name||'The trader'} glances at your purse. "Browsing is free. Buying is the tricky part."`;
+  if(gold>=150) return `${p.name||'The trader'} notices the weight of your coin. "Now there is a customer who can afford the interesting shelf."`;
+  if(/dagger|bow|sword|axe|mace|crossbow|blade/i.test(weapon)) return `${p.name||'The trader'} nods toward ${kit}. "I can match that with something sharper, sturdier, or stranger."`;
+  if(spell) return `${p.name||'The trader'} studies your focus. "Spellwork, is it? I keep a few pieces for careful hands."`;
+  return `${p.name||'The trader'} gives ${ch.name} a quick once-over. "Tell me what problem you are trying to solve."`;
+}
 function parseAIJson(text){
   const raw=String(text||'').trim();
   const match=raw.match(/\{[\s\S]*\}/);
@@ -2969,6 +2985,7 @@ async function generateTraderPersonality(uid){
 Trader type: ${trader.traderType}
 Trader level: ${trader.traderLevel}
 Description: ${trader.description || 'No description'}
+Example customer context: wounded adventurer, low gold, weapon user, spellcaster, wealthy buyer.
 
 Return JSON only:
 {"name":"","title":"","greeting":"","buyLine":"","sellLine":"","rareItemRumor":""}`;
@@ -2997,6 +3014,7 @@ function showTraderSheet(trader,x,y){
   const stock=ensureTraderStock(trader);
   const inventory=(ch?.inventory||[]).slice(0,10);
   const p=trader.personality||null;
+  const contextLine=traderContextLine(trader,ch);
   const pop=document.getElementById('sheet-popup');
   pop.classList.remove('enemy');
   pop.innerHTML=`
@@ -3006,6 +3024,7 @@ function showTraderSheet(trader,x,y){
       <button class="sheet-close" onclick="hideSheet()">×</button>
     </div>
     ${(trader.description||p)?`<div class="sheet-detail"><h4>Context</h4><div class="hint">${escapeHtml(trader.description||'No description')}</div>${p?`<div class="hint" style="margin-top:6px"><b>${escapeHtml(p.greeting||'')}</b><br>${escapeHtml(p.buyLine||'')}<br>${escapeHtml(p.sellLine||'')}</div>`:''}</div>`:''}
+    <div class="sheet-detail"><h4>Dialogue</h4><div class="hint">${escapeHtml(contextLine)}</div></div>
     <div class="mini-stat-row" style="grid-template-columns:1fr">
       <div class="mini-stat"><b>${ch?`${Math.max(0,Number(ch.gold)||0)} gp`:'No character'}</b><span>Your gold</span></div>
     </div>
