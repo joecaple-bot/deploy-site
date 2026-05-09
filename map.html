@@ -501,6 +501,7 @@ const MAP_ICONS = [
   {id:'potion',em:'🧪',label:'Potion',hidden:true},
   {id:'key',em:'🗝️',label:'Key',hidden:true},
   {id:'scroll',em:'📜',label:'Scroll',hidden:true},
+  {id:'trader',em:'💰',label:'Trader',hidden:false,kind:'trader'},
   {id:'trap',em:'🪤',label:'Trap',hidden:true},
   {id:'flag',em:'🚩',label:'Flag',hidden:false},
   {id:'star',em:'⭐',label:'Interest',hidden:false},
@@ -538,6 +539,13 @@ const LOOT_RARITY_WEIGHTS = {
   chest2:{Common:45,Uncommon:35,Rare:15,'Very Rare':4,Legendary:1},
   chest3:{Common:18,Uncommon:30,Rare:30,'Very Rare':17,Legendary:5}
 };
+const TRADER_TYPES = ['General','Arcane','Armorer','Alchemist'];
+const TRADER_LEVEL_WEIGHTS = {
+  1:{Common:70,Uncommon:25,Rare:5,'Very Rare':0,Legendary:0},
+  2:{Common:35,Uncommon:45,Rare:16,'Very Rare':4,Legendary:0},
+  3:{Common:15,Uncommon:35,Rare:35,'Very Rare':12,Legendary:3}
+};
+const RARITY_PRICES = {Common:8,Uncommon:30,Rare:120,'Very Rare':450,Legendary:1500};
 let audioState={
   muted:localStorage.getItem('dndAudioMuted')==='1',
   volume:Number(localStorage.getItem('dndAudioVolume')||0.65),
@@ -917,6 +925,19 @@ function hydratePlacedIcon(raw={}){
     icon.opened=icon.opened===true;
     icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeLootEntry) : [];
     icon.lootGenerated=icon.lootGenerated===true;
+  }
+  if(icon.id==='trader' || icon.kind==='trader'){
+    icon.kind='trader';
+    icon.id='trader';
+    icon.icon=icon.icon || icon.em || '💰';
+    icon.em=icon.icon;
+    icon.traderType=TRADER_TYPES.includes(icon.traderType) ? icon.traderType : 'General';
+    icon.traderLevel=Math.max(1,Math.min(3,Number(icon.traderLevel)||1));
+    icon.name=icon.name || icon.label || `${icon.traderType} Trader`;
+    icon.label=icon.name;
+    icon.hidden=icon.hidden === true;
+    icon.stock=Array.isArray(icon.stock) ? icon.stock.map(normalizeInventoryItem) : [];
+    icon.stockGenerated=icon.stockGenerated===true;
   }
   return icon;
 }
@@ -1398,6 +1419,12 @@ function drawPlacedIcons(){
       ctx.textBaseline='top';
       ctx.fillText(ic.name||ic.label||'Pin',ic.x,ic.y+16);
     }
+    if(ic.kind==='trader'){
+      ctx.font='700 11px Inter, Segoe UI, sans-serif';
+      ctx.fillStyle='#f5d27a';
+      ctx.textBaseline='top';
+      ctx.fillText(`${ic.name||'Trader'} L${ic.traderLevel||1}`,ic.x,ic.y+16);
+    }
     if(ic===dragTarget&&isDragging){
       ctx.beginPath();
       ctx.arc(ic.x,ic.y,18,0,Math.PI*2);
@@ -1732,7 +1759,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     return;
   }
   const clickedIcon=iconAt(x,y);
-  if(clickedIcon && clickedIcon.kind==='chest'){
+  if(clickedIcon && (clickedIcon.kind==='chest' || clickedIcon.kind==='trader')){
     showIconSheet(clickedIcon,screenX,screenY);
     draw();
     return;
@@ -1768,6 +1795,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     const ic={...selectedMapIcon,x,y,uid:'ic_'+Date.now()+Math.random().toString(36).slice(2,5)};
     if(ic.kind==='enemy') Object.assign(ic,hydratePlacedIcon(ic));
     if(ic.kind==='pin') Object.assign(ic,hydratePlacedIcon(ic));
+    if(ic.kind==='trader') Object.assign(ic,hydratePlacedIcon(ic));
     if(ic.id==='chest') Object.assign(ic,hydratePlacedIcon({...ic,kind:'chest',name:`Level ${ic.chestLevel||1} Chest`}));
     placedIcons.push(ic);
     broadcast({type:'icon',icon:ic});
@@ -2431,6 +2459,12 @@ function buildIconGrid(){
   }
 }
 function prepareMapIconForPlacement(icon){
+  if(icon.id==='trader'){
+    const typePrompt=prompt(`Trader type: ${TRADER_TYPES.join(', ')}`,'General') || 'General';
+    const type=TRADER_TYPES.find(t=>t.toLowerCase()===typePrompt.trim().toLowerCase()) || 'General';
+    const level=Math.max(1,Math.min(3,Number(prompt('Trader level: 1 basic, 2 better, 3 high-end','1'))||1));
+    return {...icon,kind:'trader',traderType:type,traderLevel:level,name:`${type} Trader L${level}`,label:`${type} Trader L${level}`,stock:[],stockGenerated:false};
+  }
   if(icon.id!=='chest') return icon;
   const level=Math.max(1,Math.min(3,Number(prompt('Chest level: 1 low, 2 better, 3 spicy','1'))||1));
   return {...icon,kind:'chest',chestLevel:level,name:`Level ${level} Chest`,label:`Level ${level} Chest`,loot:[],lootGenerated:false,opened:false};
@@ -2777,6 +2811,7 @@ function showEnemySheet(enemy,x,y){
 }
 function showIconSheet(icon,x,y){
   if(icon.kind==='chest') return showChestSheet(icon,x,y);
+  if(icon.kind==='trader') return showTraderSheet(icon,x,y);
   const pop=document.getElementById('sheet-popup');
   pop.classList.remove('enemy');
   pop.innerHTML=`
@@ -2813,6 +2848,87 @@ function showChestSheet(chest,x,y){
     <div class="sheet-actions">
       ${!chest.opened?`<button class="primary" onclick="openChest('${chest.uid}')">Open chest</button>`:''}
       ${dm?`<button onclick="setChestLevel('${chest.uid}',1)">Lv1</button><button onclick="setChestLevel('${chest.uid}',2)">Lv2</button><button onclick="setChestLevel('${chest.uid}',3)">Lv3</button><button onclick="resetChestLoot('${chest.uid}')">Reroll</button><button class="danger" onclick="deleteMapIcon('${chest.uid}')">Remove</button>`:''}
+    </div>`;
+  pop.classList.add('show');
+  const maxX=wrap.clientWidth-pop.offsetWidth-12;
+  const maxY=wrap.clientHeight-pop.offsetHeight-12;
+  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
+  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+}
+function traderStockCount(trader){
+  const level=Math.max(1,Math.min(3,Number(trader?.traderLevel)||1));
+  return level===3 ? 9 : level===2 ? 7 : 5;
+}
+function itemMatchesTraderType(item,type='General'){
+  const text=`${item.name||''} ${item.description||''} ${item.slot||''}`.toLowerCase();
+  if(type==='Arcane') return /spell|wand|focus|crystal|scroll|ink|rune|magic|bead|pearl|charm|compass|cloak|ring/.test(text);
+  if(type==='Armorer') return !!item.slot || /armor|helm|boot|glove|shield|blade|dagger|arrow|chestplate|guard|cloak|ring/.test(text);
+  if(type==='Alchemist') return /salve|vial|potion|oil|salt|powder|bead|ration|water|perfume|medicine|herb|smoke|ember/.test(text);
+  return true;
+}
+function traderPrice(item,mode='buy'){
+  const base=RARITY_PRICES[item?.rarity] || RARITY_PRICES.Common;
+  const qty=Math.max(1,Number(item?.qty)||1);
+  const seed=String(item?.name||'item').split('').reduce((sum,ch)=>sum+ch.charCodeAt(0),0);
+  const flavor=0.85 + (seed % 35) / 100;
+  const price=Math.max(1,Math.round(base*qty*flavor));
+  return mode==='sell' ? Math.max(1,Math.floor(price*.4)) : price;
+}
+function randomTraderItem(trader){
+  const tables=lootTables();
+  const level=Math.max(1,Math.min(3,Number(trader?.traderLevel)||1));
+  const type=TRADER_TYPES.includes(trader?.traderType) ? trader.traderType : 'General';
+  const source={lootWeights:TRADER_LEVEL_WEIGHTS[level]};
+  for(let tries=0;tries<18;tries++){
+    const rarity=rollLootRarity(source);
+    const pool=(tables[rarity]||[]).filter(item=>itemMatchesTraderType(item,type));
+    const fallback=tables[rarity]||[];
+    const chosen=(pool.length?pool:fallback)[Math.floor(Math.random()*(pool.length?pool.length:fallback.length))];
+    if(chosen) return normalizeInventoryItem({...chosen,id:'stock_'+Date.now()+Math.random().toString(36).slice(2,7)});
+  }
+  return null;
+}
+function ensureTraderStock(trader){
+  if(!trader || trader.kind!=='trader') return [];
+  if(trader.stockGenerated) return trader.stock||[];
+  const stock=[];
+  const seen=new Set();
+  while(stock.length<traderStockCount(trader)){
+    const item=randomTraderItem(trader);
+    if(!item) break;
+    const key=item.name.toLowerCase();
+    if(seen.has(key) && stock.length>2) continue;
+    seen.add(key);
+    stock.push(item);
+  }
+  trader.stock=stock;
+  trader.stockGenerated=true;
+  broadcast({type:'iconUpdate',icon:trader});
+  scheduleSave();
+  return trader.stock;
+}
+function showTraderSheet(trader,x,y){
+  trader=mapIconByUid(trader.uid) || trader;
+  Object.assign(trader,hydratePlacedIcon(trader));
+  const dm=isDM();
+  const ch=getActiveCharacter();
+  const stock=ensureTraderStock(trader);
+  const inventory=(ch?.inventory||[]).slice(0,10);
+  const pop=document.getElementById('sheet-popup');
+  pop.classList.remove('enemy');
+  pop.innerHTML=`
+    <div class="sheet-top">
+      <div class="sheet-icon">${trader.icon||trader.em||'💰'}</div>
+      <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader · Level ${trader.traderLevel||1}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">×</button>
+    </div>
+    <div class="mini-stat-row" style="grid-template-columns:1fr">
+      <div class="mini-stat"><b>${ch?`${Math.max(0,Number(ch.gold)||0)} gp`:'No character'}</b><span>Your gold</span></div>
+    </div>
+    <div class="sheet-detail"><h4>For sale</h4><div class="compact-list">${stock.map(item=>`<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity)}</small></span><span>${traderPrice(item,'buy')} gp <button onclick="buyTraderItem('${trader.uid}','${item.id}')">Buy</button></span></div>`).join('') || '<div><span>No stock</span><span></span></div>'}</div></div>
+    <div class="sheet-detail"><h4>Sell from inventory</h4><div class="compact-list">${inventory.map(item=>`<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name)} <small>x${item.qty||1}</small></span><span>${traderPrice(item,'sell')} gp <button onclick="sellInventoryItem('${trader.uid}','${item.id}')">Sell</button></span></div>`).join('') || '<div><span>No inventory items to sell</span><span></span></div>'}</div></div>
+    <div class="sheet-actions">
+      ${dm?`<button onclick="setTraderLevel('${trader.uid}',1)">Lv1</button><button onclick="setTraderLevel('${trader.uid}',2)">Lv2</button><button onclick="setTraderLevel('${trader.uid}',3)">Lv3</button><button onclick="cycleTraderType('${trader.uid}')">Type</button><button onclick="rerollTraderStock('${trader.uid}')">Restock</button><button class="danger" onclick="deleteMapIcon('${trader.uid}')">Remove</button>`:''}
     </div>`;
   pop.classList.add('show');
   const maxX=wrap.clientWidth-pop.offsetWidth-12;
@@ -2993,6 +3109,91 @@ function takeChestLoot(uid,itemId){
   broadcast({type:'iconUpdate',icon:chest});
   showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
   updateAllPanels();
+  scheduleSave();
+}
+function buyTraderItem(uid,itemId){
+  const trader=mapIconByUid(uid);
+  const ch=getActiveCharacter();
+  if(!trader || trader.kind!=='trader' || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Shop');
+  const stock=ensureTraderStock(trader);
+  const item=stock.find(x=>x.id===itemId);
+  if(!item) return;
+  const price=traderPrice(item,'buy');
+  if((Number(ch.gold)||0)<price) return showCritOverlay('Not enough gold','roll','Shop');
+  ch.gold=Math.max(0,(Number(ch.gold)||0)-price);
+  ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
+  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  trader.stock=stock.filter(x=>x.id!==itemId);
+  addChatMessage({kind:'loot',character:ch.name,label:`Bought ${item.name}`,detail:`${price} gp at ${trader.name||'trader'}`});
+  syncCharacter(ch);
+  broadcast({type:'iconUpdate',icon:trader});
+  showTraderSheet(trader,worldToScreen(trader.x,trader.y).x,worldToScreen(trader.x,trader.y).y);
+  updateAllPanels();
+  scheduleSave();
+}
+function sellInventoryItem(uid,itemId){
+  const trader=mapIconByUid(uid);
+  const ch=getActiveCharacter();
+  if(!trader || trader.kind!=='trader' || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Shop');
+  const inv=Array.isArray(ch.inventory)?ch.inventory:[];
+  const item=inv.find(x=>x.id===itemId);
+  if(!item) return;
+  const price=traderPrice(item,'sell');
+  ch.gold=Math.max(0,Number(ch.gold)||0)+price;
+  ch.inventory=inv.filter(x=>x.id!==itemId);
+  trader.stock=Array.isArray(trader.stock)?trader.stock:[];
+  trader.stock.push(normalizeInventoryItem({...item,id:'stock_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  trader.stockGenerated=true;
+  addChatMessage({kind:'loot',character:ch.name,label:`Sold ${item.name}`,detail:`${price} gp at ${trader.name||'trader'}`});
+  syncCharacter(ch);
+  broadcast({type:'iconUpdate',icon:trader});
+  showTraderSheet(trader,worldToScreen(trader.x,trader.y).x,worldToScreen(trader.x,trader.y).y);
+  updateAllPanels();
+  scheduleSave();
+}
+function setTraderLevel(uid,level){
+  if(!isDM()) return requireDM();
+  const trader=mapIconByUid(uid);
+  if(!trader || trader.kind!=='trader') return;
+  pushDMUndo('set trader level');
+  trader.traderLevel=Math.max(1,Math.min(3,Number(level)||1));
+  trader.name=`${trader.traderType||'General'} Trader L${trader.traderLevel}`;
+  trader.label=trader.name;
+  trader.stock=[];
+  trader.stockGenerated=false;
+  ensureTraderStock(trader);
+  broadcast({type:'iconUpdate',icon:trader});
+  showTraderSheet(trader,worldToScreen(trader.x,trader.y).x,worldToScreen(trader.x,trader.y).y);
+  draw();
+  scheduleSave();
+}
+function cycleTraderType(uid){
+  if(!isDM()) return requireDM();
+  const trader=mapIconByUid(uid);
+  if(!trader || trader.kind!=='trader') return;
+  pushDMUndo('change trader type');
+  const i=TRADER_TYPES.indexOf(trader.traderType);
+  trader.traderType=TRADER_TYPES[(i+1+TRADER_TYPES.length)%TRADER_TYPES.length];
+  trader.name=`${trader.traderType} Trader L${trader.traderLevel||1}`;
+  trader.label=trader.name;
+  trader.stock=[];
+  trader.stockGenerated=false;
+  ensureTraderStock(trader);
+  broadcast({type:'iconUpdate',icon:trader});
+  showTraderSheet(trader,worldToScreen(trader.x,trader.y).x,worldToScreen(trader.x,trader.y).y);
+  draw();
+  scheduleSave();
+}
+function rerollTraderStock(uid){
+  if(!isDM()) return requireDM();
+  const trader=mapIconByUid(uid);
+  if(!trader || trader.kind!=='trader') return;
+  pushDMUndo('restock trader');
+  trader.stock=[];
+  trader.stockGenerated=false;
+  ensureTraderStock(trader);
+  broadcast({type:'iconUpdate',icon:trader});
+  showTraderSheet(trader,worldToScreen(trader.x,trader.y).x,worldToScreen(trader.x,trader.y).y);
   scheduleSave();
 }
 function setChestLevel(uid,level){
