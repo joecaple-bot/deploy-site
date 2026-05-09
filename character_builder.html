@@ -1154,7 +1154,7 @@ function renderInventory(ch=selected()){
       <div><label>Qty</label><input data-inventory-qty type="number" min="1" value="${item.qty}"></div>
       <div><label>Rarity</label><select data-inventory-rarity>${ITEM_RARITIES.map(r=>`<option ${r===item.rarity?'selected':''}>${r}</option>`).join('')}</select></div>
       <button onclick="removeInventoryItem('${item.id}')">Remove</button>
-      <div><label>Slot</label><select data-inventory-slot><option value="">Backpack</option>${EQUIPMENT_SLOTS.map(slot=>`<option value="${slot}" ${slot===item.slot?'selected':''}>${slot}</option>`).join('')}</select></div>
+      <div><label>Equip slot</label><select data-inventory-slot><option value="">Inventory only</option>${EQUIPMENT_SLOTS.map(slot=>`<option value="${slot}" ${slot===item.slot?'selected':''}>${slot}</option>`).join('')}</select></div>
       <div><label>AC Bonus</label><input data-inventory-ac type="number" value="${item.acBonus}" step="1"></div>
       <div style="grid-column:span 2"><label>Stat Bonuses</label><div class="grid" style="grid-template-columns:repeat(6,1fr);gap:5px">${ABILITIES.map(ab=>`<input title="${ab}" data-inventory-stat-${ab.toLowerCase()} type="number" value="${item.statBonuses?.[ab]||0}" step="1">`).join('')}</div></div>
       <input data-inventory-ability value="${escapeHtml(item.ability||'')}" placeholder="Granted ability, e.g. Darkvision">
