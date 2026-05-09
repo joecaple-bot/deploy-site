@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabletop Fog of War</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b20;--panel2:#20242b;--line:#343b46;--text:#f5f1e8;--muted:#a8b0bb;--accent:#48b37f;--gold:#caa86b;--info:#66a7d8;--radius:8px;--shadow:0 24px 90px rgba(0,0,0,.42)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:#0f1115;color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+button,input{font:inherit}
+button{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);color:var(--text);padding:10px 12px;cursor:pointer}
+button:hover{background:#2a3039}
+button.primary{background:rgba(72,179,127,.18);border-color:rgba(72,179,127,.7);color:#dcffe9}
+input{width:100%;border:1px solid var(--line);border-radius:var(--radius);background:#111419;color:var(--text);padding:10px}
+.hero{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;gap:28px;align-items:center;padding:34px;max-width:1220px;margin:0 auto}
+.title h1{font-size:clamp(42px,7vw,84px);line-height:.94;letter-spacing:0;margin-bottom:16px}
+.title p{font-size:17px;color:var(--muted);line-height:1.55;max-width:620px}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:24px;max-width:560px}
+.actions button{font-size:15px;text-align:left;padding:16px}
+.actions button.starter{position:relative;border-color:rgba(202,168,107,.78);background:rgba(202,168,107,.12)}
+.actions b{display:block;font-size:18px;margin-bottom:4px}
+.actions span{display:block;font-size:12px;color:var(--muted);line-height:1.4}
+.starter-note{display:inline-block;margin-top:18px;border:1px solid rgba(202,168,107,.55);background:rgba(202,168,107,.1);color:#fff2d0;border-radius:999px;padding:7px 10px;font-size:12px}
+.panel{background:linear-gradient(180deg,rgba(32,36,43,.98),rgba(24,27,32,.98));border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.panel h2{font-size:15px;margin-bottom:12px}
+.join{display:grid;gap:10px}
+.map-preview{position:relative;height:360px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:radial-gradient(circle at 24% 28%,rgba(72,179,127,.32),transparent 18%),radial-gradient(circle at 78% 65%,rgba(102,167,216,.28),transparent 20%),linear-gradient(135deg,#20242b,#111419)}
+.gridline{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:32px 32px}
+.token{position:absolute;font-size:30px;text-shadow:0 3px 12px rgba(0,0,0,.65)}
+.token.one{left:33%;top:38%}.token.two{left:62%;top:54%}.token.three{left:73%;top:24%}
+.fog{position:absolute;inset:0;background:radial-gradient(circle at 35% 43%,transparent 0 86px,rgba(10,12,18,.86) 128px),rgba(10,12,18,.7)}
+.hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+@media(max-width:880px){.hero{grid-template-columns:1fr;padding:22px}.actions{grid-template-columns:1fr}.map-preview{height:260px}}
+</style>
+</head>
+<body>
+<main class="hero">
+  <section class="title">
+    <h1>Fog of War Tabletop</h1>
+    <p>Build characters, join live campaigns, move tokens, roll dice, track enemies, and run animated hazards from one fast browser table.</p>
+    <div class="starter-note">New player? Build a character first, then join the map.</div>
+    <div class="actions">
+      <button class="primary" onclick="location.href='campaign_manager.html#create'"><b>New Campaign</b><span>Start a fresh, separate live room.</span></button>
+      <button onclick="location.href='campaign_manager.html'"><b>Join Session</b><span>Enter an existing campaign room.</span></button>
+      <button class="starter" onclick="goBuilder()"><b>Build Character</b><span>Start here if you are new. Pick a preset or make your hero by hand.</span></button>
+      <button onclick="goMap()"><b>Open Last Map</b><span>Return to your current campaign board.</span></button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Quick Join</h2>
+    <div class="join">
+      <input id="campaign" placeholder="Campaign ID, e.g. test-party">
+      <button class="primary" onclick="join()">Join campaign</button>
+      <button onclick="location.href='campaign_manager.html#create'">Create new campaign</button>
+    </div>
+    <p class="hint">Everyone using the same campaign ID shares map state, chat, fog, enemies, and effects.</p>
+    <div class="map-preview" style="margin-top:16px">
+      <div class="gridline"></div><div class="token one">&#129497;</div><div class="token two">&#128121;</div><div class="token three">&#128293;</div><div class="fog"></div>
+    </div>
+  </section>
+</main>
+<script>
+const KEY='fogOfWarDnDCampaignId.v1';
+function current(){return localStorage.getItem(KEY)||'default-campaign'}
+function campaignQuery(id=current()){return '?campaign='+encodeURIComponent(id)}
+function goMap(){location.href='map.html'+campaignQuery()}
+function goBuilder(){location.href='character_builder.html'+campaignQuery()}
+function join(){const id=(document.getElementById('campaign').value||current()).trim()||'default-campaign';localStorage.setItem(KEY,id);location.href='campaign_manager.html?campaign='+encodeURIComponent(id)}
+</script>
+</body>
+</html>

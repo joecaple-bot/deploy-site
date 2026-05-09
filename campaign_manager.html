@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campaign Manager</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b20;--panel2:#20242b;--line:#343b46;--text:#f5f1e8;--muted:#a8b0bb;--accent:#48b37f;--danger:#e06b62;--info:#66a7d8;--radius:8px;--shadow:0 24px 90px rgba(0,0,0,.45)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+button,input{font:inherit}
+button{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);color:var(--text);padding:9px 11px;cursor:pointer}
+button:hover{background:#2a3039}
+button.primary{background:rgba(72,179,127,.18);border-color:rgba(72,179,127,.7);color:#dcffe9}
+button.danger{border-color:rgba(224,107,98,.7);color:#ffd9d6}
+input{width:100%;border:1px solid var(--line);border-radius:var(--radius);background:#111419;color:var(--text);padding:10px}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+#app{max-width:1120px;margin:0 auto;padding:24px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.top h1{font-size:24px;margin-right:auto}
+.grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+.panel:target{border-color:rgba(72,179,127,.85);box-shadow:0 0 0 2px rgba(72,179,127,.18),var(--shadow)}
+.panel h2{font-size:15px;margin-bottom:12px}
+.form{display:grid;gap:11px}
+.campaign{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:11px;margin-bottom:9px;background:#14181d}
+.campaign.active{border-color:rgba(72,179,127,.75);background:rgba(72,179,127,.1)}
+.name{font-size:14px;font-weight:800}
+.meta{font-size:11px;color:var(--muted);margin-top:3px}
+.actions{display:flex;gap:6px}
+.actions button{font-size:11px;padding:6px 8px}
+.hint{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
+#toast{position:fixed;right:18px;bottom:18px;background:#14251c;border:1px solid rgba(72,179,127,.7);color:#dcffe9;border-radius:var(--radius);padding:10px 12px;font-size:12px;display:none}
+#toast.show{display:block}
+@media(max-width:850px){.grid{grid-template-columns:1fr}.top{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <h1>Campaign Manager</h1>
+    <button onclick="location.href='index.html'">Home</button>
+    <button class="primary" onclick="focusCreate()">New campaign</button>
+    <button onclick="goMap()">Open map</button>
+    <button onclick="goBuilder()">Characters</button>
+  </div>
+  <div class="grid">
+    <section class="panel" id="create">
+      <h2>Create Campaign</h2>
+      <div class="form">
+        <div><label>Campaign name</label><input id="new-name" placeholder="Friday Night Dungeon"></div>
+        <div><label>Campaign ID / invite code</label><input id="new-id" placeholder="friday-dungeon"></div>
+        <div><label>Password</label><input id="new-password" type="password" placeholder="Optional but recommended"></div>
+        <button class="primary" onclick="createCampaign()">Create campaign</button>
+      </div>
+      <p class="hint">This password gates entry in the app. Because this is still browser-only with a public Supabase key, it is not a substitute for real account security yet.</p>
+    </section>
+    <section class="panel">
+      <h2>Join Live Session</h2>
+      <div class="form" style="margin-bottom:14px">
+        <div><label>Campaign ID</label><input id="join-id" placeholder="test-party"></div>
+        <div><label>Password</label><input id="join-password" type="password" placeholder="Campaign password"></div>
+        <button class="primary" onclick="joinCampaign()">Join campaign</button>
+      </div>
+      <h2>Known Campaigns</h2>
+      <div id="campaign-list"></div>
+      <p class="hint">Characters, map state, fog, chat, enemies, and effects are stored separately per campaign ID.</p>
+    </section>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
+const CLOUD_TABLE='campaign_states';
+const CLOUD_CAMPAIGN_KEY='fogOfWarDnDCampaignId.v1';
+const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
+let campaigns=[];
+function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,42)||'campaign'}
+async function sha256(text){
+  if(!text) return '';
+  const data=new TextEncoder().encode(text);
+  const hash=await crypto.subtle.digest('SHA-256',data);
+  return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function defaultState(id,name,passwordHash){
+  return {
+    version:1,
+    campaign:{id,name,passwordHash,createdAt:new Date().toISOString()},
+    mapImageData:'',
+    placedIcons:[],
+    areaEffects:[],
+    enemyTemplates:[],
+    selectedEnemyId:null,
+    myCharacters:[],
+    activeCharacterId:null,
+    revealRadius:30,
+    turnOrder:[],
+    activeTurnIndex:0,
+    chatMessages:[],
+    fogRevealData:''
+  };
+}
+async function createCampaign(){
+  const name=document.getElementById('new-name').value.trim()||'New Campaign';
+  const id=slugify(document.getElementById('new-id').value||name);
+  const pass=document.getElementById('new-password').value;
+  const passwordHash=await sha256(pass);
+  const state=defaultState(id,name,passwordHash);
+  const {error}=await client.from(CLOUD_TABLE).upsert({id,state,updated_by:'campaign-manager',updated_at:new Date().toISOString()});
+  if(error){toast('Could not create campaign');return}
+  if(passwordHash) localStorage.setItem(unlockKey(id),passwordHash);
+  localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);
+  toast('Campaign created');
+  await loadCampaigns();
+  location.href='map.html?campaign='+encodeURIComponent(id);
+}
+async function joinCampaign(idArg='',passArg=''){
+  const id=slugify(idArg||document.getElementById('join-id').value);
+  const pass=passArg||document.getElementById('join-password').value;
+  const {data,error}=await client.from(CLOUD_TABLE).select('state').eq('id',id).maybeSingle();
+  if(error||!data?.state){toast('Campaign not found');return}
+  const needed=data.state.campaign?.passwordHash||'';
+  const given=await sha256(pass);
+  if(needed&&given!==needed){toast('Wrong password');return}
+  if(needed) localStorage.setItem(unlockKey(id),needed);
+  localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);
+  location.href='map.html?campaign='+encodeURIComponent(id);
+}
+function unlockKey(id){return `${CAMPAIGN_UNLOCK_PREFIX}:${id}`}
+async function loadCampaigns(){
+  const {data}=await client.from(CLOUD_TABLE).select('id,state,updated_at').order('updated_at',{ascending:false}).limit(30);
+  campaigns=data||[];
+  renderCampaigns();
+}
+function renderCampaigns(){
+  const current=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'';
+  const el=document.getElementById('campaign-list');
+  el.innerHTML=campaigns.map(row=>{
+    const meta=row.state?.campaign||{};
+    const locked=!!meta.passwordHash&&!localStorage.getItem(unlockKey(row.id));
+    return `<div class="campaign ${row.id===current?'active':''}">
+      <div><div class="name">${escapeHtml(meta.name||row.id)} ${locked?'🔒':''}</div><div class="meta">${escapeHtml(row.id)} · ${new Date(row.updated_at).toLocaleString()}</div></div>
+      <div class="actions"><button onclick="prepareJoin('${row.id}')">Join</button><button onclick="openMap('${row.id}')">Map</button></div>
+    </div>`;
+  }).join('')||'<div class="hint">No campaigns yet. Create the first one.</div>';
+}
+function prepareJoin(id){document.getElementById('join-id').value=id;document.getElementById('join-password').focus()}
+function focusCreate(){location.hash='create';document.getElementById('new-name').focus()}
+function openMap(id){localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);location.href='map.html?campaign='+encodeURIComponent(id)}
+function goMap(){const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';location.href='map.html?campaign='+encodeURIComponent(id)}
+function goBuilder(){const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';location.href='character_builder.html?campaign='+encodeURIComponent(id)}
+function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+const requested=new URLSearchParams(location.search).get('campaign');
+if(requested){
+  const id=slugify(requested);
+  document.getElementById('join-id').value=id;
+  localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);
+}
+if(location.hash==='#create') setTimeout(()=>document.getElementById('new-name').focus(),80);
+loadCampaigns();
+</script>
+</body>
+</html>
