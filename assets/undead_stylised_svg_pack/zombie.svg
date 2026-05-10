@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Zombie</title>
+<desc>Stylised SVG monster icon: Zombie</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M151 181c-21 59-9 144 28 189 28 34 90 34 118 0 39-47 50-131 28-189-38 27-136 27-174 0z" fill="#6d8768"/>
+<path d="M166 189c41 30 143 30 184 0l18 197c-66 33-151 33-217 0z" fill="#76654d"/>
+<path d="M199 225l48-20-9 75-52 18zM297 214l44 31-24 84-49-22z" fill="#9b9074" stroke-width="7"/>
+<path d="M203 386l-24 74M288 386l31 74" fill="none" stroke="#6d8768" stroke-width="30"/>
+<path d="M161 465c35-21 67-14 86 20M297 485c20-34 53-41 89-19" fill="none"/>
+<path d="M187 99c0-43 32-70 75-70s76 28 76 70c0 41-32 72-76 72s-75-31-75-72z" fill="#829a78"/>
+<path d="M206 52c30-28 83-24 111 3" fill="none" stroke="#211f24" stroke-width="15"/>
+<path d="M229 112c-8-10 3-25 17-15 11 9 1 27-13 22zM293 112c8-10-3-25-17-15-11 9-1 27 13 22z" fill="#d8d360" stroke="none"/>
+<path d="M246 128c10 8 22 8 32 0M230 150c23 12 52 12 76 0" fill="none" stroke-width="7"/>
+<path d="M164 228c-50 25-83 70-93 124M349 228c47 29 72 78 76 130" fill="none" stroke="#6d8768" stroke-width="27"/>
+<path d="M67 351c-11 24 0 46 22 57M425 358c18 19 17 42-3 58" fill="none" stroke="#6d8768" stroke-width="24"/>
+
+</g>
+</svg>

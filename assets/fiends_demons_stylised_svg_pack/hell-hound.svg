@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Hell Hound</title>
+<desc>Stylised fantasy SVG icon: Hell Hound</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M112 286c14-66 66-109 144-109 78 0 130 43 144 109l-29 100c-51 49-171 49-222 0z" fill="#3a1d1d"/>
+<path d="M172 184l-39-72 81 39M340 184l39-72-81 39" fill="#2b1717"/>
+<path d="M172 255c24-24 48-24 72 0M312 255c24-24 48-24 72 0" fill="none" stroke="#ffcc46" stroke-width="9"/>
+<path d="M248 280l-25 34h50z" fill="#211f24" stroke="none"/>
+<path d="M190 335c42 26 113 26 155 0" fill="none" stroke="#211f24" stroke-width="9"/>
+<path d="M203 339l-15 42M321 339l16 42" fill="none" stroke="#f7dfbd" stroke-width="8"/>
+<path d="M134 374l-40 92M206 390l-16 80M316 390l18 80M393 374l31 92" fill="none" stroke="#3a1d1d" stroke-width="28"/>
+<path d="M78 474c35-22 66-15 86 17M175 491c18-26 47-30 74-13M315 478c27-17 56-13 74 13M402 491c20-32 51-39 86-17" fill="none"/>
+<path d="M108 294c-52 5-87 32-105 80 57-11 101 1 132 35" fill="#3a1d1d"/>
+<path d="M399 287c41-30 73-72 75-132 39 72 28 135-27 190" fill="none" stroke="#3a1d1d" stroke-width="20"/>
+<path d="M135 140c10-47 38-74 82-80-8 40-29 71-65 94M379 140c-10-47-38-74-82-80 8 40 29 71 65 94" fill="#f36c21"/>
+<path d="M149 411c28 14 64 14 106 1M308 412c38 12 73 12 104-1" fill="none" stroke="#f36c21" stroke-width="8" opacity=".6"/>
+
+</g>
+</svg>

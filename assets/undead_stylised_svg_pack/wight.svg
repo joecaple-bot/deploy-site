@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Wight</title>
+<desc>Stylised SVG monster icon: Wight</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M145 153c-32 83-39 191-72 337 69-46 128-37 183-1 55-36 114-45 183 1-33-146-40-254-72-337-46 43-176 43-222 0z" fill="#354033"/>
+<path d="M184 189c49 40 133 40 182 0l-27 221c-53 36-135 36-188 0z" fill="#4e5d49"/>
+<path d="M187 90c0-44 33-70 69-70s69 26 69 70c0 41-29 68-69 68s-69-27-69-68z" fill="#bdb397"/>
+<path d="M200 38c35-26 77-26 112 0" fill="none" stroke="#211f24" stroke-width="15"/>
+<path d="M231 104h1M285 104h1" fill="none" stroke="#f2df63" stroke-width="14"/>
+<path d="M257 116l-15 29h31z" fill="#211f24" stroke="none"/>
+<path d="M227 146h60" fill="none" stroke-width="7"/>
+<path d="M152 206c-42 44-64 91-68 149M366 206c42 44 64 91 68 149" fill="none" stroke="#354033" stroke-width="29"/>
+<path d="M84 355c-19 19-18 42-2 57M434 355c19 19 18 42 2 57" fill="none" stroke="#bdb397" stroke-width="19"/>
+<path d="M348 54l24 29-75 304-24-7z" fill="#5b3d27"/>
+<path d="M355 20l38 83-72-17z" fill="#d8d0bd"/>
+
+</g>
+</svg>

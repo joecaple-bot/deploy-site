@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Imp</title>
+<desc>Stylised fantasy SVG icon: Imp</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M177 205c-47-50-88-67-125-47 11 52 49 86 104 97z" fill="#7f1d26"/>
+<path d="M335 205c47-50 88-67 125-47-11 52-49 86-104 97z" fill="#7f1d26"/>
+<path d="M179 195c-28 49-26 128 7 176 29 42 92 42 121 0 33-48 35-127 7-176-39 25-96 25-135 0z" fill="#a83232"/>
+<path d="M203 370l-27 84M292 370l38 84" fill="none" stroke="#a83232" stroke-width="24"/>
+<path d="M157 462c28-22 58-15 75 16M306 478c20-31 50-39 81-17" fill="none"/>
+<path d="M182 114c0-45 34-76 76-76s76 31 76 76c0 47-34 78-76 78s-76-31-76-78z" fill="#b93b36"/>
+<path d="M207 62l-31-47 57 23M305 62l31-47-57 23" fill="#c9b06a"/>
+<path d="M226 121c14-13 29-13 44 0M286 121c14-13 29-13 44 0" fill="none" stroke-width="8"/>
+<path d="M239 139h1M301 139h1" stroke="#ffe16a" stroke-width="13"/>
+<path d="M258 151l-16 26h32z" fill="#211f24" stroke="none"/>
+<path d="M229 173c27 17 61 17 88 0" fill="none" stroke-width="7"/>
+<path d="M179 245c-45 30-70 75-74 128M316 245c45 30 70 75 74 128" fill="none" stroke="#a83232" stroke-width="22"/>
+<path d="M105 373l-26 27M390 373l26 27" fill="none" stroke="#a83232" stroke-width="10"/>
+<path d="M256 384c41 19 64 51 45 84-15 27-58 16-50-15" fill="none" stroke="#a83232" stroke-width="14"/>
+
+</g>
+</svg>

@@ -1,0 +1,24 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Bearded Devil</title>
+<desc>Stylised fantasy SVG icon: Bearded Devil</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M166 187c-28 58-24 142 8 194 27 44 103 44 130 0 32-52 36-136 8-194-41 29-105 29-146 0z" fill="#8a3b2e"/>
+<path d="M199 381l-24 83M291 381l33 83" fill="none" stroke="#8a3b2e" stroke-width="26"/>
+<path d="M157 471c31-23 63-15 82 18M305 489c20-33 52-41 84-18" fill="none"/>
+<path d="M181 101c0-47 34-79 75-79s75 32 75 79c0 47-34 80-75 80s-75-33-75-80z" fill="#9b4937"/>
+<path d="M209 64l-51-51 76 24M303 64l51-51-76 24" fill="#c7aa67"/>
+<path d="M223 116c16-13 33-13 49 0M288 116c16-13 33-13 49 0" fill="none" stroke-width="8"/>
+<path d="M241 136h1M306 136h1" stroke="#ffda62" stroke-width="12"/>
+<path d="M259 148l-16 28h33z" fill="#211f24" stroke="none"/>
+<path d="M225 171c29 18 67 18 97 0" fill="none" stroke-width="7"/>
+<path d="M223 183c-6 35 1 62 21 81M276 183c8 34 3 61-16 82M244 184c-1 39 7 69 24 92" fill="none" stroke="#211f24" stroke-width="8"/>
+<path d="M166 226c-43 34-72 82-82 143M312 226c42 34 72 82 82 143" fill="none" stroke="#8a3b2e" stroke-width="24"/>
+<path d="M84 369c-18 16-22 36-9 57M394 369c18 16 22 36 9 57" fill="none" stroke="#9b4937" stroke-width="18"/>
+<path d="M408 72l29 23-134 316-25-11z" fill="#6b4a2d"/>
+<path d="M419 38l55 39-56 36z" fill="#d5c293"/>
+<path d="M199 242c26 24 78 27 114 1" fill="none" stroke="#c3684d" stroke-width="7" opacity=".65"/>
+
+</g>
+</svg>

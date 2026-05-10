@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Mimic</title>
+<desc>Stylised fantasy SVG icon: Mimic</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M92 196h327v187c0 38-31 69-69 69H161c-38 0-69-31-69-69z" fill="#7a4a2b"/>
+<path d="M80 141c25-43 60-72 108-83h160c43 12 72 42 86 83l-34 103H109z" fill="#8b552f"/>
+<path d="M80 141h434M109 244h291M161 452h189" fill="none" stroke="#211f24"/>
+<path d="M113 251c54 58 236 58 291 0" fill="#f3e6c3"/>
+<path d="M130 253l22 62 24-52 26 68 28-67 28 70 28-70 28 67 26-68 24 52 22-62" fill="#f3e6c3" stroke-width="8"/>
+<path d="M165 143l-17 44M236 143l-11 45M305 143l12 45M374 143l18 44" fill="none" stroke="#b47a42" stroke-width="8"/>
+<path d="M188 198c-7-18 6-36 27-36s35 18 28 36M310 198c-7-18 6-36 27-36s35 18 28 36" fill="none" stroke="#211f24" stroke-width="8"/>
+<circle cx="215" cy="184" r="9" fill="#f1d25f" stroke="none"/>
+<circle cx="337" cy="184" r="9" fill="#f1d25f" stroke="none"/>
+<path d="M39 213c40 1 72 23 99 65M473 213c-40 1-72 23-99 65" fill="none" stroke="#7a4a2b" stroke-width="21"/>
+<path d="M34 210l-19-24M43 216l-31 4M480 210l19-24M471 216l31 4" fill="none" stroke="#7a4a2b" stroke-width="10"/>
+<rect x="221" y="118" width="69" height="42" rx="8" fill="#c8a24a"/>
+
+</g>
+</svg>

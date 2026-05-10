@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Skeleton</title>
+<desc>Stylised SVG monster icon: Skeleton</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M178 190c-24 49-21 116 6 156 22 32 90 32 112 0 28-41 31-108 7-156-38 22-87 22-125 0z" fill="#ded2ae"/>
+<path d="M212 217h80M199 257h106M207 297h90M252 205v135" fill="none"/>
+<path d="M204 346l-24 92M286 346l35 92" fill="none" stroke="#ded2ae" stroke-width="24"/>
+<path d="M170 446c27-21 56-12 70 18M301 464c18-30 49-38 78-16" fill="none"/>
+<path d="M193 88c0-42 32-67 72-67s72 25 72 67c0 32-17 57-47 69v25h-67v-25c-30-12-30-37-30-69z" fill="#eadfbd"/>
+<path d="M229 100c-14-14-2-35 17-26 15 8 8 33-9 33zM288 100c14-14 2-35-17-26-15 8-8 33 9 33zM258 118l-16 30h31z" fill="#211f24" stroke="none"/>
+<path d="M226 164h62M240 156v23M258 156v28M277 156v23" fill="none" stroke-width="6"/>
+<path d="M174 213c-41 30-66 73-82 125M310 213c38 33 57 77 62 128" fill="none" stroke="#ded2ae" stroke-width="23"/>
+<path d="M68 309c39-22 77-16 105 9v66c0 43-35 72-71 83-36-11-71-40-71-83v-66z" fill="#52606a"/>
+<path d="M101 323v145M53 361c31-17 70-17 104 0" fill="none" stroke="#9eabb3" stroke-width="7"/>
+<path d="M343 65l21 23-76 300-24-7z" fill="#6b4931"/>
+<path d="M351 30l35 78-66-15z" fill="#d8d0ba"/>
+
+</g>
+</svg>

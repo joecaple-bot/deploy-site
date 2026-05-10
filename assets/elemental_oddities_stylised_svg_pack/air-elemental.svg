@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Air Elemental</title>
+<desc>Stylised fantasy SVG icon: Air Elemental</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M256 71c66 18 111 66 111 128 0 59-39 91-92 95 45 19 78 51 76 96-2 58-60 92-143 68 53-8 80-34 78-65-2-32-35-47-83-48-69-2-121-38-124-94-4-77 64-123 147-104-52 10-83 37-81 75 2 35 36 55 83 55 61 0 103-26 103-71 0-47-40-80-75-135z" fill="#d8eef3"/>
+<path d="M111 208c47-27 105-27 170 0M124 284c79 32 155 28 227-14M151 386c70 38 143 35 217-14" fill="none" stroke="#8fcbd8" stroke-width="13"/>
+<path d="M192 213c14-10 29-10 43 0M287 213c14-10 29-10 43 0" fill="none" stroke="#35515b" stroke-width="8"/>
+<path d="M223 251c28 17 58 17 88 0" fill="none" stroke="#35515b" stroke-width="8"/>
+<path d="M73 335c37-25 73-28 108-11M329 114c43 9 79 31 109 67" fill="none" stroke="#eefcff" stroke-width="10" opacity=".85"/>
+
+</g>
+</svg>

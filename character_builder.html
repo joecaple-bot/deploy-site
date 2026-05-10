@@ -69,6 +69,14 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .icons{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
 .icon-btn{height:38px;font-size:23px;border-color:transparent;background:#111419}
 .icon-btn.active{border-color:var(--info);background:rgba(102,167,216,.18)}
+.asset-picker{border:1px solid var(--line);border-radius:var(--radius);background:#111418;padding:8px;margin-top:8px}
+.asset-picker summary{cursor:pointer;font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.asset-tools{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:7px}
+.asset-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-height:200px;overflow:auto;margin-top:7px}
+.asset-cell{border:1px solid var(--line);border-radius:7px;background:#0d1014;padding:5px;cursor:pointer;text-align:center;color:var(--muted);font-size:9px}
+.asset-cell.sel{border-color:var(--accent);background:rgba(202,168,107,.13);color:var(--text)}
+.asset-cell img{width:44px;height:44px;object-fit:contain;display:block;margin:0 auto 3px}
+.token-thumb{width:42px;height:42px;object-fit:contain;display:block}
 .stats{display:grid;grid-template-columns:repeat(6,minmax(80px,1fr));gap:9px}
 .stat{border:1px solid var(--line);border-radius:var(--radius);padding:8px;background:#111419}
 .stat-top{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px}
@@ -260,6 +268,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
             <div class="span-2">
               <label>Icon</label>
               <div class="icons" id="icons"></div>
+              <div id="asset-picker"></div>
             </div>
           </div>
         </div>
@@ -390,6 +399,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets_manifest.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
@@ -493,6 +503,7 @@ const SPELL_SLOT_LEVELS=[1,2,3,4,5,6,7,8,9];
 let state={version:1,mapImageData:'',placedIcons:[],myCharacters:[],activeCharacterId:null,revealRadius:30,turnOrder:[],activeTurnIndex:0,fogRevealData:''};
 let selectedId=null;
 let selectedIcon='🧙';
+let selectedTokenArt='';
 let saveTimer=null;
 let cloudClient=null;
 let cloudReady=false;
@@ -585,6 +596,32 @@ function hslToRgb(h,s,l){
   const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;
   return [hue2rgb(p,q,h+1/3),hue2rgb(p,q,h),hue2rgb(p,q,h-1/3)].map(v=>Math.round(v*255));
 }
+function assetManifest(){return Array.isArray(window.DND_ASSET_MANIFEST)?window.DND_ASSET_MANIFEST:[]}
+function assetFolders(){return [...new Set(assetManifest().map(item=>item.folder||'Root'))].sort((a,b)=>a.localeCompare(b))}
+function tokenThumbHtml(ch){return ch?.tokenArt?`<img class="token-thumb" src="${escapeHtml(ch.tokenArt)}" alt="">`:escapeHtml(ch?.icon||'🧙')}
+function renderAssetPicker(currentPath=selectedTokenArt){
+  const el=document.getElementById('asset-picker');
+  if(!el) return;
+  const folders=assetFolders();
+  if(!folders.length){el.innerHTML='<div class="muted" style="margin-top:8px">No Git asset manifest found. Emoji will be used.</div>';return;}
+  const currentFolder=assetManifest().find(item=>item.path===currentPath)?.folder||folders[0];
+  const items=assetManifest().filter(item=>item.folder===currentFolder);
+  el.innerHTML=`
+    <details class="asset-picker">
+      <summary>☰ Git art override ${currentPath?'on':'off'}</summary>
+      <div class="asset-tools">
+        <select data-asset-folder>${folders.map(folder=>`<option value="${escapeHtml(folder)}" ${folder===currentFolder?'selected':''}>${escapeHtml(folder)}</option>`).join('')}</select>
+        <select data-asset-item>${items.map(item=>`<option value="${escapeHtml(item.path)}" ${item.path===currentPath?'selected':''}>${escapeHtml(item.name)} (${Math.ceil((item.bytes||0)/1024)}kb)</option>`).join('')}</select>
+        <button type="button" data-asset-clear>Emoji</button>
+      </div>
+      <div class="asset-grid">${items.map(item=>`<button type="button" class="asset-cell ${item.path===currentPath?'sel':''}" data-asset-path="${escapeHtml(item.path)}"><img src="${escapeHtml(item.path)}" alt=""><span>${escapeHtml(item.name)}</span></button>`).join('')}</div>
+    </details>`;
+  const choose=path=>{selectedTokenArt=path;renderAssetPicker(path);renderLive();scheduleSave();};
+  el.querySelector('[data-asset-folder]')?.addEventListener('change',e=>{const first=assetManifest().find(item=>item.folder===e.target.value);choose(first?.path||'');});
+  el.querySelector('[data-asset-item]')?.addEventListener('change',e=>choose(e.target.value));
+  el.querySelector('[data-asset-clear]')?.addEventListener('click',()=>choose(''));
+  el.querySelectorAll('[data-asset-path]').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.assetPath||'')));
+}
 function hydrateCharacter(raw={}){
   const hasCurrentHP=raw.currentHP!=null||raw.derived?.HP!=null;
   const character={
@@ -602,6 +639,7 @@ function hydrateCharacter(raw={}){
     derived:{},
     position:{x:raw.position?.x??raw.x??null,y:raw.position?.y??raw.y??null},
     icon:raw.icon||raw.em||'🧙',
+    tokenArt:raw.tokenArt||'',
     color:raw.color||randomColor(),
     gold:Math.max(0,Number(raw.gold)||0),
     currentHP:Number(raw.currentHP??raw.derived?.HP??0),
@@ -719,6 +757,7 @@ function setup(){
 }
 function fillForm(ch){
   selectedIcon=ch.icon;
+  selectedTokenArt=ch.tokenArt||'';
   document.getElementById('name').value=ch.name;
   const knownRace=!!RACE_DEFS[ch.race];
   const knownClass=!!CLASS_DEFS[ch.class];
@@ -739,6 +778,7 @@ function fillForm(ch){
   document.getElementById('notes').value=ch.notes||'';
   for(const ab of ABILITIES) document.getElementById('stat-'+ab).value=ch.stats[ab]||10;
   renderIconButtons();
+  renderAssetPicker(selectedTokenArt);
   renderSkills(ch);
   renderLive();
   renderActionItems(ch);
@@ -767,6 +807,7 @@ function readFormFor(existing=null){
     skills:readSkills(),
     position:existing?.position||{x:null,y:null},
     icon:selectedIcon,
+    tokenArt:selectedTokenArt||'',
     color:document.getElementById('color').value,
     overrides:{
       AC:document.getElementById('manual-ac').value,
@@ -830,7 +871,7 @@ function renderList(){
   const list=document.getElementById('character-list');
   list.innerHTML=state.myCharacters.map(ch=>`
     <div class="char-card ${ch.id===selectedId?'active':''}" onclick="selectCharacter('${ch.id}')">
-      <div class="avatar">${ch.icon}</div>
+      <div class="avatar">${tokenThumbHtml(ch)}</div>
       <div><div class="name">${escapeHtml(ch.name)}</div><div class="meta">L${ch.level} ${ch.race} ${ch.class}</div></div>
       <div class="tiny">${ch.currentHP}/${ch.derived.HP}</div>
     </div>`).join('');
@@ -855,7 +896,7 @@ function renderLive(){
   const sheetAbilities=[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class']),...(ch.abilities||[]).map(a=>a.name),...(ch.bonusActions||[]).map(a=>a.name),...gearAbilities];
   document.getElementById('traits').innerHTML=sheetAbilities.map(t=>`<span class="pill on">${escapeHtml(t)}</span>`).join('');
   document.getElementById('preview').innerHTML=`
-    <div class="sheet-hero"><div class="sheet-icon">${ch.icon}</div><div><div class="sheet-title">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div></div>
+    <div class="sheet-hero"><div class="sheet-icon">${tokenThumbHtml(ch)}</div><div><div class="sheet-title">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div></div>
     <div class="sheet-stats">
       <div class="sheet-box"><b>${ch.currentHP}/${d.HP}</b><span>HP</span></div>
       <div class="sheet-box"><b>${d.AC}</b><span>AC</span></div>

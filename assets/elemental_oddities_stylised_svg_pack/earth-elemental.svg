@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Earth Elemental</title>
+<desc>Stylised fantasy SVG icon: Earth Elemental</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M151 167l49-67 91-32 79 55 42 111-28 129-89 76-119-19-71-93z" fill="#7a6446"/>
+<path d="M196 101l40 88-85-22M291 68l-11 111 90-56M151 167l80 92-126 68M412 234l-122 33 94 96M176 420l55-161 64 180" fill="none" stroke="#4c3f2f" stroke-width="9"/>
+<path d="M199 236c20-18 42-18 63 0M319 236c-20-18-42-18-63 0" fill="none" stroke="#211f24" stroke-width="9"/>
+<path d="M219 317c34 21 77 20 112-2" fill="none" stroke="#211f24" stroke-width="9"/>
+<path d="M122 287l-69 40 31 52 70-29M394 284l67 43-34 52-68-34" fill="#6b553b"/>
+<path d="M170 418l-37 66h83M306 435l58 49h-92" fill="#6b553b"/>
+<path d="M236 188l-20 62M308 166l-48 68M332 285l-59 86" fill="none" stroke="#a88d62" stroke-width="8" opacity=".65"/>
+
+</g>
+</svg>

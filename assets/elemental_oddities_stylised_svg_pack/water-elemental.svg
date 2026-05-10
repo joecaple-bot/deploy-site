@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Water Elemental</title>
+<desc>Stylised fantasy SVG icon: Water Elemental</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M256 31c74 81 132 158 132 256 0 91-58 153-132 153s-132-62-132-153c0-98 58-175 132-256z" fill="#2d9fd8"/>
+<path d="M176 265c36-28 70-31 104-7 29 20 56 15 86-15" fill="none" stroke="#b9f3ff" stroke-width="14" opacity=".85"/>
+<path d="M157 320c44 27 94 31 150 10 30-11 56-27 78-47" fill="none" stroke="#b9f3ff" stroke-width="12" opacity=".75"/>
+<path d="M197 153c31-48 56-82 59-85 31 35 63 77 87 125" fill="none" stroke="#77dfff" stroke-width="10" opacity=".55"/>
+<path d="M202 226c-18-13-43-3-48 21M311 226c18-13 43-3 48 21" fill="none" stroke="#11425c" stroke-width="8"/>
+<path d="M233 280c22 20 55 20 76 0" fill="none" stroke="#11425c" stroke-width="8"/>
+<path d="M145 372c-42 7-71 32-85 65 43-13 79-11 108 8M367 372c42 7 71 32 85 65-43-13-79-11-108 8" fill="#2d9fd8"/>
+
+</g>
+</svg>

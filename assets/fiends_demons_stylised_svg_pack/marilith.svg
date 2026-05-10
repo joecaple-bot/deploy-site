@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Marilith</title>
+<desc>Stylised fantasy SVG icon: Marilith</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M174 154c-32 67-22 143 25 188 32 30 82 30 114 0 47-45 57-121 25-188-40 31-124 31-164 0z" fill="#9d2d3a"/>
+<path d="M188 342c-57 17-85 52-81 99 43-21 82-20 118 2-38 10-57 31-56 63 54-22 111-24 171-2-4-40-24-62-60-66 43-21 87-20 132 3 4-46-25-81-87-99z" fill="#7d2034"/>
+<path d="M188 99c0-48 35-80 68-80s68 32 68 80c0 44-29 74-68 74s-68-30-68-74z" fill="#c36d69"/>
+<path d="M205 50c37-33 75-33 112 0" fill="none" stroke="#211f24" stroke-width="14"/>
+<path d="M211 58l-40-52 65 27M301 58l40-52-65 27" fill="#d1b46d"/>
+<path d="M223 114c15-11 29-11 44 0M286 114c15-11 29-11 44 0" fill="none" stroke-width="7"/>
+<path d="M239 131h1M301 131h1" stroke="#ffe06f" stroke-width="10"/>
+<path d="M229 153c27 20 61 20 88 0" fill="none" stroke-width="7"/>
+<path d="M171 214c-48-35-91-49-130-43M180 244c-55 3-99 23-132 62M186 279c-49 39-76 84-81 137" fill="none" stroke="#9d2d3a" stroke-width="21"/>
+<path d="M341 214c48-35 91-49 130-43M332 244c55 3 99 23 132 62M326 279c49 39 76 84 81 137" fill="none" stroke="#9d2d3a" stroke-width="21"/>
+<path d="M37 169l-27-22M47 306l-34 3M105 416l-18 32M475 169l27-22M465 306l34 3M407 416l18 32" fill="none" stroke="#c36d69" stroke-width="12"/>
+<path d="M183 358c53 29 115 30 177 1" fill="none" stroke="#d9777a" stroke-width="7" opacity=".6"/>
+
+</g>
+</svg>

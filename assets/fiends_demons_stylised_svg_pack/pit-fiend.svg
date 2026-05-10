@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Pit Fiend</title>
+<desc>Stylised fantasy SVG icon: Pit Fiend</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M128 183c-57-71-109-94-157-65 15 82 72 137 157 155z" fill="#6f1b26"/>
+<path d="M384 183c57-71 109-94 157-65-15 82-72 137-157 155z" fill="#6f1b26"/>
+<path d="M148 170c-40 83-34 187 17 249 40 48 142 48 182 0 51-62 57-166 17-249-52 38-212 38-104 0z" fill="#8f2a2f"/>
+<path d="M185 204c59 43 173 43 232 0l-45 225c-79 42-178 42-257 0z" fill="#a83a33"/>
+<path d="M199 418l-27 71M310 418l34 71" fill="none" stroke="#8f2a2f" stroke-width="31"/>
+<path d="M145 493c41-27 80-14 103 21M318 514c24-35 63-48 104-21" fill="none"/>
+<path d="M176 91c0-55 38-91 80-91s80 36 80 91c0 54-36 89-80 89s-80-35-80-89z" fill="#9d3835"/>
+<path d="M208 43l-67-63 94 28M304 43l67-63-94 28" fill="#d3b56d"/>
+<path d="M222 111c18-15 37-15 57 0M293 111c20-15 39-15 57 0" fill="none" stroke-width="9"/>
+<path d="M241 131h1M314 131h1" stroke="#ffe36c" stroke-width="13"/>
+<path d="M258 146l-17 31h36z" fill="#211f24" stroke="none"/>
+<path d="M220 173c38 26 84 26 122 0" fill="none" stroke-width="8"/>
+<path d="M144 262c-51 38-80 95-88 170M368 262c51 38 80 95 88 170" fill="none" stroke="#8f2a2f" stroke-width="29"/>
+<path d="M56 432l-37 33M456 432l37 33" fill="none" stroke="#8f2a2f" stroke-width="13"/>
+<path d="M253 414c55 29 74 66 45 93-25 23-61-5-36-27" fill="none" stroke="#6f1b26" stroke-width="18"/>
+<path d="M219 239c34 24 88 24 122 0M199 300c49 31 126 31 175 0" fill="none" stroke="#d76d58" stroke-width="8" opacity=".6"/>
+
+</g>
+</svg>

@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Fire Elemental</title>
+<desc>Stylised fantasy SVG icon: Fire Elemental</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M256 31c51 80 41 119 7 168 74-40 113-3 111 67-1 52-30 95-70 121 31-67-10-102-44-129 13 54-17 95-56 124 13-45-7-73-36-111-39 47-49 128 12 181-75-26-119-85-119-163 0-87 64-113 90-182 18 38 21 64 9 98 55-43 79-92 96-174z" fill="#f36c21"/>
+<path d="M246 191c49 48 68 89 50 139-10 30-36 53-66 64 15-39 0-65-25-94-16 36-12 62 16 92-48-19-76-55-78-101-2-50 31-81 53-120 8 24 9 43 1 65 29-20 41-48 49-45z" fill="#ffd166" stroke-width="8"/>
+<path d="M153 111c25 50 18 83-12 124M348 132c34 42 36 86 12 133M194 394c36 20 82 20 123 1" fill="none" stroke="#9d2f1f" stroke-width="9" opacity=".65"/>
+
+</g>
+</svg>

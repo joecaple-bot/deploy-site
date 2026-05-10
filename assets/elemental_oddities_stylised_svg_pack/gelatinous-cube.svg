@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Gelatinous Cube</title>
+<desc>Stylised fantasy SVG icon: Gelatinous Cube</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M107 124l93-54h205v267l-93 85H107z" fill="#76e4c7" opacity=".78"/>
+<path d="M107 124h205v298H107z" fill="#5fd8bd" opacity=".6"/>
+<path d="M312 124l93-54v267l-93 85z" fill="#36bfae" opacity=".55"/>
+<path d="M107 124l93-54h205M312 124l93-54M312 422l93-85M107 422h205V124H107z" fill="none"/>
+<circle cx="184" cy="224" r="24" fill="#d8fff5" opacity=".55" stroke-width="6"/>
+<circle cx="263" cy="310" r="34" fill="#d8fff5" opacity=".42" stroke-width="6"/>
+<path d="M161 355c48 25 102 26 164 0" fill="none" stroke="#15574f" stroke-width="8" opacity=".55"/>
+<path d="M190 171l-33-25M247 175l31-29" fill="none" stroke="#15574f" stroke-width="7" opacity=".65"/>
+<path d="M217 269l-42 35 50 24" fill="none" stroke="#f3efe0" stroke-width="8" opacity=".65"/>
+<path d="M289 210l45-18-8 48" fill="none" stroke="#f3efe0" stroke-width="8" opacity=".65"/>
+
+</g>
+</svg>

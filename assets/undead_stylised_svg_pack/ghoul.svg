@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Ghoul</title>
+<desc>Stylised SVG monster icon: Ghoul</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M150 198c-23 76 9 153 60 185 31 19 80 17 107-7 48-43 67-122 45-180-48 31-114 32-212 2z" fill="#85877c"/>
+<path d="M215 212c-12 52-9 95 5 137M291 212c15 50 13 94-3 136" fill="none" stroke="#53554d" stroke-width="7"/>
+<path d="M204 373l-39 88M307 373l46 88" fill="none" stroke="#85877c" stroke-width="31"/>
+<path d="M132 469c39-24 78-16 101 18M312 487c25-34 63-42 102-18" fill="none"/>
+<path d="M167 104c0-47 36-76 89-76s91 30 91 78c0 44-37 74-91 74s-89-31-89-76z" fill="#99998d"/>
+<path d="M207 98c19-13 38-9 50 8M311 98c-19-13-38-9-50 8" fill="none" stroke-width="8"/>
+<path d="M232 121h1M286 121h1" fill="none" stroke="#eed366" stroke-width="15"/>
+<path d="M256 130l-17 28h34z" fill="#211f24" stroke="none"/>
+<path d="M218 162c31 23 75 23 104 0" fill="none"/>
+<path d="M233 168l-13 34M286 168l16 34" fill="none" stroke="#eee0bd" stroke-width="8"/>
+<path d="M151 229c-52 35-79 79-92 132M361 229c53 37 80 82 92 136" fill="none" stroke="#85877c" stroke-width="28"/>
+<path d="M59 361l-29 33M68 363l-2 44M79 362l24 36M453 365l29 31M444 365l2 43M433 365l-25 35" fill="none" stroke="#85877c" stroke-width="11"/>
+
+</g>
+</svg>

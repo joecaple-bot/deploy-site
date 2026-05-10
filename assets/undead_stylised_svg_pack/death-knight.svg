@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Death Knight</title>
+<desc>Stylised SVG monster icon: Death Knight</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M139 162c-34 93-48 225-67 329 71-47 132-40 184 0 52-40 113-47 184 0-19-104-33-236-67-329-50 48-184 48-234 0z" fill="#1e2832"/>
+<path d="M171 179c54 44 116 44 170 0l-17 214c-48 40-128 40-176 0z" fill="#303a42"/>
+<path d="M176 196l36-24 31 68-45 32zM324 172l36 24-32 76-45-32z" fill="#4a5964"/>
+<path d="M206 395l-17 80M305 395l19 80" fill="none" stroke="#303a42" stroke-width="27"/>
+<path d="M164 480c30-23 64-16 86 17M303 497c22-33 56-40 86-17" fill="none"/>
+<path d="M184 89c0-43 33-69 72-69s72 26 72 69c0 42-32 68-72 68s-72-26-72-68z" fill="#12171d"/>
+<path d="M195 83l-13-47 42 26 32-43 32 43 42-26-13 47z" fill="#202a33"/>
+<path d="M222 109l29-5M290 109l-29-5M226 140h60" fill="none" stroke="#70d9ff" stroke-width="8"/>
+<path d="M145 212c-45 47-68 103-71 164M367 212c45 47 68 103 71 164" fill="none" stroke="#303a42" stroke-width="29"/>
+<path d="M74 376c-19 18-18 42 0 58M438 376c19 18 18 42 0 58" fill="none" stroke="#303a42" stroke-width="21"/>
+<path d="M386 40l31 56-36 380h-29l13-380z" fill="#78cdeb"/>
+<path d="M386 40l31 56h-52z" fill="#bdefff"/>
+<path d="M209 289h94M221 323h72M236 357h40" fill="none" stroke="#60727b" stroke-width="8"/>
+<path d="M229 330l27-22 28 22-12 43h-31z" fill="#11161c"/>
+
+</g>
+</svg>

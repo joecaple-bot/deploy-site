@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Succubus</title>
+<desc>Stylised fantasy SVG icon: Succubus</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="474" rx="124" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M146 188c-43-56-84-80-123-62 6 66 48 113 115 131z" fill="#6d1830"/>
+<path d="M366 188c43-56 84-80 123-62-6 66-48 113-115 131z" fill="#6d1830"/>
+<path d="M178 188c-24 61-16 142 28 185 29 28 83 28 112 0 44-43 52-124 28-185-40 25-128 25-168 0z" fill="#a72d4a"/>
+<path d="M208 374l-25 88M303 374l28 88" fill="none" stroke="#a72d4a" stroke-width="24"/>
+<path d="M164 468c30-20 62-12 79 18M306 486c17-30 49-38 80-18" fill="none"/>
+<path d="M188 104c0-45 33-75 68-75s68 30 68 75c0 43-29 72-68 72s-68-29-68-72z" fill="#c77a86"/>
+<path d="M207 46c35-28 80-28 112 1" fill="none" stroke="#211f24" stroke-width="14"/>
+<path d="M211 61l-37-52 61 28M301 61l37-52-61 28" fill="#2b1721"/>
+<path d="M225 113c14-10 28-10 42 0M286 113c14-10 28-10 42 0" fill="none" stroke-width="7"/>
+<path d="M239 129h1M301 129h1" stroke="#f6e1a0" stroke-width="10"/>
+<path d="M231 153c24 19 55 19 80 0" fill="none" stroke-width="7"/>
+<path d="M240 156l-6 23M294 156l7 23" stroke="#fff2dd" stroke-width="5"/>
+<path d="M178 227c-39 35-64 86-69 145M346 227c39 35 64 86 69 145" fill="none" stroke="#a72d4a" stroke-width="23"/>
+<path d="M109 372c-15 15-17 32-6 48M415 372c15 15 17 32 6 48" fill="none" stroke="#c77a86" stroke-width="16"/>
+<path d="M253 383c45 24 66 61 40 86-23 22-54-8-30-26" fill="none" stroke="#6d1830" stroke-width="14"/>
+<path d="M208 206c31 25 80 25 111 0" fill="none" stroke="#f2b0bd" stroke-width="7" opacity=".55"/>
+
+</g>
+</svg>

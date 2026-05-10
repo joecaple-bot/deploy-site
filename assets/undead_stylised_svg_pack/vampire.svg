@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Vampire</title>
+<desc>Stylised SVG monster icon: Vampire</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M146 170c-42 73-79 201-101 316 69-50 143-55 211-4 68-51 142-46 211 4-22-115-59-243-101-316-47 54-173 54-220 0z" fill="#111116"/>
+<path d="M113 184c38 67 86 117 143 148 57-31 105-81 143-148l-53 252c-55-41-161-41-216 0z" fill="#7d1d29"/>
+<path d="M183 190c51 45 113 45 164 0l-23 210c-45 30-113 30-158 0z" fill="#202026"/>
+<path d="M199 400l-16 75M313 400l18 75" fill="none" stroke="#111116" stroke-width="25"/>
+<path d="M160 479c30-19 63-13 82 16M309 495c20-29 53-35 83-16" fill="none"/>
+<path d="M191 94c0-42 32-69 65-69s65 27 65 69c0 39-28 66-65 66s-65-27-65-66z" fill="#ded8c8"/>
+<path d="M200 56c30-41 88-41 112 0-36-13-77-13-112 0z" fill="#111116"/>
+<path d="M224 111c15-11 31-9 42 5M287 116c11-14 27-16 42-5" fill="none" stroke-width="7"/>
+<path d="M238 126h1M294 126h1" fill="none" stroke="#7d1d29" stroke-width="10"/>
+<path d="M228 146c26 18 65 18 91 0" fill="none" stroke-width="7"/>
+<path d="M244 153l-6 25M282 153l7 25" fill="none" stroke="#fff4df" stroke-width="5"/>
+<path d="M172 212c-37 49-51 100-48 160M340 212c37 49 51 100 48 160" fill="none" stroke="#111116" stroke-width="25"/>
+<path d="M124 372c-15 10-21 22-22 37M388 372c15 10 21 22 22 37" fill="none" stroke="#ded8c8" stroke-width="16"/>
+<circle cx="256" cy="191" r="13" fill="#8b1e2d"/>
+
+</g>
+</svg>

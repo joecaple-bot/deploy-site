@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Lich</title>
+<desc>Stylised SVG monster icon: Lich</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="476" rx="118" ry="18" fill="#211f24" opacity=".18" stroke="none"/>
+<path d="M134 151c-35 94-49 216-66 340 70-47 132-41 188 1 56-42 118-48 188-1-17-124-31-246-66-340-47 55-191 55-238 0z" fill="#2b2345"/>
+<path d="M181 190c53 42 116 42 169 0l-23 214c-46 35-108 35-154 0z" fill="#161622"/>
+<path d="M188 93c0-43 33-69 68-69s68 26 68 69c0 42-30 68-68 68s-68-26-68-68z" fill="#d8ceac"/>
+<path d="M196 56l22-35 20 29 18-35 18 35 20-29 22 35-9 31H205z" fill="#c6a245"/>
+<path d="M230 105h1M286 105h1" fill="none" stroke="#78e871" stroke-width="15"/>
+<path d="M257 118l-16 29h32z" fill="#211f24" stroke="none"/>
+<path d="M226 151h62M240 143v25M258 143v30M276 143v25" fill="none" stroke-width="6"/>
+<path d="M147 210c-45 48-69 105-72 167M365 210c45 48 69 105 72 167" fill="none" stroke="#2b2345" stroke-width="29"/>
+<path d="M75 377c-18 18-18 41-2 58M437 377c18 18 18 41 2 58" fill="none" stroke="#d8ceac" stroke-width="18"/>
+<path d="M102 66l25 27-4 374H94z" fill="#5b3b22"/>
+<path d="M112 34l35 34-16 45H85L69 68z" fill="#c6a245"/>
+<path d="M112 69c-18 2-18 24 0 31 18-7 18-29 0-31z" fill="#211f24" stroke="none"/>
+<path d="M393 321c35-24 69 5 56 44-12 37-61 42-78 6-10-22 0-41 22-50z" fill="#78e871" opacity=".75" stroke="none"/>
+
+</g>
+</svg>

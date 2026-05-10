@@ -1,0 +1,15 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<title>Will O Wisp</title>
+<desc>Stylised fantasy SVG icon: Will O Wisp</desc>
+<rect width="512" height="512" fill="none"/>
+<g stroke="#211f24" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="256" cy="472" rx="122" ry="20" fill="#211f24" opacity=".16" stroke="none"/>
+<path d="M256 42c48 68 43 103 17 145 55-24 91 14 83 71-5 41-33 73-67 91 17-45-6-77-36-101 8 49-18 82-52 105 7-34-9-58-30-86-37 44-30 100 19 136-64-18-105-64-105-126 0-72 49-93 74-145 11 26 13 45 7 68 42-34 67-79 90-158z" fill="#9efcff" opacity=".9"/>
+<path d="M256 150c35 31 50 65 41 99-7 26-30 47-57 57 12-29 0-51-18-72-15 25-12 47 9 68-40-15-61-43-60-79 1-36 26-59 44-87 5 19 4 34-3 48 28-19 39-41 44-34z" fill="#e9ffff" opacity=".95" stroke-width="8"/>
+<circle cx="227" cy="238" r="9" fill="#12343d" stroke="none"/>
+<circle cx="285" cy="238" r="9" fill="#12343d" stroke="none"/>
+<path d="M231 278c22 13 49 13 72 0" fill="none" stroke="#12343d" stroke-width="7"/>
+<path d="M119 188c33-40 74-56 122-48M363 176c36 11 65 36 87 74M111 334c35 24 72 31 112 20M344 358c42-3 72-20 92-51" fill="none" stroke="#cfffff" stroke-width="11" opacity=".8"/>
+
+</g>
+</svg>
