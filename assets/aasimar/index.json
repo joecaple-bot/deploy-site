@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Aasimar",
+    "race": "Aasimar",
+    "class": "Base",
+    "path": "races/aasimar/aasimar.svg"
+  },
+  {
+    "name": "Aasimar Barbarian",
+    "race": "Aasimar",
+    "class": "Barbarian",
+    "path": "races/aasimar/aasimar-barbarian.svg"
+  },
+  {
+    "name": "Aasimar Bard",
+    "race": "Aasimar",
+    "class": "Bard",
+    "path": "races/aasimar/aasimar-bard.svg"
+  },
+  {
+    "name": "Aasimar Cleric",
+    "race": "Aasimar",
+    "class": "Cleric",
+    "path": "races/aasimar/aasimar-cleric.svg"
+  },
+  {
+    "name": "Aasimar Druid",
+    "race": "Aasimar",
+    "class": "Druid",
+    "path": "races/aasimar/aasimar-druid.svg"
+  },
+  {
+    "name": "Aasimar Fighter",
+    "race": "Aasimar",
+    "class": "Fighter",
+    "path": "races/aasimar/aasimar-fighter.svg"
+  },
+  {
+    "name": "Aasimar Monk",
+    "race": "Aasimar",
+    "class": "Monk",
+    "path": "races/aasimar/aasimar-monk.svg"
+  },
+  {
+    "name": "Aasimar Paladin",
+    "race": "Aasimar",
+    "class": "Paladin",
+    "path": "races/aasimar/aasimar-paladin.svg"
+  },
+  {
+    "name": "Aasimar Ranger",
+    "race": "Aasimar",
+    "class": "Ranger",
+    "path": "races/aasimar/aasimar-ranger.svg"
+  },
+  {
+    "name": "Aasimar Rogue",
+    "race": "Aasimar",
+    "class": "Rogue",
+    "path": "races/aasimar/aasimar-rogue.svg"
+  },
+  {
+    "name": "Aasimar Sorcerer",
+    "race": "Aasimar",
+    "class": "Sorcerer",
+    "path": "races/aasimar/aasimar-sorcerer.svg"
+  },
+  {
+    "name": "Aasimar Warlock",
+    "race": "Aasimar",
+    "class": "Warlock",
+    "path": "races/aasimar/aasimar-warlock.svg"
+  },
+  {
+    "name": "Aasimar Wizard",
+    "race": "Aasimar",
+    "class": "Wizard",
+    "path": "races/aasimar/aasimar-wizard.svg"
+  },
+  {
+    "name": "Aasimar Artificer",
+    "race": "Aasimar",
+    "class": "Artificer",
+    "path": "races/aasimar/aasimar-artificer.svg"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Bugbear",
+    "race": "Bugbear",
+    "class": "Base",
+    "path": "races/bugbear/bugbear.svg"
+  },
+  {
+    "name": "Bugbear Barbarian",
+    "race": "Bugbear",
+    "class": "Barbarian",
+    "path": "races/bugbear/bugbear-barbarian.svg"
+  },
+  {
+    "name": "Bugbear Bard",
+    "race": "Bugbear",
+    "class": "Bard",
+    "path": "races/bugbear/bugbear-bard.svg"
+  },
+  {
+    "name": "Bugbear Cleric",
+    "race": "Bugbear",
+    "class": "Cleric",
+    "path": "races/bugbear/bugbear-cleric.svg"
+  },
+  {
+    "name": "Bugbear Druid",
+    "race": "Bugbear",
+    "class": "Druid",
+    "path": "races/bugbear/bugbear-druid.svg"
+  },
+  {
+    "name": "Bugbear Fighter",
+    "race": "Bugbear",
+    "class": "Fighter",
+    "path": "races/bugbear/bugbear-fighter.svg"
+  },
+  {
+    "name": "Bugbear Monk",
+    "race": "Bugbear",
+    "class": "Monk",
+    "path": "races/bugbear/bugbear-monk.svg"
+  },
+  {
+    "name": "Bugbear Paladin",
+    "race": "Bugbear",
+    "class": "Paladin",
+    "path": "races/bugbear/bugbear-paladin.svg"
+  },
+  {
+    "name": "Bugbear Ranger",
+    "race": "Bugbear",
+    "class": "Ranger",
+    "path": "races/bugbear/bugbear-ranger.svg"
+  },
+  {
+    "name": "Bugbear Rogue",
+    "race": "Bugbear",
+    "class": "Rogue",
+    "path": "races/bugbear/bugbear-rogue.svg"
+  },
+  {
+    "name": "Bugbear Sorcerer",
+    "race": "Bugbear",
+    "class": "Sorcerer",
+    "path": "races/bugbear/bugbear-sorcerer.svg"
+  },
+  {
+    "name": "Bugbear Warlock",
+    "race": "Bugbear",
+    "class": "Warlock",
+    "path": "races/bugbear/bugbear-warlock.svg"
+  },
+  {
+    "name": "Bugbear Wizard",
+    "race": "Bugbear",
+    "class": "Wizard",
+    "path": "races/bugbear/bugbear-wizard.svg"
+  },
+  {
+    "name": "Bugbear Artificer",
+    "race": "Bugbear",
+    "class": "Artificer",
+    "path": "races/bugbear/bugbear-artificer.svg"
+  }
+]

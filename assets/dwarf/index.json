@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Dwarf",
+    "race": "Dwarf",
+    "class": "Base",
+    "path": "races/dwarf/dwarf.svg"
+  },
+  {
+    "name": "Dwarf Barbarian",
+    "race": "Dwarf",
+    "class": "Barbarian",
+    "path": "races/dwarf/dwarf-barbarian.svg"
+  },
+  {
+    "name": "Dwarf Bard",
+    "race": "Dwarf",
+    "class": "Bard",
+    "path": "races/dwarf/dwarf-bard.svg"
+  },
+  {
+    "name": "Dwarf Cleric",
+    "race": "Dwarf",
+    "class": "Cleric",
+    "path": "races/dwarf/dwarf-cleric.svg"
+  },
+  {
+    "name": "Dwarf Druid",
+    "race": "Dwarf",
+    "class": "Druid",
+    "path": "races/dwarf/dwarf-druid.svg"
+  },
+  {
+    "name": "Dwarf Fighter",
+    "race": "Dwarf",
+    "class": "Fighter",
+    "path": "races/dwarf/dwarf-fighter.svg"
+  },
+  {
+    "name": "Dwarf Monk",
+    "race": "Dwarf",
+    "class": "Monk",
+    "path": "races/dwarf/dwarf-monk.svg"
+  },
+  {
+    "name": "Dwarf Paladin",
+    "race": "Dwarf",
+    "class": "Paladin",
+    "path": "races/dwarf/dwarf-paladin.svg"
+  },
+  {
+    "name": "Dwarf Ranger",
+    "race": "Dwarf",
+    "class": "Ranger",
+    "path": "races/dwarf/dwarf-ranger.svg"
+  },
+  {
+    "name": "Dwarf Rogue",
+    "race": "Dwarf",
+    "class": "Rogue",
+    "path": "races/dwarf/dwarf-rogue.svg"
+  },
+  {
+    "name": "Dwarf Sorcerer",
+    "race": "Dwarf",
+    "class": "Sorcerer",
+    "path": "races/dwarf/dwarf-sorcerer.svg"
+  },
+  {
+    "name": "Dwarf Warlock",
+    "race": "Dwarf",
+    "class": "Warlock",
+    "path": "races/dwarf/dwarf-warlock.svg"
+  },
+  {
+    "name": "Dwarf Wizard",
+    "race": "Dwarf",
+    "class": "Wizard",
+    "path": "races/dwarf/dwarf-wizard.svg"
+  },
+  {
+    "name": "Dwarf Artificer",
+    "race": "Dwarf",
+    "class": "Artificer",
+    "path": "races/dwarf/dwarf-artificer.svg"
+  }
+]

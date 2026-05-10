@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Firbolg",
+    "race": "Firbolg",
+    "class": "Base",
+    "path": "races/firbolg/firbolg.svg"
+  },
+  {
+    "name": "Firbolg Barbarian",
+    "race": "Firbolg",
+    "class": "Barbarian",
+    "path": "races/firbolg/firbolg-barbarian.svg"
+  },
+  {
+    "name": "Firbolg Bard",
+    "race": "Firbolg",
+    "class": "Bard",
+    "path": "races/firbolg/firbolg-bard.svg"
+  },
+  {
+    "name": "Firbolg Cleric",
+    "race": "Firbolg",
+    "class": "Cleric",
+    "path": "races/firbolg/firbolg-cleric.svg"
+  },
+  {
+    "name": "Firbolg Druid",
+    "race": "Firbolg",
+    "class": "Druid",
+    "path": "races/firbolg/firbolg-druid.svg"
+  },
+  {
+    "name": "Firbolg Fighter",
+    "race": "Firbolg",
+    "class": "Fighter",
+    "path": "races/firbolg/firbolg-fighter.svg"
+  },
+  {
+    "name": "Firbolg Monk",
+    "race": "Firbolg",
+    "class": "Monk",
+    "path": "races/firbolg/firbolg-monk.svg"
+  },
+  {
+    "name": "Firbolg Paladin",
+    "race": "Firbolg",
+    "class": "Paladin",
+    "path": "races/firbolg/firbolg-paladin.svg"
+  },
+  {
+    "name": "Firbolg Ranger",
+    "race": "Firbolg",
+    "class": "Ranger",
+    "path": "races/firbolg/firbolg-ranger.svg"
+  },
+  {
+    "name": "Firbolg Rogue",
+    "race": "Firbolg",
+    "class": "Rogue",
+    "path": "races/firbolg/firbolg-rogue.svg"
+  },
+  {
+    "name": "Firbolg Sorcerer",
+    "race": "Firbolg",
+    "class": "Sorcerer",
+    "path": "races/firbolg/firbolg-sorcerer.svg"
+  },
+  {
+    "name": "Firbolg Warlock",
+    "race": "Firbolg",
+    "class": "Warlock",
+    "path": "races/firbolg/firbolg-warlock.svg"
+  },
+  {
+    "name": "Firbolg Wizard",
+    "race": "Firbolg",
+    "class": "Wizard",
+    "path": "races/firbolg/firbolg-wizard.svg"
+  },
+  {
+    "name": "Firbolg Artificer",
+    "race": "Firbolg",
+    "class": "Artificer",
+    "path": "races/firbolg/firbolg-artificer.svg"
+  }
+]

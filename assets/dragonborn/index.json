@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Dragonborn",
+    "race": "Dragonborn",
+    "class": "Base",
+    "path": "races/dragonborn/dragonborn.svg"
+  },
+  {
+    "name": "Dragonborn Barbarian",
+    "race": "Dragonborn",
+    "class": "Barbarian",
+    "path": "races/dragonborn/dragonborn-barbarian.svg"
+  },
+  {
+    "name": "Dragonborn Bard",
+    "race": "Dragonborn",
+    "class": "Bard",
+    "path": "races/dragonborn/dragonborn-bard.svg"
+  },
+  {
+    "name": "Dragonborn Cleric",
+    "race": "Dragonborn",
+    "class": "Cleric",
+    "path": "races/dragonborn/dragonborn-cleric.svg"
+  },
+  {
+    "name": "Dragonborn Druid",
+    "race": "Dragonborn",
+    "class": "Druid",
+    "path": "races/dragonborn/dragonborn-druid.svg"
+  },
+  {
+    "name": "Dragonborn Fighter",
+    "race": "Dragonborn",
+    "class": "Fighter",
+    "path": "races/dragonborn/dragonborn-fighter.svg"
+  },
+  {
+    "name": "Dragonborn Monk",
+    "race": "Dragonborn",
+    "class": "Monk",
+    "path": "races/dragonborn/dragonborn-monk.svg"
+  },
+  {
+    "name": "Dragonborn Paladin",
+    "race": "Dragonborn",
+    "class": "Paladin",
+    "path": "races/dragonborn/dragonborn-paladin.svg"
+  },
+  {
+    "name": "Dragonborn Ranger",
+    "race": "Dragonborn",
+    "class": "Ranger",
+    "path": "races/dragonborn/dragonborn-ranger.svg"
+  },
+  {
+    "name": "Dragonborn Rogue",
+    "race": "Dragonborn",
+    "class": "Rogue",
+    "path": "races/dragonborn/dragonborn-rogue.svg"
+  },
+  {
+    "name": "Dragonborn Sorcerer",
+    "race": "Dragonborn",
+    "class": "Sorcerer",
+    "path": "races/dragonborn/dragonborn-sorcerer.svg"
+  },
+  {
+    "name": "Dragonborn Warlock",
+    "race": "Dragonborn",
+    "class": "Warlock",
+    "path": "races/dragonborn/dragonborn-warlock.svg"
+  },
+  {
+    "name": "Dragonborn Wizard",
+    "race": "Dragonborn",
+    "class": "Wizard",
+    "path": "races/dragonborn/dragonborn-wizard.svg"
+  },
+  {
+    "name": "Dragonborn Artificer",
+    "race": "Dragonborn",
+    "class": "Artificer",
+    "path": "races/dragonborn/dragonborn-artificer.svg"
+  }
+]

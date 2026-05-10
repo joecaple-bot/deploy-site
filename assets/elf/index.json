@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Elf",
+    "race": "Elf",
+    "class": "Base",
+    "path": "races/elf/elf.svg"
+  },
+  {
+    "name": "Elf Barbarian",
+    "race": "Elf",
+    "class": "Barbarian",
+    "path": "races/elf/elf-barbarian.svg"
+  },
+  {
+    "name": "Elf Bard",
+    "race": "Elf",
+    "class": "Bard",
+    "path": "races/elf/elf-bard.svg"
+  },
+  {
+    "name": "Elf Cleric",
+    "race": "Elf",
+    "class": "Cleric",
+    "path": "races/elf/elf-cleric.svg"
+  },
+  {
+    "name": "Elf Druid",
+    "race": "Elf",
+    "class": "Druid",
+    "path": "races/elf/elf-druid.svg"
+  },
+  {
+    "name": "Elf Fighter",
+    "race": "Elf",
+    "class": "Fighter",
+    "path": "races/elf/elf-fighter.svg"
+  },
+  {
+    "name": "Elf Monk",
+    "race": "Elf",
+    "class": "Monk",
+    "path": "races/elf/elf-monk.svg"
+  },
+  {
+    "name": "Elf Paladin",
+    "race": "Elf",
+    "class": "Paladin",
+    "path": "races/elf/elf-paladin.svg"
+  },
+  {
+    "name": "Elf Ranger",
+    "race": "Elf",
+    "class": "Ranger",
+    "path": "races/elf/elf-ranger.svg"
+  },
+  {
+    "name": "Elf Rogue",
+    "race": "Elf",
+    "class": "Rogue",
+    "path": "races/elf/elf-rogue.svg"
+  },
+  {
+    "name": "Elf Sorcerer",
+    "race": "Elf",
+    "class": "Sorcerer",
+    "path": "races/elf/elf-sorcerer.svg"
+  },
+  {
+    "name": "Elf Warlock",
+    "race": "Elf",
+    "class": "Warlock",
+    "path": "races/elf/elf-warlock.svg"
+  },
+  {
+    "name": "Elf Wizard",
+    "race": "Elf",
+    "class": "Wizard",
+    "path": "races/elf/elf-wizard.svg"
+  },
+  {
+    "name": "Elf Artificer",
+    "race": "Elf",
+    "class": "Artificer",
+    "path": "races/elf/elf-artificer.svg"
+  }
+]
