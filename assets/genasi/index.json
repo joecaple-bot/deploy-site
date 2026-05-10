@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Genasi",
+    "race": "Genasi",
+    "class": "Base",
+    "path": "races/genasi/genasi.svg"
+  },
+  {
+    "name": "Genasi Cleric",
+    "race": "Genasi",
+    "class": "Cleric",
+    "path": "races/genasi/genasi-cleric.svg"
+  },
+  {
+    "name": "Genasi Ranger",
+    "race": "Genasi",
+    "class": "Ranger",
+    "path": "races/genasi/genasi-ranger.svg"
+  },
+  {
+    "name": "Genasi Rogue",
+    "race": "Genasi",
+    "class": "Rogue",
+    "path": "races/genasi/genasi-rogue.svg"
+  },
+  {
+    "name": "Genasi Sorcerer",
+    "race": "Genasi",
+    "class": "Sorcerer",
+    "path": "races/genasi/genasi-sorcerer.svg"
+  },
+  {
+    "name": "Genasi Warlock",
+    "race": "Genasi",
+    "class": "Warlock",
+    "path": "races/genasi/genasi-warlock.svg"
+  }
+]

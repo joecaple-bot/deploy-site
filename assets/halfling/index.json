@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Halfling",
+    "race": "Halfling",
+    "class": "Base",
+    "path": "races/halfling/halfling.svg"
+  },
+  {
+    "name": "Halfling Barbarian",
+    "race": "Halfling",
+    "class": "Barbarian",
+    "path": "races/halfling/halfling-barbarian.svg"
+  },
+  {
+    "name": "Halfling Bard",
+    "race": "Halfling",
+    "class": "Bard",
+    "path": "races/halfling/halfling-bard.svg"
+  },
+  {
+    "name": "Halfling Cleric",
+    "race": "Halfling",
+    "class": "Cleric",
+    "path": "races/halfling/halfling-cleric.svg"
+  },
+  {
+    "name": "Halfling Druid",
+    "race": "Halfling",
+    "class": "Druid",
+    "path": "races/halfling/halfling-druid.svg"
+  },
+  {
+    "name": "Halfling Fighter",
+    "race": "Halfling",
+    "class": "Fighter",
+    "path": "races/halfling/halfling-fighter.svg"
+  },
+  {
+    "name": "Halfling Monk",
+    "race": "Halfling",
+    "class": "Monk",
+    "path": "races/halfling/halfling-monk.svg"
+  },
+  {
+    "name": "Halfling Paladin",
+    "race": "Halfling",
+    "class": "Paladin",
+    "path": "races/halfling/halfling-paladin.svg"
+  },
+  {
+    "name": "Halfling Ranger",
+    "race": "Halfling",
+    "class": "Ranger",
+    "path": "races/halfling/halfling-ranger.svg"
+  },
+  {
+    "name": "Halfling Rogue",
+    "race": "Halfling",
+    "class": "Rogue",
+    "path": "races/halfling/halfling-rogue.svg"
+  },
+  {
+    "name": "Halfling Sorcerer",
+    "race": "Halfling",
+    "class": "Sorcerer",
+    "path": "races/halfling/halfling-sorcerer.svg"
+  },
+  {
+    "name": "Halfling Warlock",
+    "race": "Halfling",
+    "class": "Warlock",
+    "path": "races/halfling/halfling-warlock.svg"
+  },
+  {
+    "name": "Halfling Wizard",
+    "race": "Halfling",
+    "class": "Wizard",
+    "path": "races/halfling/halfling-wizard.svg"
+  },
+  {
+    "name": "Halfling Artificer",
+    "race": "Halfling",
+    "class": "Artificer",
+    "path": "races/halfling/halfling-artificer.svg"
+  }
+]

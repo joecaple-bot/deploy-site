@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Goblin",
+    "race": "Goblin",
+    "class": "Base",
+    "path": "races/goblin/goblin.svg"
+  },
+  {
+    "name": "Goblin Barbarian",
+    "race": "Goblin",
+    "class": "Barbarian",
+    "path": "races/goblin/goblin-barbarian.svg"
+  },
+  {
+    "name": "Goblin Bard",
+    "race": "Goblin",
+    "class": "Bard",
+    "path": "races/goblin/goblin-bard.svg"
+  },
+  {
+    "name": "Goblin Cleric",
+    "race": "Goblin",
+    "class": "Cleric",
+    "path": "races/goblin/goblin-cleric.svg"
+  },
+  {
+    "name": "Goblin Druid",
+    "race": "Goblin",
+    "class": "Druid",
+    "path": "races/goblin/goblin-druid.svg"
+  },
+  {
+    "name": "Goblin Fighter",
+    "race": "Goblin",
+    "class": "Fighter",
+    "path": "races/goblin/goblin-fighter.svg"
+  },
+  {
+    "name": "Goblin Monk",
+    "race": "Goblin",
+    "class": "Monk",
+    "path": "races/goblin/goblin-monk.svg"
+  },
+  {
+    "name": "Goblin Paladin",
+    "race": "Goblin",
+    "class": "Paladin",
+    "path": "races/goblin/goblin-paladin.svg"
+  },
+  {
+    "name": "Goblin Ranger",
+    "race": "Goblin",
+    "class": "Ranger",
+    "path": "races/goblin/goblin-ranger.svg"
+  },
+  {
+    "name": "Goblin Rogue",
+    "race": "Goblin",
+    "class": "Rogue",
+    "path": "races/goblin/goblin-rogue.svg"
+  },
+  {
+    "name": "Goblin Sorcerer",
+    "race": "Goblin",
+    "class": "Sorcerer",
+    "path": "races/goblin/goblin-sorcerer.svg"
+  },
+  {
+    "name": "Goblin Warlock",
+    "race": "Goblin",
+    "class": "Warlock",
+    "path": "races/goblin/goblin-warlock.svg"
+  },
+  {
+    "name": "Goblin Wizard",
+    "race": "Goblin",
+    "class": "Wizard",
+    "path": "races/goblin/goblin-wizard.svg"
+  },
+  {
+    "name": "Goblin Artificer",
+    "race": "Goblin",
+    "class": "Artificer",
+    "path": "races/goblin/goblin-artificer.svg"
+  }
+]

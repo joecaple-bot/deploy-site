@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Half-Orc",
+    "race": "Half-Orc",
+    "class": "Base",
+    "path": "races/half-orc/half-orc.svg"
+  },
+  {
+    "name": "Half-Orc Barbarian",
+    "race": "Half-Orc",
+    "class": "Barbarian",
+    "path": "races/half-orc/half-orc-barbarian.svg"
+  },
+  {
+    "name": "Half-Orc Bard",
+    "race": "Half-Orc",
+    "class": "Bard",
+    "path": "races/half-orc/half-orc-bard.svg"
+  },
+  {
+    "name": "Half-Orc Cleric",
+    "race": "Half-Orc",
+    "class": "Cleric",
+    "path": "races/half-orc/half-orc-cleric.svg"
+  },
+  {
+    "name": "Half-Orc Druid",
+    "race": "Half-Orc",
+    "class": "Druid",
+    "path": "races/half-orc/half-orc-druid.svg"
+  },
+  {
+    "name": "Half-Orc Fighter",
+    "race": "Half-Orc",
+    "class": "Fighter",
+    "path": "races/half-orc/half-orc-fighter.svg"
+  },
+  {
+    "name": "Half-Orc Monk",
+    "race": "Half-Orc",
+    "class": "Monk",
+    "path": "races/half-orc/half-orc-monk.svg"
+  },
+  {
+    "name": "Half-Orc Paladin",
+    "race": "Half-Orc",
+    "class": "Paladin",
+    "path": "races/half-orc/half-orc-paladin.svg"
+  },
+  {
+    "name": "Half-Orc Ranger",
+    "race": "Half-Orc",
+    "class": "Ranger",
+    "path": "races/half-orc/half-orc-ranger.svg"
+  },
+  {
+    "name": "Half-Orc Rogue",
+    "race": "Half-Orc",
+    "class": "Rogue",
+    "path": "races/half-orc/half-orc-rogue.svg"
+  },
+  {
+    "name": "Half-Orc Sorcerer",
+    "race": "Half-Orc",
+    "class": "Sorcerer",
+    "path": "races/half-orc/half-orc-sorcerer.svg"
+  },
+  {
+    "name": "Half-Orc Warlock",
+    "race": "Half-Orc",
+    "class": "Warlock",
+    "path": "races/half-orc/half-orc-warlock.svg"
+  },
+  {
+    "name": "Half-Orc Wizard",
+    "race": "Half-Orc",
+    "class": "Wizard",
+    "path": "races/half-orc/half-orc-wizard.svg"
+  },
+  {
+    "name": "Half-Orc Artificer",
+    "race": "Half-Orc",
+    "class": "Artificer",
+    "path": "races/half-orc/half-orc-artificer.svg"
+  }
+]

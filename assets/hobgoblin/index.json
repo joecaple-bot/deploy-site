@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Hobgoblin",
+    "race": "Hobgoblin",
+    "class": "Base",
+    "path": "races/hobgoblin/hobgoblin.svg"
+  },
+  {
+    "name": "Hobgoblin Barbarian",
+    "race": "Hobgoblin",
+    "class": "Barbarian",
+    "path": "races/hobgoblin/hobgoblin-barbarian.svg"
+  },
+  {
+    "name": "Hobgoblin Bard",
+    "race": "Hobgoblin",
+    "class": "Bard",
+    "path": "races/hobgoblin/hobgoblin-bard.svg"
+  },
+  {
+    "name": "Hobgoblin Cleric",
+    "race": "Hobgoblin",
+    "class": "Cleric",
+    "path": "races/hobgoblin/hobgoblin-cleric.svg"
+  },
+  {
+    "name": "Hobgoblin Druid",
+    "race": "Hobgoblin",
+    "class": "Druid",
+    "path": "races/hobgoblin/hobgoblin-druid.svg"
+  },
+  {
+    "name": "Hobgoblin Fighter",
+    "race": "Hobgoblin",
+    "class": "Fighter",
+    "path": "races/hobgoblin/hobgoblin-fighter.svg"
+  },
+  {
+    "name": "Hobgoblin Monk",
+    "race": "Hobgoblin",
+    "class": "Monk",
+    "path": "races/hobgoblin/hobgoblin-monk.svg"
+  },
+  {
+    "name": "Hobgoblin Paladin",
+    "race": "Hobgoblin",
+    "class": "Paladin",
+    "path": "races/hobgoblin/hobgoblin-paladin.svg"
+  },
+  {
+    "name": "Hobgoblin Ranger",
+    "race": "Hobgoblin",
+    "class": "Ranger",
+    "path": "races/hobgoblin/hobgoblin-ranger.svg"
+  },
+  {
+    "name": "Hobgoblin Rogue",
+    "race": "Hobgoblin",
+    "class": "Rogue",
+    "path": "races/hobgoblin/hobgoblin-rogue.svg"
+  },
+  {
+    "name": "Hobgoblin Sorcerer",
+    "race": "Hobgoblin",
+    "class": "Sorcerer",
+    "path": "races/hobgoblin/hobgoblin-sorcerer.svg"
+  },
+  {
+    "name": "Hobgoblin Warlock",
+    "race": "Hobgoblin",
+    "class": "Warlock",
+    "path": "races/hobgoblin/hobgoblin-warlock.svg"
+  },
+  {
+    "name": "Hobgoblin Wizard",
+    "race": "Hobgoblin",
+    "class": "Wizard",
+    "path": "races/hobgoblin/hobgoblin-wizard.svg"
+  },
+  {
+    "name": "Hobgoblin Artificer",
+    "race": "Hobgoblin",
+    "class": "Artificer",
+    "path": "races/hobgoblin/hobgoblin-artificer.svg"
+  }
+]

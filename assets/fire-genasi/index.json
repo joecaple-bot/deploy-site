@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Fire Genasi Barbarian",
+    "race": "Fire Genasi",
+    "class": "Barbarian",
+    "path": "races/fire-genasi/fire-genasi-barbarian.svg"
+  },
+  {
+    "name": "Fire Genasi Wizard",
+    "race": "Fire Genasi",
+    "class": "Wizard",
+    "path": "races/fire-genasi/fire-genasi-wizard.svg"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Gnome",
+    "race": "Gnome",
+    "class": "Base",
+    "path": "races/gnome/gnome.svg"
+  },
+  {
+    "name": "Gnome Barbarian",
+    "race": "Gnome",
+    "class": "Barbarian",
+    "path": "races/gnome/gnome-barbarian.svg"
+  },
+  {
+    "name": "Gnome Bard",
+    "race": "Gnome",
+    "class": "Bard",
+    "path": "races/gnome/gnome-bard.svg"
+  },
+  {
+    "name": "Gnome Cleric",
+    "race": "Gnome",
+    "class": "Cleric",
+    "path": "races/gnome/gnome-cleric.svg"
+  },
+  {
+    "name": "Gnome Druid",
+    "race": "Gnome",
+    "class": "Druid",
+    "path": "races/gnome/gnome-druid.svg"
+  },
+  {
+    "name": "Gnome Fighter",
+    "race": "Gnome",
+    "class": "Fighter",
+    "path": "races/gnome/gnome-fighter.svg"
+  },
+  {
+    "name": "Gnome Monk",
+    "race": "Gnome",
+    "class": "Monk",
+    "path": "races/gnome/gnome-monk.svg"
+  },
+  {
+    "name": "Gnome Paladin",
+    "race": "Gnome",
+    "class": "Paladin",
+    "path": "races/gnome/gnome-paladin.svg"
+  },
+  {
+    "name": "Gnome Ranger",
+    "race": "Gnome",
+    "class": "Ranger",
+    "path": "races/gnome/gnome-ranger.svg"
+  },
+  {
+    "name": "Gnome Rogue",
+    "race": "Gnome",
+    "class": "Rogue",
+    "path": "races/gnome/gnome-rogue.svg"
+  },
+  {
+    "name": "Gnome Sorcerer",
+    "race": "Gnome",
+    "class": "Sorcerer",
+    "path": "races/gnome/gnome-sorcerer.svg"
+  },
+  {
+    "name": "Gnome Warlock",
+    "race": "Gnome",
+    "class": "Warlock",
+    "path": "races/gnome/gnome-warlock.svg"
+  },
+  {
+    "name": "Gnome Wizard",
+    "race": "Gnome",
+    "class": "Wizard",
+    "path": "races/gnome/gnome-wizard.svg"
+  },
+  {
+    "name": "Gnome Artificer",
+    "race": "Gnome",
+    "class": "Artificer",
+    "path": "races/gnome/gnome-artificer.svg"
+  }
+]

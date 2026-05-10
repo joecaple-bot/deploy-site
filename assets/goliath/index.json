@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Goliath",
+    "race": "Goliath",
+    "class": "Base",
+    "path": "races/goliath/goliath.svg"
+  },
+  {
+    "name": "Goliath Barbarian",
+    "race": "Goliath",
+    "class": "Barbarian",
+    "path": "races/goliath/goliath-barbarian.svg"
+  },
+  {
+    "name": "Goliath Bard",
+    "race": "Goliath",
+    "class": "Bard",
+    "path": "races/goliath/goliath-bard.svg"
+  },
+  {
+    "name": "Goliath Cleric",
+    "race": "Goliath",
+    "class": "Cleric",
+    "path": "races/goliath/goliath-cleric.svg"
+  },
+  {
+    "name": "Goliath Druid",
+    "race": "Goliath",
+    "class": "Druid",
+    "path": "races/goliath/goliath-druid.svg"
+  },
+  {
+    "name": "Goliath Fighter",
+    "race": "Goliath",
+    "class": "Fighter",
+    "path": "races/goliath/goliath-fighter.svg"
+  },
+  {
+    "name": "Goliath Monk",
+    "race": "Goliath",
+    "class": "Monk",
+    "path": "races/goliath/goliath-monk.svg"
+  },
+  {
+    "name": "Goliath Paladin",
+    "race": "Goliath",
+    "class": "Paladin",
+    "path": "races/goliath/goliath-paladin.svg"
+  },
+  {
+    "name": "Goliath Ranger",
+    "race": "Goliath",
+    "class": "Ranger",
+    "path": "races/goliath/goliath-ranger.svg"
+  },
+  {
+    "name": "Goliath Rogue",
+    "race": "Goliath",
+    "class": "Rogue",
+    "path": "races/goliath/goliath-rogue.svg"
+  },
+  {
+    "name": "Goliath Sorcerer",
+    "race": "Goliath",
+    "class": "Sorcerer",
+    "path": "races/goliath/goliath-sorcerer.svg"
+  },
+  {
+    "name": "Goliath Warlock",
+    "race": "Goliath",
+    "class": "Warlock",
+    "path": "races/goliath/goliath-warlock.svg"
+  },
+  {
+    "name": "Goliath Wizard",
+    "race": "Goliath",
+    "class": "Wizard",
+    "path": "races/goliath/goliath-wizard.svg"
+  },
+  {
+    "name": "Goliath Artificer",
+    "race": "Goliath",
+    "class": "Artificer",
+    "path": "races/goliath/goliath-artificer.svg"
+  }
+]
