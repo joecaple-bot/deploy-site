@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Warforged",
+    "race": "Warforged",
+    "class": "Base",
+    "path": "races/warforged/warforged.svg"
+  },
+  {
+    "name": "Warforged Barbarian",
+    "race": "Warforged",
+    "class": "Barbarian",
+    "path": "races/warforged/warforged-barbarian.svg"
+  },
+  {
+    "name": "Warforged Bard",
+    "race": "Warforged",
+    "class": "Bard",
+    "path": "races/warforged/warforged-bard.svg"
+  },
+  {
+    "name": "Warforged Cleric",
+    "race": "Warforged",
+    "class": "Cleric",
+    "path": "races/warforged/warforged-cleric.svg"
+  },
+  {
+    "name": "Warforged Druid",
+    "race": "Warforged",
+    "class": "Druid",
+    "path": "races/warforged/warforged-druid.svg"
+  },
+  {
+    "name": "Warforged Fighter",
+    "race": "Warforged",
+    "class": "Fighter",
+    "path": "races/warforged/warforged-fighter.svg"
+  },
+  {
+    "name": "Warforged Monk",
+    "race": "Warforged",
+    "class": "Monk",
+    "path": "races/warforged/warforged-monk.svg"
+  },
+  {
+    "name": "Warforged Paladin",
+    "race": "Warforged",
+    "class": "Paladin",
+    "path": "races/warforged/warforged-paladin.svg"
+  },
+  {
+    "name": "Warforged Ranger",
+    "race": "Warforged",
+    "class": "Ranger",
+    "path": "races/warforged/warforged-ranger.svg"
+  },
+  {
+    "name": "Warforged Rogue",
+    "race": "Warforged",
+    "class": "Rogue",
+    "path": "races/warforged/warforged-rogue.svg"
+  },
+  {
+    "name": "Warforged Sorcerer",
+    "race": "Warforged",
+    "class": "Sorcerer",
+    "path": "races/warforged/warforged-sorcerer.svg"
+  },
+  {
+    "name": "Warforged Warlock",
+    "race": "Warforged",
+    "class": "Warlock",
+    "path": "races/warforged/warforged-warlock.svg"
+  },
+  {
+    "name": "Warforged Wizard",
+    "race": "Warforged",
+    "class": "Wizard",
+    "path": "races/warforged/warforged-wizard.svg"
+  },
+  {
+    "name": "Warforged Artificer",
+    "race": "Warforged",
+    "class": "Artificer",
+    "path": "races/warforged/warforged-artificer.svg"
+  }
+]

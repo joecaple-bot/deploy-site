@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Yuan-ti",
+    "race": "Yuan-ti",
+    "class": "Base",
+    "path": "races/yuan-ti/yuan-ti.svg"
+  },
+  {
+    "name": "Yuan-ti Barbarian",
+    "race": "Yuan-ti",
+    "class": "Barbarian",
+    "path": "races/yuan-ti/yuan-ti-barbarian.svg"
+  },
+  {
+    "name": "Yuan-ti Bard",
+    "race": "Yuan-ti",
+    "class": "Bard",
+    "path": "races/yuan-ti/yuan-ti-bard.svg"
+  },
+  {
+    "name": "Yuan-ti Cleric",
+    "race": "Yuan-ti",
+    "class": "Cleric",
+    "path": "races/yuan-ti/yuan-ti-cleric.svg"
+  },
+  {
+    "name": "Yuan-ti Druid",
+    "race": "Yuan-ti",
+    "class": "Druid",
+    "path": "races/yuan-ti/yuan-ti-druid.svg"
+  },
+  {
+    "name": "Yuan-ti Fighter",
+    "race": "Yuan-ti",
+    "class": "Fighter",
+    "path": "races/yuan-ti/yuan-ti-fighter.svg"
+  },
+  {
+    "name": "Yuan-ti Monk",
+    "race": "Yuan-ti",
+    "class": "Monk",
+    "path": "races/yuan-ti/yuan-ti-monk.svg"
+  },
+  {
+    "name": "Yuan-ti Paladin",
+    "race": "Yuan-ti",
+    "class": "Paladin",
+    "path": "races/yuan-ti/yuan-ti-paladin.svg"
+  },
+  {
+    "name": "Yuan-ti Ranger",
+    "race": "Yuan-ti",
+    "class": "Ranger",
+    "path": "races/yuan-ti/yuan-ti-ranger.svg"
+  },
+  {
+    "name": "Yuan-ti Rogue",
+    "race": "Yuan-ti",
+    "class": "Rogue",
+    "path": "races/yuan-ti/yuan-ti-rogue.svg"
+  },
+  {
+    "name": "Yuan-ti Sorcerer",
+    "race": "Yuan-ti",
+    "class": "Sorcerer",
+    "path": "races/yuan-ti/yuan-ti-sorcerer.svg"
+  },
+  {
+    "name": "Yuan-ti Warlock",
+    "race": "Yuan-ti",
+    "class": "Warlock",
+    "path": "races/yuan-ti/yuan-ti-warlock.svg"
+  },
+  {
+    "name": "Yuan-ti Wizard",
+    "race": "Yuan-ti",
+    "class": "Wizard",
+    "path": "races/yuan-ti/yuan-ti-wizard.svg"
+  },
+  {
+    "name": "Yuan-ti Artificer",
+    "race": "Yuan-ti",
+    "class": "Artificer",
+    "path": "races/yuan-ti/yuan-ti-artificer.svg"
+  }
+]

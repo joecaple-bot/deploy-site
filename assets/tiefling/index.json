@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Tiefling",
+    "race": "Tiefling",
+    "class": "Base",
+    "path": "races/tiefling/tiefling.svg"
+  },
+  {
+    "name": "Tiefling Barbarian",
+    "race": "Tiefling",
+    "class": "Barbarian",
+    "path": "races/tiefling/tiefling-barbarian.svg"
+  },
+  {
+    "name": "Tiefling Bard",
+    "race": "Tiefling",
+    "class": "Bard",
+    "path": "races/tiefling/tiefling-bard.svg"
+  },
+  {
+    "name": "Tiefling Cleric",
+    "race": "Tiefling",
+    "class": "Cleric",
+    "path": "races/tiefling/tiefling-cleric.svg"
+  },
+  {
+    "name": "Tiefling Druid",
+    "race": "Tiefling",
+    "class": "Druid",
+    "path": "races/tiefling/tiefling-druid.svg"
+  },
+  {
+    "name": "Tiefling Fighter",
+    "race": "Tiefling",
+    "class": "Fighter",
+    "path": "races/tiefling/tiefling-fighter.svg"
+  },
+  {
+    "name": "Tiefling Monk",
+    "race": "Tiefling",
+    "class": "Monk",
+    "path": "races/tiefling/tiefling-monk.svg"
+  },
+  {
+    "name": "Tiefling Paladin",
+    "race": "Tiefling",
+    "class": "Paladin",
+    "path": "races/tiefling/tiefling-paladin.svg"
+  },
+  {
+    "name": "Tiefling Ranger",
+    "race": "Tiefling",
+    "class": "Ranger",
+    "path": "races/tiefling/tiefling-ranger.svg"
+  },
+  {
+    "name": "Tiefling Rogue",
+    "race": "Tiefling",
+    "class": "Rogue",
+    "path": "races/tiefling/tiefling-rogue.svg"
+  },
+  {
+    "name": "Tiefling Sorcerer",
+    "race": "Tiefling",
+    "class": "Sorcerer",
+    "path": "races/tiefling/tiefling-sorcerer.svg"
+  },
+  {
+    "name": "Tiefling Warlock",
+    "race": "Tiefling",
+    "class": "Warlock",
+    "path": "races/tiefling/tiefling-warlock.svg"
+  },
+  {
+    "name": "Tiefling Wizard",
+    "race": "Tiefling",
+    "class": "Wizard",
+    "path": "races/tiefling/tiefling-wizard.svg"
+  },
+  {
+    "name": "Tiefling Artificer",
+    "race": "Tiefling",
+    "class": "Artificer",
+    "path": "races/tiefling/tiefling-artificer.svg"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Tortle",
+    "race": "Tortle",
+    "class": "Base",
+    "path": "races/tortle/tortle.svg"
+  },
+  {
+    "name": "Tortle Barbarian",
+    "race": "Tortle",
+    "class": "Barbarian",
+    "path": "races/tortle/tortle-barbarian.svg"
+  },
+  {
+    "name": "Tortle Bard",
+    "race": "Tortle",
+    "class": "Bard",
+    "path": "races/tortle/tortle-bard.svg"
+  },
+  {
+    "name": "Tortle Cleric",
+    "race": "Tortle",
+    "class": "Cleric",
+    "path": "races/tortle/tortle-cleric.svg"
+  },
+  {
+    "name": "Tortle Druid",
+    "race": "Tortle",
+    "class": "Druid",
+    "path": "races/tortle/tortle-druid.svg"
+  },
+  {
+    "name": "Tortle Fighter",
+    "race": "Tortle",
+    "class": "Fighter",
+    "path": "races/tortle/tortle-fighter.svg"
+  },
+  {
+    "name": "Tortle Monk",
+    "race": "Tortle",
+    "class": "Monk",
+    "path": "races/tortle/tortle-monk.svg"
+  },
+  {
+    "name": "Tortle Paladin",
+    "race": "Tortle",
+    "class": "Paladin",
+    "path": "races/tortle/tortle-paladin.svg"
+  },
+  {
+    "name": "Tortle Ranger",
+    "race": "Tortle",
+    "class": "Ranger",
+    "path": "races/tortle/tortle-ranger.svg"
+  },
+  {
+    "name": "Tortle Rogue",
+    "race": "Tortle",
+    "class": "Rogue",
+    "path": "races/tortle/tortle-rogue.svg"
+  },
+  {
+    "name": "Tortle Sorcerer",
+    "race": "Tortle",
+    "class": "Sorcerer",
+    "path": "races/tortle/tortle-sorcerer.svg"
+  },
+  {
+    "name": "Tortle Warlock",
+    "race": "Tortle",
+    "class": "Warlock",
+    "path": "races/tortle/tortle-warlock.svg"
+  },
+  {
+    "name": "Tortle Wizard",
+    "race": "Tortle",
+    "class": "Wizard",
+    "path": "races/tortle/tortle-wizard.svg"
+  },
+  {
+    "name": "Tortle Artificer",
+    "race": "Tortle",
+    "class": "Artificer",
+    "path": "races/tortle/tortle-artificer.svg"
+  }
+]

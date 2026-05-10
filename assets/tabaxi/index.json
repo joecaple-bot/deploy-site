@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Tabaxi",
+    "race": "Tabaxi",
+    "class": "Base",
+    "path": "races/tabaxi/tabaxi.svg"
+  },
+  {
+    "name": "Tabaxi Barbarian",
+    "race": "Tabaxi",
+    "class": "Barbarian",
+    "path": "races/tabaxi/tabaxi-barbarian.svg"
+  },
+  {
+    "name": "Tabaxi Bard",
+    "race": "Tabaxi",
+    "class": "Bard",
+    "path": "races/tabaxi/tabaxi-bard.svg"
+  },
+  {
+    "name": "Tabaxi Cleric",
+    "race": "Tabaxi",
+    "class": "Cleric",
+    "path": "races/tabaxi/tabaxi-cleric.svg"
+  },
+  {
+    "name": "Tabaxi Druid",
+    "race": "Tabaxi",
+    "class": "Druid",
+    "path": "races/tabaxi/tabaxi-druid.svg"
+  },
+  {
+    "name": "Tabaxi Fighter",
+    "race": "Tabaxi",
+    "class": "Fighter",
+    "path": "races/tabaxi/tabaxi-fighter.svg"
+  },
+  {
+    "name": "Tabaxi Monk",
+    "race": "Tabaxi",
+    "class": "Monk",
+    "path": "races/tabaxi/tabaxi-monk.svg"
+  },
+  {
+    "name": "Tabaxi Paladin",
+    "race": "Tabaxi",
+    "class": "Paladin",
+    "path": "races/tabaxi/tabaxi-paladin.svg"
+  },
+  {
+    "name": "Tabaxi Ranger",
+    "race": "Tabaxi",
+    "class": "Ranger",
+    "path": "races/tabaxi/tabaxi-ranger.svg"
+  },
+  {
+    "name": "Tabaxi Rogue",
+    "race": "Tabaxi",
+    "class": "Rogue",
+    "path": "races/tabaxi/tabaxi-rogue.svg"
+  },
+  {
+    "name": "Tabaxi Sorcerer",
+    "race": "Tabaxi",
+    "class": "Sorcerer",
+    "path": "races/tabaxi/tabaxi-sorcerer.svg"
+  },
+  {
+    "name": "Tabaxi Warlock",
+    "race": "Tabaxi",
+    "class": "Warlock",
+    "path": "races/tabaxi/tabaxi-warlock.svg"
+  },
+  {
+    "name": "Tabaxi Wizard",
+    "race": "Tabaxi",
+    "class": "Wizard",
+    "path": "races/tabaxi/tabaxi-wizard.svg"
+  },
+  {
+    "name": "Tabaxi Artificer",
+    "race": "Tabaxi",
+    "class": "Artificer",
+    "path": "races/tabaxi/tabaxi-artificer.svg"
+  }
+]
