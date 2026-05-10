@@ -228,6 +228,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
   <div id="toolbar">
     <button class="dm-only" onclick="document.getElementById('img-input').click()">Upload map</button>
     <input type="file" id="img-input" accept="image/*" style="display:none">
+    <button class="dm-only" onclick="useHostedMapFromPrompt()">Hosted map</button>
     <button onclick="goToCampaigns()">Campaigns</button>
     <button onclick="goToCharacters()">Characters</button>
     <span id="campaign-badge" class="campaign-badge"></span>
@@ -982,6 +983,7 @@ let revealCtx = revealCanvas.getContext('2d');
 
 let mapImg = null;
 let mapImageData = '';
+let mapUrl = '';
 let mapRevision = 0;
 let mode = 'move';
 let selectedMapIcon = MAP_ICONS[6];
@@ -1043,6 +1045,7 @@ function pushDMUndo(label='DM action'){
   dmUndoStack.push({
     label,
     mapImageData,
+    mapUrl,
     mapRevision,
     fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : '',
     placedIcons:placedIcons.map(ic=>({...ic,position:ic.position?{...ic.position}:undefined})),
@@ -1061,6 +1064,7 @@ function undoLastDMAction(){
   if(!snap) return showCritOverlay('Nothing to undo','roll','Undo');
   placedIcons=snap.placedIcons.map(hydratePlacedIcon);
   mapImageData=snap.mapImageData||'';
+  mapUrl=snap.mapUrl||'';
   mapRevision=Number(snap.mapRevision)||0;
   areaEffects=snap.areaEffects.map(hydrateAreaEffect);
   myCharacters=snap.myCharacters.map(hydrateCharacter);
@@ -1070,7 +1074,8 @@ function undoLastDMAction(){
   activeTurnIndex=snap.activeTurnIndex;
   hideSheet();
   updateAllPanels();
-  if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
+  if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
+  else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
   else { mapImg=null; draw(); }
   if(snap.fogRevealData) loadRevealFromDataUrl(snap.fogRevealData);
   addChatMessage({kind:'system',character:'DM',label:`Undid: ${snap.label}`});
@@ -1670,6 +1675,7 @@ function doHardReset(){
   if(!isDM()) return requireDM();
   mapImg=null;
   mapImageData='';
+  mapUrl='';
   mapRevision=Date.now();
   placedIcons=[];
   areaEffects=[];
@@ -1995,6 +2001,7 @@ document.getElementById('img-input').addEventListener('change',async e=>{
   if(!f) return;
   try{
     pushDMUndo('upload map');
+    mapUrl='';
     mapImageData=await compressMapFile(f);
     mapRevision=Date.now();
     loadMapFromDataUrl(mapImageData,()=>{
@@ -2007,6 +2014,7 @@ document.getElementById('img-input').addEventListener('change',async e=>{
   }catch(err){
     const reader=new FileReader();
     reader.onload=()=>{
+      mapUrl='';
       mapImageData=reader.result;
       mapRevision=Date.now();
       loadMapFromDataUrl(mapImageData,()=>{
@@ -2020,6 +2028,23 @@ document.getElementById('img-input').addEventListener('change',async e=>{
     reader.readAsDataURL(f);
   }
 });
+
+function useHostedMapFromPrompt(){
+  if(!isDM()) return requireDM();
+  const url=prompt('Hosted map path or URL, e.g. maps/undercity.webp',mapUrl||'maps/');
+  if(!url) return;
+  pushDMUndo('set hosted map');
+  mapUrl=url.trim();
+  mapImageData='';
+  mapRevision=Date.now();
+  loadMapFromUrl(mapUrl,()=>{
+    initFog();
+    revealAllCharacters();
+    draw();
+    saveState();
+    saveCloudAssets(true);
+  });
+}
 
 function compressMapFile(file){
   return new Promise((resolve,reject)=>{
@@ -4322,6 +4347,7 @@ function buildPersistedState(){
     version:1,
     myId,
     mapImageData,
+    mapUrl,
     mapRevision,
     campaign:campaignInfo,
     placedIcons:placedIcons.map(hydratePlacedIcon),
@@ -4356,6 +4382,7 @@ function loadState(){
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
     mapImageData=state.mapImageData || '';
+    mapUrl=state.mapUrl || '';
     mapRevision=Number(state.mapRevision)||0;
     placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
     areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
@@ -4378,7 +4405,8 @@ function loadState(){
     document.getElementById('effect-radius-slider').value=effectRadius;
     document.getElementById('effect-radius-val').textContent=effectRadius;
     syncEffectControls();
-    if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
+    if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
+    else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
     if(state.fogRevealData) setTimeout(()=>loadRevealFromDataUrl(state.fogRevealData),80);
     return true;
   }catch(e){ return false; }
@@ -4408,8 +4436,14 @@ function applyPersistedState(state){
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
   const incomingMapRevision=Number(state.mapRevision)||0;
-  const needsAssetMap=!state.mapImageData && incomingMapRevision && incomingMapRevision!==mapRevision;
-  if(state.mapImageData){
+  const incomingMapUrl=state.mapUrl || '';
+  const needsAssetMap=!incomingMapUrl && !state.mapImageData && incomingMapRevision && incomingMapRevision!==mapRevision;
+  if(incomingMapUrl){
+    mapUrl=incomingMapUrl;
+    mapImageData='';
+    mapRevision=incomingMapRevision || mapRevision;
+  } else if(state.mapImageData){
+    mapUrl='';
     mapImageData=state.mapImageData;
     mapRevision=incomingMapRevision;
   } else {
@@ -4437,7 +4471,8 @@ function applyPersistedState(state){
   syncEffectControls();
   ensureDefaultCharacter();
   updateAllPanels();
-  if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
+  if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
+  else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
   else if(needsAssetMap) loadCloudAssets();
   else { mapImg=null; draw(); }
   initFog();
@@ -4458,6 +4493,20 @@ function loadMapFromDataUrl(dataUrl,done){
   const img=new Image();
   img.onload=()=>{ mapImg=img; done?.(); };
   img.src=dataUrl;
+}
+function resolveHostedMapUrl(url){
+  const trimmed=String(url||'').trim();
+  if(!trimmed) return '';
+  if(/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return trimmed;
+  return new URL(trimmed.replace(/^\/+/,''), window.location.href).href;
+}
+function loadMapFromUrl(url,done){
+  const img=new Image();
+  const resolved=resolveHostedMapUrl(url);
+  if(/^https?:\/\//i.test(resolved)) img.crossOrigin='anonymous';
+  img.onload=()=>{ mapImg=img; done?.(); };
+  img.onerror=()=>showCritOverlay('Hosted map failed to load','roll','Map');
+  img.src=resolved;
 }
 function loadRevealFromDataUrl(dataUrl){
   const img=new Image();
@@ -4551,7 +4600,7 @@ async function loadCloudState(){
     if(data.state.mapImageData || data.state.fogRevealData){
       await saveCloudAssets(true);
       scheduleCloudSave(data.state,true);
-    } else if(data.state.mapRevision && !mapImageData){
+    } else if(data.state.mapRevision && !mapImageData && !data.state.mapUrl){
       loadCloudAssets();
     }
   }
@@ -4595,7 +4644,7 @@ function mergeCloudStateBeforeSave(state){
   const localRev=Number(state.mapRevision)||0;
   const remoteRev=Number(latestCloudState.mapRevision)||0;
   if(remoteRev>localRev){
-    state={...state,mapRevision:remoteRev};
+    state={...state,mapRevision:remoteRev,mapUrl:latestCloudState.mapUrl||state.mapUrl||''};
   }
   if(latestCloudState.campaign && !state.campaign) state.campaign=latestCloudState.campaign;
   return state;
@@ -4613,7 +4662,7 @@ async function loadCloudAssets(){
     .maybeSingle();
   if(error || !data) return;
   const assetRevision=Number(data.map_revision)||0;
-  if(data.map_image_data && (!mapImageData || assetRevision>=mapRevision)){
+  if(!mapUrl && data.map_image_data && (!mapImageData || assetRevision>=mapRevision)){
     mapImageData=data.map_image_data;
     mapRevision=assetRevision;
     loadMapFromDataUrl(mapImageData,()=>draw());
@@ -4622,14 +4671,15 @@ async function loadCloudAssets(){
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
 }
 async function saveCloudAssets(includeFog=false){
-  if(!cloudReady || !mapImageData) return;
+  if(!cloudReady || (!mapImageData && !includeFog)) return;
   const asset={
     id:CLOUD_CAMPAIGN_ID,
-    map_image_data:mapImageData,
     map_revision:mapRevision || Date.now(),
     updated_by:CLOUD_CLIENT_ID,
     updated_at:new Date().toISOString()
   };
+  if(mapUrl) asset.map_image_data=null;
+  else if(mapImageData) asset.map_image_data=mapImageData;
   if(includeFog && revealCanvas.width) asset.fog_reveal_data=revealCanvas.toDataURL('image/png');
   await cloudClient.from(CLOUD_ASSETS_TABLE).upsert(asset);
 }
@@ -4760,7 +4810,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapRevision=Date.now(); placedIcons=[]; areaEffects=[]; enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); placedIcons=[]; areaEffects=[]; enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
