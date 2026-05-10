@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Kobold",
+    "race": "Kobold",
+    "class": "Base",
+    "path": "races/kobold/kobold.svg"
+  },
+  {
+    "name": "Kobold Barbarian",
+    "race": "Kobold",
+    "class": "Barbarian",
+    "path": "races/kobold/kobold-barbarian.svg"
+  },
+  {
+    "name": "Kobold Bard",
+    "race": "Kobold",
+    "class": "Bard",
+    "path": "races/kobold/kobold-bard.svg"
+  },
+  {
+    "name": "Kobold Cleric",
+    "race": "Kobold",
+    "class": "Cleric",
+    "path": "races/kobold/kobold-cleric.svg"
+  },
+  {
+    "name": "Kobold Druid",
+    "race": "Kobold",
+    "class": "Druid",
+    "path": "races/kobold/kobold-druid.svg"
+  },
+  {
+    "name": "Kobold Fighter",
+    "race": "Kobold",
+    "class": "Fighter",
+    "path": "races/kobold/kobold-fighter.svg"
+  },
+  {
+    "name": "Kobold Monk",
+    "race": "Kobold",
+    "class": "Monk",
+    "path": "races/kobold/kobold-monk.svg"
+  },
+  {
+    "name": "Kobold Paladin",
+    "race": "Kobold",
+    "class": "Paladin",
+    "path": "races/kobold/kobold-paladin.svg"
+  },
+  {
+    "name": "Kobold Ranger",
+    "race": "Kobold",
+    "class": "Ranger",
+    "path": "races/kobold/kobold-ranger.svg"
+  },
+  {
+    "name": "Kobold Rogue",
+    "race": "Kobold",
+    "class": "Rogue",
+    "path": "races/kobold/kobold-rogue.svg"
+  },
+  {
+    "name": "Kobold Sorcerer",
+    "race": "Kobold",
+    "class": "Sorcerer",
+    "path": "races/kobold/kobold-sorcerer.svg"
+  },
+  {
+    "name": "Kobold Warlock",
+    "race": "Kobold",
+    "class": "Warlock",
+    "path": "races/kobold/kobold-warlock.svg"
+  },
+  {
+    "name": "Kobold Wizard",
+    "race": "Kobold",
+    "class": "Wizard",
+    "path": "races/kobold/kobold-wizard.svg"
+  },
+  {
+    "name": "Kobold Artificer",
+    "race": "Kobold",
+    "class": "Artificer",
+    "path": "races/kobold/kobold-artificer.svg"
+  }
+]

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Lizardfolk",
+    "race": "Lizardfolk",
+    "class": "Base",
+    "path": "races/lizardfolk/lizardfolk.svg"
+  },
+  {
+    "name": "Lizardfolk Barbarian",
+    "race": "Lizardfolk",
+    "class": "Barbarian",
+    "path": "races/lizardfolk/lizardfolk-barbarian.svg"
+  },
+  {
+    "name": "Lizardfolk Bard",
+    "race": "Lizardfolk",
+    "class": "Bard",
+    "path": "races/lizardfolk/lizardfolk-bard.svg"
+  },
+  {
+    "name": "Lizardfolk Cleric",
+    "race": "Lizardfolk",
+    "class": "Cleric",
+    "path": "races/lizardfolk/lizardfolk-cleric.svg"
+  },
+  {
+    "name": "Lizardfolk Druid",
+    "race": "Lizardfolk",
+    "class": "Druid",
+    "path": "races/lizardfolk/lizardfolk-druid.svg"
+  },
+  {
+    "name": "Lizardfolk Fighter",
+    "race": "Lizardfolk",
+    "class": "Fighter",
+    "path": "races/lizardfolk/lizardfolk-fighter.svg"
+  },
+  {
+    "name": "Lizardfolk Monk",
+    "race": "Lizardfolk",
+    "class": "Monk",
+    "path": "races/lizardfolk/lizardfolk-monk.svg"
+  },
+  {
+    "name": "Lizardfolk Paladin",
+    "race": "Lizardfolk",
+    "class": "Paladin",
+    "path": "races/lizardfolk/lizardfolk-paladin.svg"
+  },
+  {
+    "name": "Lizardfolk Ranger",
+    "race": "Lizardfolk",
+    "class": "Ranger",
+    "path": "races/lizardfolk/lizardfolk-ranger.svg"
+  },
+  {
+    "name": "Lizardfolk Rogue",
+    "race": "Lizardfolk",
+    "class": "Rogue",
+    "path": "races/lizardfolk/lizardfolk-rogue.svg"
+  },
+  {
+    "name": "Lizardfolk Sorcerer",
+    "race": "Lizardfolk",
+    "class": "Sorcerer",
+    "path": "races/lizardfolk/lizardfolk-sorcerer.svg"
+  },
+  {
+    "name": "Lizardfolk Warlock",
+    "race": "Lizardfolk",
+    "class": "Warlock",
+    "path": "races/lizardfolk/lizardfolk-warlock.svg"
+  },
+  {
+    "name": "Lizardfolk Wizard",
+    "race": "Lizardfolk",
+    "class": "Wizard",
+    "path": "races/lizardfolk/lizardfolk-wizard.svg"
+  },
+  {
+    "name": "Lizardfolk Artificer",
+    "race": "Lizardfolk",
+    "class": "Artificer",
+    "path": "races/lizardfolk/lizardfolk-artificer.svg"
+  }
+]

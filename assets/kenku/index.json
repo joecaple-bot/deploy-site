@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Kenku",
+    "race": "Kenku",
+    "class": "Base",
+    "path": "races/kenku/kenku.svg"
+  },
+  {
+    "name": "Kenku Barbarian",
+    "race": "Kenku",
+    "class": "Barbarian",
+    "path": "races/kenku/kenku-barbarian.svg"
+  },
+  {
+    "name": "Kenku Bard",
+    "race": "Kenku",
+    "class": "Bard",
+    "path": "races/kenku/kenku-bard.svg"
+  },
+  {
+    "name": "Kenku Cleric",
+    "race": "Kenku",
+    "class": "Cleric",
+    "path": "races/kenku/kenku-cleric.svg"
+  },
+  {
+    "name": "Kenku Druid",
+    "race": "Kenku",
+    "class": "Druid",
+    "path": "races/kenku/kenku-druid.svg"
+  },
+  {
+    "name": "Kenku Fighter",
+    "race": "Kenku",
+    "class": "Fighter",
+    "path": "races/kenku/kenku-fighter.svg"
+  },
+  {
+    "name": "Kenku Monk",
+    "race": "Kenku",
+    "class": "Monk",
+    "path": "races/kenku/kenku-monk.svg"
+  },
+  {
+    "name": "Kenku Paladin",
+    "race": "Kenku",
+    "class": "Paladin",
+    "path": "races/kenku/kenku-paladin.svg"
+  },
+  {
+    "name": "Kenku Ranger",
+    "race": "Kenku",
+    "class": "Ranger",
+    "path": "races/kenku/kenku-ranger.svg"
+  },
+  {
+    "name": "Kenku Rogue",
+    "race": "Kenku",
+    "class": "Rogue",
+    "path": "races/kenku/kenku-rogue.svg"
+  },
+  {
+    "name": "Kenku Sorcerer",
+    "race": "Kenku",
+    "class": "Sorcerer",
+    "path": "races/kenku/kenku-sorcerer.svg"
+  },
+  {
+    "name": "Kenku Warlock",
+    "race": "Kenku",
+    "class": "Warlock",
+    "path": "races/kenku/kenku-warlock.svg"
+  },
+  {
+    "name": "Kenku Wizard",
+    "race": "Kenku",
+    "class": "Wizard",
+    "path": "races/kenku/kenku-wizard.svg"
+  },
+  {
+    "name": "Kenku Artificer",
+    "race": "Kenku",
+    "class": "Artificer",
+    "path": "races/kenku/kenku-artificer.svg"
+  }
+]

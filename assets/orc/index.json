@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Orc",
+    "race": "Orc",
+    "class": "Base",
+    "path": "races/orc/orc.svg"
+  },
+  {
+    "name": "Orc Barbarian",
+    "race": "Orc",
+    "class": "Barbarian",
+    "path": "races/orc/orc-barbarian.svg"
+  },
+  {
+    "name": "Orc Bard",
+    "race": "Orc",
+    "class": "Bard",
+    "path": "races/orc/orc-bard.svg"
+  },
+  {
+    "name": "Orc Cleric",
+    "race": "Orc",
+    "class": "Cleric",
+    "path": "races/orc/orc-cleric.svg"
+  },
+  {
+    "name": "Orc Druid",
+    "race": "Orc",
+    "class": "Druid",
+    "path": "races/orc/orc-druid.svg"
+  },
+  {
+    "name": "Orc Fighter",
+    "race": "Orc",
+    "class": "Fighter",
+    "path": "races/orc/orc-fighter.svg"
+  },
+  {
+    "name": "Orc Monk",
+    "race": "Orc",
+    "class": "Monk",
+    "path": "races/orc/orc-monk.svg"
+  },
+  {
+    "name": "Orc Paladin",
+    "race": "Orc",
+    "class": "Paladin",
+    "path": "races/orc/orc-paladin.svg"
+  },
+  {
+    "name": "Orc Ranger",
+    "race": "Orc",
+    "class": "Ranger",
+    "path": "races/orc/orc-ranger.svg"
+  },
+  {
+    "name": "Orc Rogue",
+    "race": "Orc",
+    "class": "Rogue",
+    "path": "races/orc/orc-rogue.svg"
+  },
+  {
+    "name": "Orc Sorcerer",
+    "race": "Orc",
+    "class": "Sorcerer",
+    "path": "races/orc/orc-sorcerer.svg"
+  },
+  {
+    "name": "Orc Warlock",
+    "race": "Orc",
+    "class": "Warlock",
+    "path": "races/orc/orc-warlock.svg"
+  },
+  {
+    "name": "Orc Wizard",
+    "race": "Orc",
+    "class": "Wizard",
+    "path": "races/orc/orc-wizard.svg"
+  },
+  {
+    "name": "Orc Artificer",
+    "race": "Orc",
+    "class": "Artificer",
+    "path": "races/orc/orc-artificer.svg"
+  }
+]

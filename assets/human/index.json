@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Human",
+    "race": "Human",
+    "class": "Base",
+    "path": "races/human/human.svg"
+  },
+  {
+    "name": "Human Barbarian",
+    "race": "Human",
+    "class": "Barbarian",
+    "path": "races/human/human-barbarian.svg"
+  },
+  {
+    "name": "Human Bard",
+    "race": "Human",
+    "class": "Bard",
+    "path": "races/human/human-bard.svg"
+  },
+  {
+    "name": "Human Cleric",
+    "race": "Human",
+    "class": "Cleric",
+    "path": "races/human/human-cleric.svg"
+  },
+  {
+    "name": "Human Druid",
+    "race": "Human",
+    "class": "Druid",
+    "path": "races/human/human-druid.svg"
+  },
+  {
+    "name": "Human Fighter",
+    "race": "Human",
+    "class": "Fighter",
+    "path": "races/human/human-fighter.svg"
+  },
+  {
+    "name": "Human Monk",
+    "race": "Human",
+    "class": "Monk",
+    "path": "races/human/human-monk.svg"
+  },
+  {
+    "name": "Human Paladin",
+    "race": "Human",
+    "class": "Paladin",
+    "path": "races/human/human-paladin.svg"
+  },
+  {
+    "name": "Human Ranger",
+    "race": "Human",
+    "class": "Ranger",
+    "path": "races/human/human-ranger.svg"
+  },
+  {
+    "name": "Human Rogue",
+    "race": "Human",
+    "class": "Rogue",
+    "path": "races/human/human-rogue.svg"
+  },
+  {
+    "name": "Human Sorcerer",
+    "race": "Human",
+    "class": "Sorcerer",
+    "path": "races/human/human-sorcerer.svg"
+  },
+  {
+    "name": "Human Warlock",
+    "race": "Human",
+    "class": "Warlock",
+    "path": "races/human/human-warlock.svg"
+  },
+  {
+    "name": "Human Wizard",
+    "race": "Human",
+    "class": "Wizard",
+    "path": "races/human/human-wizard.svg"
+  },
+  {
+    "name": "Human Artificer",
+    "race": "Human",
+    "class": "Artificer",
+    "path": "races/human/human-artificer.svg"
+  }
+]
