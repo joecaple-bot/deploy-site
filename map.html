@@ -163,9 +163,14 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-body{position:relative;padding:12px}
 .combat-meta{font-size:10px;color:#d9c59b;margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .combat-meta button{border-color:rgba(202,168,107,.35);background:rgba(13,16,20,.7)}
-.combat-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.combat-actions button{font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:8px 9px;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32)}
-.combat-actions button:hover{border-color:rgba(255,221,151,.75);box-shadow:0 0 16px rgba(202,168,107,.16)}
+.combat-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:visible}
+.combat-actions button{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:8px 9px;text-align:left;min-width:0;overflow:visible;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32);transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;z-index:1}
+.combat-actions button .action-label{display:block;overflow:hidden;text-overflow:ellipsis}
+.combat-actions button .action-full{display:none;position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);width:max-content;max-width:270px;white-space:normal;line-height:1.3;padding:8px 10px;border:1px solid rgba(255,221,151,.62);border-radius:8px;background:linear-gradient(180deg,rgba(30,25,18,.98),rgba(11,13,16,.98));box-shadow:0 14px 34px rgba(0,0,0,.55);color:#fff2d0;pointer-events:none}
+.combat-actions button .action-full b{display:block;font-size:12px;margin-bottom:3px}
+.combat-actions button .action-full small{display:block;color:#d9c59b;font-size:10px}
+.combat-actions button:hover,.combat-actions button:focus-visible{border-color:rgba(255,221,151,.85);box-shadow:0 0 16px rgba(202,168,107,.2);transform:translateY(-2px) scale(1.03);z-index:5}
+.combat-actions button:hover .action-full,.combat-actions button:focus-visible .action-full{display:block}
 .combat-empty{font-size:11px;color:var(--muted);line-height:1.45}
 .combat-empty button{margin-top:7px;font-size:11px;padding:6px 8px}
 #floating-end-turn{display:none;position:absolute;right:14px;top:14px;z-index:76;width:min(260px,calc(100% - 28px));border:1px solid rgba(202,168,107,.65);background:rgba(24,27,32,.96);box-shadow:var(--shadow);border-radius:10px;padding:10px}
@@ -2674,6 +2679,10 @@ function updateCombatPopout(){
   const title=document.getElementById('combat-title');
   const body=document.getElementById('combat-body');
   if(!title||!body) return;
+  const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
+    <span class="action-label">${prefix}: ${escapeHtml(item.name)}</span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionType||'damage')} ${escapeHtml(item.die||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+  </button>`;
   const activeEnemy=isDM()&&activeEnemyUid ? enemyByUid(activeEnemyUid) : null;
   if(activeEnemy){
     const weapons=Array.isArray(activeEnemy.weapons)?activeEnemy.weapons:[];
@@ -2685,8 +2694,8 @@ function updateCombatPopout(){
     body.innerHTML=`
       <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''} <button onclick="clearActiveEnemy()" style="font-size:10px;padding:2px 5px">Release control</button></div>
       <div class="combat-actions">
-      ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d6')} ${formatBonus(w.bonus)}${isAoeAction(w)?` AoE ${w.aoeRadius}`:''}</span></button>`).join('')}
-        ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}${isAoeAction(s)?` AoE ${s.aoeRadius}`:''}</span></button>`).join('')}
+      ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')`,'d6')).join('')}
+        ${spells.map(s=>actionButtonHtml('Spell',s,`rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')`,'d6')).join('')}
       </div>
       ${(!weapons.length&&!spells.length)?'<div class="combat-empty">This enemy has no actions yet. Edit the enemy stat block to add weapons or spells.</div>':''}`;
     return;
@@ -2710,8 +2719,8 @@ function updateCombatPopout(){
   body.innerHTML=`
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
-      ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d8')} ${formatBonus(w.bonus)}${isAoeAction(w)?` AoE ${w.aoeRadius}`:''}</span></button>`).join('')}
-      ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}${isAoeAction(s)?` AoE ${s.aoeRadius}`:''}</span></button>`).join('')}
+      ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
+      ${spells.map(s=>actionButtonHtml('Spell',s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
     </div>`;
 }
 function buildIconGrid(){
