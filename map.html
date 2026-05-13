@@ -615,6 +615,7 @@ const RACE_DEFS = {
 const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled'];
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
+const TARGET_MODES = ['single','enemies','allies','all'];
 const ROLL_BUFFS = {
   bless:{label:'Bless',die:4,appliesTo:['attack','save'],consume:false,color:'rgba(255,226,112,.9)'},
   guidance:{label:'Guidance',die:4,appliesTo:['check'],consume:true,color:'rgba(111,220,255,.9)'},
@@ -786,6 +787,9 @@ function normalizeActionItem(item={}){
     die:DAMAGE_DICE.includes(item.die) ? item.die : 'd6',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(item.actionType) ? item.actionType : inferred,
+    targetMode:TARGET_MODES.includes(item.targetMode) ? item.targetMode : 'single',
+    aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
+    saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
     effect:item.effect || defaultActionEffect(item.name || '', inferred),
     description:item.description||''
   };
@@ -890,6 +894,9 @@ function hydrateActionItem(raw={}){
     die:raw.die || 'd6',
     bonus:Number(raw.bonus)||0,
     actionType:raw.actionType || inferActionType(raw),
+    targetMode:TARGET_MODES.includes(raw.targetMode) ? raw.targetMode : 'single',
+    aoeRadius:Math.max(0,Math.min(240,Number(raw.aoeRadius)||0)),
+    saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||0)),
     effect:raw.effect || raw.name || '',
     description:raw.description || ''
   };
@@ -1319,13 +1326,38 @@ function drawActionAnimations(){
   damageBursts=damageBursts.filter(fx=>now-fx.started<fx.duration);
   for(const fx of actionAnimations){
     const t=Math.max(0,Math.min(1,(now-fx.started)/fx.duration));
-    if(fx.type==='spell') drawSpellBurst(fx,t);
+    if(fx.type==='aoe') drawAoeBurst(fx,t);
+    else if(fx.type==='spell') drawSpellBurst(fx,t);
     else drawWeaponSlash(fx,t);
   }
   for(const fx of damageBursts){
     const t=Math.max(0,Math.min(1,(now-fx.started)/fx.duration));
     drawDamageBurst(fx,t);
   }
+}
+
+function drawAoeBurst(fx,t){
+  const alpha=Math.sin(Math.PI*t);
+  const radius=(Number(fx.radius)||40)*(0.72+0.28*t);
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.beginPath();
+  ctx.arc(fx.x,fx.y,radius,0,Math.PI*2);
+  ctx.fillStyle='rgba(102,167,216,.12)';
+  ctx.fill();
+  ctx.strokeStyle=fx.color||'rgba(120,210,255,.75)';
+  ctx.lineWidth=3;
+  ctx.setLineDash([10,6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for(let i=0;i<16;i++){
+    const a=i*Math.PI*2/16+t*3;
+    ctx.beginPath();
+    ctx.arc(fx.x+Math.cos(a)*radius,fx.y+Math.sin(a)*radius,2.2,0,Math.PI*2);
+    ctx.fillStyle='rgba(210,240,255,.9)';
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawWeaponSlash(fx,t){
@@ -1640,6 +1672,43 @@ function characterById(id){
 function selectedTargetCharacter(){
   if(!selectedTargetUid || enemyByUid(selectedTargetUid)) return null;
   return characterById(selectedTargetUid);
+}
+function isAoeAction(item){
+  return item && item.targetMode && item.targetMode!=='single' && Number(item.aoeRadius)>0;
+}
+function entityPoint(entity){
+  return {x:characterX(entity) ?? entity?.x ?? null,y:characterY(entity) ?? entity?.y ?? null};
+}
+function dist(a,b){
+  const dx=Number(a.x)-Number(b.x), dy=Number(a.y)-Number(b.y);
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function aoeCenter(caster,item){
+  const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
+  const targetCharacter=selectedTargetCharacter();
+  const target=targetEnemy||targetCharacter;
+  const point=target ? entityPoint(target) : entityPoint(caster);
+  return {x:Number(point.x)||0,y:Number(point.y)||0,target};
+}
+function aoeTargetsFor(casterKind,mode,center,radius,actionType){
+  const allChars=Object.values(allCharactersById()).filter(ch=>entityPoint(ch).x!=null);
+  const enemies=placedIcons.filter(ic=>ic.kind==='enemy' && ic.hp>0 && (!ic.hidden || isRevealed(ic.x,ic.y)));
+  let pools=[];
+  if(casterKind==='character'){
+    if(mode==='allies') pools=allChars.map(ch=>({kind:'character',entity:ch}));
+    else if(mode==='all') pools=[...allChars.map(ch=>({kind:'character',entity:ch})),...enemies.map(enemy=>({kind:'enemy',entity:enemy}))];
+    else pools=enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+  } else {
+    if(mode==='allies') pools=enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+    else if(mode==='all') pools=[...allChars.map(ch=>({kind:'character',entity:ch})),...enemies.map(enemy=>({kind:'enemy',entity:enemy}))];
+    else pools=allChars.map(ch=>({kind:'character',entity:ch}));
+  }
+  if(actionType==='healing' && mode==='enemies') pools=casterKind==='character' ? allChars.map(ch=>({kind:'character',entity:ch})) : enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+  if((actionType==='buff'||actionType==='utility') && mode==='enemies') pools=casterKind==='character' ? allChars.map(ch=>({kind:'character',entity:ch})) : enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+  return pools.filter(entry=>{
+    const p=entityPoint(entry.entity);
+    return p.x!=null && dist(center,p)<=radius;
+  });
 }
 
 function drawPlayers(){
@@ -2578,8 +2647,8 @@ function updateCombatPopout(){
     body.innerHTML=`
       <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
       <div class="combat-actions">
-        ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d6')} ${formatBonus(w.bonus)}</span></button>`).join('')}
-        ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}</span></button>`).join('')}
+      ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d6')} ${formatBonus(w.bonus)}${isAoeAction(w)?` AoE ${w.aoeRadius}`:''}</span></button>`).join('')}
+        ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}${isAoeAction(s)?` AoE ${s.aoeRadius}`:''}</span></button>`).join('')}
       </div>
       ${(!weapons.length&&!spells.length)?'<div class="combat-empty">This enemy has no actions yet. Edit the enemy stat block to add weapons or spells.</div>':''}`;
     return;
@@ -2603,8 +2672,8 @@ function updateCombatPopout(){
   body.innerHTML=`
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
-      ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d8')} ${formatBonus(w.bonus)}</span></button>`).join('')}
-      ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}</span></button>`).join('')}
+      ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d8')} ${formatBonus(w.bonus)}${isAoeAction(w)?` AoE ${w.aoeRadius}`:''}</span></button>`).join('')}
+      ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}${isAoeAction(s)?` AoE ${s.aoeRadius}`:''}</span></button>`).join('')}
     </div>`;
 }
 function buildIconGrid(){
@@ -2750,6 +2819,9 @@ function renderEnemyActionEditor(){
       <select onchange="updateEnemyActionField('${kind}','${item.id}','die',this.value)">${dieOptions.map(d=>`<option value="${d}" ${item.die===d?'selected':''}>${d}</option>`).join('')}</select>
       <input type="number" value="${Number(item.bonus)||0}" title="Damage/heal bonus" oninput="updateEnemyActionField('${kind}','${item.id}','bonus',this.value)">
       <input value="${escapeHtml(item.effect||'')}" placeholder="Effect/buff" oninput="updateEnemyActionField('${kind}','${item.id}','effect',this.value)">
+      <select title="Target mode" onchange="updateEnemyActionField('${kind}','${item.id}','targetMode',this.value)">${TARGET_MODES.map(mode=>`<option value="${mode}" ${item.targetMode===mode?'selected':''}>${mode}</option>`).join('')}</select>
+      <input type="number" min="0" max="240" value="${Number(item.aoeRadius)||0}" title="AoE radius, 0 is single target" oninput="updateEnemyActionField('${kind}','${item.id}','aoeRadius',this.value)">
+      <input type="number" min="0" max="30" value="${Number(item.saveDC)||0}" title="Save DC, 0 uses attack rolls" oninput="updateEnemyActionField('${kind}','${item.id}','saveDC',this.value)">
       <button class="danger" onclick="removeEnemyAction('${kind}','${item.id}')">Del</button>
     </div>`;
   const rows=(kind,label)=>`
@@ -2771,7 +2843,7 @@ function addEnemyAction(kind){
 function updateEnemyActionField(kind,id,field,value){
   const item=pendingEnemyActions[kind]?.find(action=>action.id===id);
   if(!item) return;
-  item[field]=field==='bonus' ? Number(value)||0 : value;
+  item[field]=['bonus','aoeRadius','saveDC'].includes(field) ? Number(value)||0 : value;
   if(field==='name' && !item.effect) item.effect=value;
 }
 function removeEnemyAction(kind,id){
@@ -3918,6 +3990,7 @@ function rollCharacterAction(characterId,type,itemId){
   markTurnAction(type,characterId);
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
+  if(isAoeAction(item)) return rollAoeAction(ch,'character',type,item,actionType);
   const friendly=selectedTargetCharacter();
   if(actionType==='healing'){
     const target=friendly||ch;
@@ -4022,6 +4095,73 @@ function addEnemyStatus(uid,status,rounds=10){
   scheduleSave();
   return enemy;
 }
+function applyAoeResult(entry,amount,actionType,effectName){
+  const target=entry.entity;
+  const before=entry.kind==='enemy' ? target.hp : target.currentHP;
+  let after=before;
+  if(actionType==='damage'){
+    after=Math.max(0,before-amount);
+    if(entry.kind==='enemy'){ target.hp=after; broadcast({type:'iconUpdate',icon:target}); if(after<=0) ensureEnemyLoot(target); }
+    else applyCharacterPatch(target.id,{currentHP:after});
+  } else if(actionType==='healing'){
+    if(entry.kind==='enemy'){ after=Math.min(target.maxHP,before+amount); target.hp=after; broadcast({type:'iconUpdate',icon:target}); }
+    else { after=Math.min(target.derived?.HP||before,before+amount); applyCharacterPatch(target.id,{currentHP:after}); }
+  } else {
+    if(entry.kind==='enemy') addEnemyStatus(target.uid,effectName,10);
+    else addCharacterStatus(target.id,effectName,10);
+  }
+  const p=entityPoint(target);
+  return {kind:entry.kind,id:entry.kind==='enemy'?target.uid:target.id,name:target.name,x:p.x,y:p.y,damage:amount,hpBefore:before,hpAfter:after,maxHP:entry.kind==='enemy'?target.maxHP:target.derived?.HP,statuses:target.statuses,currentHP:after};
+}
+function rollAoeAction(caster,casterKind,type,item,actionType){
+  const radius=Number(item.aoeRadius)||40;
+  const center=aoeCenter(caster,item);
+  const targets=aoeTargetsFor(casterKind,item.targetMode,center,radius,actionType);
+  if(!targets.length) return showCritOverlay('No targets in area','roll','AoE');
+  if(isDM()) pushDMUndo('area action');
+  const damage=rollDiceExpression('1'+item.die,item.bonus);
+  const effectName=item.effect||item.name||'Effect';
+  const results=[];
+  let affected=0;
+  for(const entry of targets){
+    let amount=0, hit=true, saved=false, attack=null, save=null;
+    if(actionType==='damage'){
+      if(item.saveDC){
+        const saveBonus=entry.kind==='character' ? abilityMod(statsWithRace(entry.entity).DEX) : 0;
+        save=rollDiceExpression('1d20',saveBonus);
+        saved=save.total>=item.saveDC;
+        amount=saved ? Math.floor(damage.total/2) : damage.total;
+      } else {
+        const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
+        attack=casterKind==='character' ? rollWithBuffs(caster,'1d20',atkBonus,'attack') : rollDiceExpression('1d20',atkBonus);
+        const ac=entry.kind==='enemy' ? entry.entity.ac : entry.entity.derived?.AC||10;
+        hit=attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=ac);
+        amount=hit ? damage.total : 0;
+      }
+      if(amount>0) affected++;
+    } else {
+      amount=actionType==='healing' ? damage.total : 0;
+      affected++;
+    }
+    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,attackTotal:attack?.total,saveTotal:save?.total});
+  }
+  const casterName=caster.name||'Caster';
+  const detail=actionType==='damage'
+    ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${item.saveDC?` (DC ${item.saveDC})`:''}`
+    : actionType==='healing'
+      ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}`
+      : `${effectName} applied to ${affected} target${affected===1?'':'s'}`;
+  addChatMessage({kind:type,character:casterName,label:`${item.name} AoE`,detail,total:damage.total,rolls:damage.rolls});
+  const effect={kind:'aoe',text:`${item.name}: ${affected}/${targets.length} affected`,overlayType:'roll',title:`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
+  playSfx(actionType==='healing'?'heal':actionType==='damage'?(affected?'hit':'miss'):'buff');
+  showCritOverlay(effect.text,effect.overlayType,effect.title);
+  playActionAnimation(caster,type,effect);
+  emitLiveEffect(effect);
+  updateActiveSummary();
+  updateCombatPopout();
+  draw();
+  scheduleSave();
+}
 function rollEnemyAction(enemyUid,type,itemId){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(enemyUid);
@@ -4029,6 +4169,7 @@ function rollEnemyAction(enemyUid,type,itemId){
   const item=(enemy[type+'s']||[]).find(x=>x.id===itemId);
   if(!item) return;
   const actionType=item.actionType||inferActionType(item);
+  if(isAoeAction(item)) return rollAoeAction(enemy,'enemy',type,item,actionType);
   const targetCharacter=selectedTargetCharacter();
   const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(actionType==='healing'){
@@ -4120,6 +4261,20 @@ function handleLiveEffect(effect){
     playActionAnimation(ch,effect.actionType,effect);
     scheduleSave();
   }
+  if(effect.kind==='aoe'){
+    const ch=characterById(effect.characterId) || enemyByUid(effect.characterId) || {position:{x:effect.x,y:effect.y},x:effect.x,y:effect.y};
+    (effect.aoeResults||[]).forEach(result=>{
+      if(result.kind==='enemy'){
+        const target=enemyByUid(result.id);
+        if(target && Number.isFinite(Number(result.hpAfter))) target.hp=Math.max(0,Math.min(target.maxHP,Number(result.hpAfter)));
+      } else if(result.kind==='character'){
+        applyCharacterPatch(result.id,{currentHP:result.currentHP,statuses:result.statuses});
+      }
+    });
+    playActionAnimation(ch,effect.actionType,effect);
+    draw();
+    scheduleSave();
+  }
   if(effect.kind==='enemyBuff'){
     const ch=enemyByUid(effect.characterId) || {position:{x:effect.x,y:effect.y},x:effect.x,y:effect.y};
     const target=effect.targetUid?enemyByUid(effect.targetUid):null;
@@ -4153,6 +4308,23 @@ function playActionAnimation(ch,type='weapon',details={}){
     seed:Math.floor(Math.random()*10000)
   };
   actionAnimations.push(fx);
+  if(details.kind==='aoe' && Number.isFinite(Number(details.tx))&&Number.isFinite(Number(details.ty))){
+    actionAnimations.push({...fx,type:'aoe',x:Number(details.tx),y:Number(details.ty),radius:Number(details.aoeRadius)||40,duration:920,color:'rgba(120,210,255,.75)'});
+    (details.aoeResults||[]).forEach(result=>{
+      if(Number.isFinite(Number(result.x))&&Number.isFinite(Number(result.y))){
+        damageBursts.push({
+          x:Number(result.x),
+          y:Number(result.y),
+          damage:Number(result.damage)||0,
+          hpBefore:Number(result.hpBefore ?? result.hpAfter ?? result.maxHP ?? 1),
+          hpAfter:Number(result.hpAfter ?? result.hpBefore ?? result.maxHP ?? 1),
+          maxHP:Number(result.maxHP)||1,
+          started:performance.now()+280,
+          duration:980
+        });
+      }
+    });
+  }
   if(details.kind==='action' && Number.isFinite(Number(details.tx))&&Number.isFinite(Number(details.ty))){
     damageBursts.push({
       x:Number(details.tx),

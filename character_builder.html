@@ -500,6 +500,7 @@ const RACE_DEFS={
 };
 const DAMAGE_DICE=['d4','d6','d8','d10','d12'];
 const ACTION_TYPES=['damage','healing','buff','utility'];
+const TARGET_MODES=['single','enemies','allies','all'];
 const ITEM_RARITIES=['Common','Uncommon','Rare','Very Rare','Legendary'];
 const EQUIPMENT_SLOTS=['Helmet','Chestplate','Pendant','Bracelet','Ring 1','Ring 2','Boots','Cloak','Gloves','Belt','Shield'];
 const SPELL_SLOT_LEVELS=[1,2,3,4,5,6,7,8,9];
@@ -672,6 +673,9 @@ function normalizeActionItem(item={}){
     die:DAMAGE_DICE.includes(item.die)?item.die:'d6',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(item.actionType)?item.actionType:inferred,
+    targetMode:TARGET_MODES.includes(item.targetMode)?item.targetMode:'single',
+    aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
+    saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
     effect:item.effect||defaultActionEffect(item.name||'',inferred),
     description:item.description||''
   };
@@ -927,6 +931,9 @@ function readActionItems(type){
     die:row.querySelector(`[data-${type}-die]`)?.value,
     bonus:row.querySelector(`[data-${type}-bonus]`)?.value,
     actionType:row.querySelector(`[data-${type}-action-type]`)?.value,
+    targetMode:row.querySelector(`[data-${type}-target-mode]`)?.value,
+    aoeRadius:row.querySelector(`[data-${type}-aoe-radius]`)?.value,
+    saveDC:row.querySelector(`[data-${type}-save-dc]`)?.value,
     effect:row.querySelector(`[data-${type}-effect]`)?.value.trim(),
     description:row.querySelector(`[data-${type}-desc]`)?.value.trim()
   })).filter(item=>item.name);
@@ -946,6 +953,9 @@ function renderActionList(type,items){
       <div><label>Bonus</label><input data-${type}-bonus type="number" value="${item.bonus}" step="1"></div>
       <button onclick="removeActionItem('${type}','${item.id}')">Remove</button>
       <div><label>Action type</label><select data-${type}-action-type>${ACTION_TYPES.map(t=>`<option value="${t}" ${t===item.actionType?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>Targeting</label><select data-${type}-target-mode>${TARGET_MODES.map(m=>`<option value="${m}" ${m===item.targetMode?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div><label>AoE radius</label><input data-${type}-aoe-radius type="number" min="0" max="240" value="${Number(item.aoeRadius)||0}" placeholder="0"></div>
+      <div><label>Save DC</label><input data-${type}-save-dc type="number" min="0" max="30" value="${Number(item.saveDC)||0}" placeholder="0"></div>
       <div style="grid-column:span 2"><label>Effect / status</label><input data-${type}-effect value="${escapeHtml(item.effect||'')}" placeholder="Bless, Guidance, Bardic Inspiration, Healing"></div>
       <textarea data-${type}-desc placeholder="Range, save DC, effect, damage type">${escapeHtml(item.description||'')}</textarea>
     </div>`).join('') || `<div class="muted">No ${type==='weapon'?'weapons':'spells'} yet.</div>`;
