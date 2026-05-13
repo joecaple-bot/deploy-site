@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -299,13 +299,14 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
           <label>Name</label>
           <input id="enemy-name" placeholder="Goblin Scout">
           <label>Icon</label>
-          <input id="enemy-icon" maxlength="4" placeholder="👹">
+          <input id="enemy-icon" maxlength="4" placeholder="ðŸ‘¹">
           <div id="enemy-asset-picker"></div>
           <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
             <div><label>HP</label><input id="enemy-hp" type="number" min="1" value="7"></div>
             <div><label>AC</label><input id="enemy-ac" type="number" min="1" value="13"></div>
             <div><label>Attack bonus</label><input id="enemy-attack" type="number" value="4"></div>
             <div><label>Color</label><input id="enemy-color" type="color" value="#e06b62"></div>
+            <div><label>Token size</label><input id="enemy-token-scale" type="range" min="0.75" max="2.5" step="0.05" value="1"></div>
             <div><label>Hidden</label><select id="enemy-hidden"><option value="true">Hidden until revealed</option><option value="false">Visible</option></select></div>
           </div>
           <div id="enemy-action-editor" class="sheet-detail"></div>
@@ -358,6 +359,10 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
                 <div>
                   <label>Color</label>
                   <input type="color" id="char-color" value="#48b37f">
+                </div>
+                <div>
+                  <label>Token size</label>
+                  <input type="range" id="char-token-scale" min="0.75" max="2" step="0.05" value="1">
                 </div>
                 <div class="span-2">
                   <label>Icon</label>
@@ -506,22 +511,22 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 <script src="assets_manifest.js"></script>
 <script>
 /* ===== Existing map/icon data, expanded for the character creator ===== */
-const PLAYER_ICONS = ['🧙','🧝','🧟','🧛','🧜','🦸','🤺','🥷','🧑‍🚀','👸','🤴','🧞','🐉','🦊','🐺','🛡️'];
+const PLAYER_ICONS = ['ðŸ§™','ðŸ§','ðŸ§Ÿ','ðŸ§›','ðŸ§œ','ðŸ¦¸','ðŸ¤º','ðŸ¥·','ðŸ§‘â€ðŸš€','ðŸ‘¸','ðŸ¤´','ðŸ§ž','ðŸ‰','ðŸ¦Š','ðŸº','ðŸ›¡ï¸'];
 const MAP_ICONS = [
-  {id:'chest',em:'📦',label:'Chest',hidden:true},
-  {id:'enemy',em:'👹',label:'Enemy',hidden:true},
-  {id:'potion',em:'🧪',label:'Potion',hidden:true},
-  {id:'key',em:'🗝️',label:'Key',hidden:true},
-  {id:'scroll',em:'📜',label:'Scroll',hidden:true},
-  {id:'trader',em:'💰',label:'Trader',hidden:false,kind:'trader'},
-  {id:'trap',em:'🪤',label:'Trap',hidden:true},
-  {id:'flag',em:'🚩',label:'Flag',hidden:false},
-  {id:'star',em:'⭐',label:'Interest',hidden:false},
-  {id:'skull',em:'💀',label:'Danger',hidden:false},
-  {id:'door',em:'🚪',label:'Exit',hidden:false},
-  {id:'pin',em:'📍',label:'Pin',hidden:false,kind:'pin'},
-  {id:'fire',em:'🔥',label:'Hazard',hidden:false},
-  {id:'tent',em:'⛺',label:'Camp',hidden:false}
+  {id:'chest',em:'ðŸ“¦',label:'Chest',hidden:true},
+  {id:'enemy',em:'ðŸ‘¹',label:'Enemy',hidden:true},
+  {id:'potion',em:'ðŸ§ª',label:'Potion',hidden:true},
+  {id:'key',em:'ðŸ—ï¸',label:'Key',hidden:true},
+  {id:'scroll',em:'ðŸ“œ',label:'Scroll',hidden:true},
+  {id:'trader',em:'ðŸ’°',label:'Trader',hidden:false,kind:'trader'},
+  {id:'trap',em:'ðŸª¤',label:'Trap',hidden:true},
+  {id:'flag',em:'ðŸš©',label:'Flag',hidden:false},
+  {id:'star',em:'â­',label:'Interest',hidden:false},
+  {id:'skull',em:'ðŸ’€',label:'Danger',hidden:false},
+  {id:'door',em:'ðŸšª',label:'Exit',hidden:false},
+  {id:'pin',em:'ðŸ“',label:'Pin',hidden:false,kind:'pin'},
+  {id:'fire',em:'ðŸ”¥',label:'Hazard',hidden:false},
+  {id:'tent',em:'â›º',label:'Camp',hidden:false}
 ];
 
 /* ===== NEW SECTION: Local sound packs ===== */
@@ -746,8 +751,9 @@ function hydrateCharacter(raw={}){
       x:raw.position?.x ?? raw.x ?? null,
       y:raw.position?.y ?? raw.y ?? null
     },
-    icon:raw.icon || raw.em || '🧙',
+    icon:raw.icon || raw.em || 'ðŸ§™',
     tokenArt:raw.tokenArt || '',
+    tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     color:raw.color || randomColor(),
     gold:Math.max(0,Number(raw.gold)||0),
     currentHP:Number(raw.currentHP ?? raw.derived?.HP ?? 0),
@@ -889,8 +895,9 @@ function hydrateEnemyTemplate(raw={}){
   return {
     id:raw.id || 'e_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Enemy',
-    icon:raw.icon || raw.em || '👹',
+    icon:raw.icon || raw.em || 'ðŸ‘¹',
     tokenArt:raw.tokenArt || '',
+    tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     hp:Math.max(1,Number(raw.hp ?? raw.maxHP ?? 7)),
     ac:Math.max(1,Number(raw.ac ?? 13)),
     attackBonus:Number(raw.attackBonus ?? raw.attack ?? 4)||0,
@@ -906,9 +913,10 @@ function hydratePlacedIcon(raw={}){
   const icon={...raw};
   if(icon.kind==='enemy'){
     icon.name=icon.name || icon.label || 'Enemy';
-    icon.icon=icon.icon || icon.em || '👹';
+    icon.icon=icon.icon || icon.em || 'ðŸ‘¹';
     icon.em=icon.icon;
     icon.tokenArt=icon.tokenArt || '';
+    icon.tokenScale=Math.max(.5,Math.min(3,Number(icon.tokenScale)||1));
     icon.hp=Math.max(0,Number(icon.hp ?? icon.maxHP ?? 7));
     icon.maxHP=Math.max(1,Number(icon.maxHP ?? icon.hp ?? 7));
     icon.ac=Math.max(1,Number(icon.ac ?? 13));
@@ -931,7 +939,7 @@ function hydratePlacedIcon(raw={}){
   if(icon.id==='chest' || icon.kind==='chest'){
     icon.kind='chest';
     icon.id='chest';
-    icon.icon=icon.icon || icon.em || '📦';
+    icon.icon=icon.icon || icon.em || 'ðŸ“¦';
     icon.em=icon.icon;
     icon.name=icon.name || icon.label || 'Loot Chest';
     icon.label=icon.name;
@@ -944,7 +952,7 @@ function hydratePlacedIcon(raw={}){
   if(icon.id==='trader' || icon.kind==='trader'){
     icon.kind='trader';
     icon.id='trader';
-    icon.icon=icon.icon || icon.em || '💰';
+    icon.icon=icon.icon || icon.em || 'ðŸ’°';
     icon.em=icon.icon;
     icon.traderType=TRADER_TYPES.includes(icon.traderType) ? icon.traderType : 'General';
     icon.traderLevel=Math.max(1,Math.min(3,Number(icon.traderLevel)||1));
@@ -1089,6 +1097,15 @@ function drawTokenArt(entity,x,y,size=30,fallback='?'){
   ctx.fillText(fallback,x,y);
   return false;
 }
+function tokenScale(entity,base=1){
+  return Math.max(.5,Math.min(3,Number(entity?.tokenScale)||base));
+}
+function tokenDrawSize(entity,base=34){
+  return base * tokenScale(entity);
+}
+function tokenHitRadius(entity,base=22){
+  return Math.max(base, tokenDrawSize(entity,base + 8) / 2 + 6);
+}
 function tokenThumbHtml(entity,fallback='?'){
   return entity?.tokenArt ? `<img class="token-thumb" src="${escapeHtml(entity.tokenArt)}" alt="">` : escapeHtml(fallback);
 }
@@ -1104,7 +1121,7 @@ function renderAssetPicker(targetId,currentPath,onSelect){
   const items=assetManifest().filter(item=>item.folder===currentFolder);
   el.innerHTML=`
     <details class="asset-picker">
-      <summary>☰ Git art override ${currentPath?'on':'off'}</summary>
+      <summary>â˜° Git art override ${currentPath?'on':'off'}</summary>
       <div class="asset-tools">
         <select data-asset-folder>${folders.map(folder=>`<option value="${escapeHtml(folder)}" ${folder===currentFolder?'selected':''}>${escapeHtml(folder)}</option>`).join('')}</select>
         <select data-asset-item>${items.map(item=>`<option value="${escapeHtml(item.path)}" ${item.path===currentPath?'selected':''}>${escapeHtml(item.name)} (${Math.ceil((item.bytes||0)/1024)}kb)</option>`).join('')}</select>
@@ -1437,7 +1454,12 @@ function drawPlacedIcons(){
     if(ic.hidden&&!rev) continue;
     ctx.globalAlpha=1;
     const isBoss=ic.kind==='enemy' && ic.boss;
-    ctx.font=(isBoss?'34px':'22px')+' serif';
+    const iconSize=tokenDrawSize(ic,isBoss?46:30);
+    const ringRadius=Math.max(isBoss?42:31,iconSize/2+8);
+    const targetRadius=Math.max(isBoss?37:25,iconSize/2+4);
+    const labelY=ic.y+iconSize/2+(isBoss?5:2);
+    const barY=labelY+(isBoss?17:13);
+    ctx.font=Math.round(tokenDrawSize(ic,isBoss?34:22))+'px serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
     if(isBoss){
@@ -1445,7 +1467,7 @@ function drawPlacedIcons(){
       ctx.save();
       ctx.globalAlpha=pulse;
       ctx.beginPath();
-      ctx.arc(ic.x,ic.y,34,0,Math.PI*2);
+      ctx.arc(ic.x,ic.y,Math.max(34,iconSize/2+6),0,Math.PI*2);
       ctx.fillStyle='rgba(92,16,16,.22)';
       ctx.fill();
       ctx.strokeStyle='rgba(245,190,80,.82)';
@@ -1453,51 +1475,49 @@ function drawPlacedIcons(){
       ctx.stroke();
       ctx.restore();
     }
-    drawTokenArt(ic,ic.x,ic.y,isBoss?46:30,ic.em||ic.icon);
+    drawTokenArt(ic,ic.x,ic.y,iconSize,ic.em||ic.icon);
     if(ic.kind==='enemy'){
       if(ic.uid===activeEnemyUid){
         ctx.beginPath();
-        ctx.arc(ic.x,ic.y,isBoss?42:31,0,Math.PI*2);
+        ctx.arc(ic.x,ic.y,ringRadius,0,Math.PI*2);
         ctx.strokeStyle='rgba(224,107,98,.95)';
         ctx.lineWidth=3;
         ctx.stroke();
       }
       if(ic.uid===selectedTargetUid){
         ctx.beginPath();
-        ctx.arc(ic.x,ic.y,isBoss?37:25,0,Math.PI*2);
+        ctx.arc(ic.x,ic.y,targetRadius,0,Math.PI*2);
         ctx.strokeStyle='rgba(255,214,92,.9)';
         ctx.lineWidth=2;
         ctx.setLineDash([4,3]);
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      const barW=isBoss?126:54, barH=isBoss?9:5;
-      const labelY=ic.y+(isBoss?28:16);
-      const barY=ic.y+(isBoss?45:29);
+      const barW=Math.max(isBoss?126:54,iconSize*1.45), barH=isBoss?9:5;
       ctx.font=isBoss?'900 14px Georgia, Times New Roman, serif':'700 10px Inter, Segoe UI, sans-serif';
       ctx.fillStyle=isBoss?'#ffe6a6':(ic.color||'#e06b62');
       ctx.textBaseline='top';
       const hpPct=Math.max(0,Math.min(1,ic.hp/Math.max(1,ic.maxHP)));
-      if(!isBoss) ctx.fillText(`${ic.name} AC ${ic.ac} HP ${ic.hp}/${ic.maxHP}`,ic.x,ic.y+16);
+      if(!isBoss) ctx.fillText(`${ic.name} AC ${ic.ac} HP ${ic.hp}/${ic.maxHP}`,ic.x,labelY);
       if(!isBoss){
         ctx.fillStyle='rgba(8,10,12,.78)';
-        ctx.fillRect(ic.x-barW/2,ic.y+29,barW,barH);
+        ctx.fillRect(ic.x-barW/2,barY,barW,barH);
         ctx.fillStyle='rgba(98,20,20,.95)';
-        ctx.fillRect(ic.x-barW/2+1,ic.y+30,barW-2,barH-2);
+        ctx.fillRect(ic.x-barW/2+1,barY+1,barW-2,barH-2);
         ctx.fillStyle='rgba(231,57,57,.95)';
-        ctx.fillRect(ic.x-barW/2+1,ic.y+30,(barW-2)*hpPct,barH-2);
+        ctx.fillRect(ic.x-barW/2+1,barY+1,(barW-2)*hpPct,barH-2);
       }
       if(isBoss){
-        const bossW=126, bossH=9, bossY=ic.y+45;
+        const bossW=barW, bossH=9, bossY=barY;
         const text=`${ic.name}   AC ${ic.ac}   HP ${ic.hp}/${ic.maxHP}`;
         const metrics=ctx.measureText(text);
         ctx.fillStyle='rgba(9,8,10,.82)';
         ctx.strokeStyle='rgba(245,190,80,.42)';
         ctx.lineWidth=1;
-        ctx.fillRect(ic.x-metrics.width/2-9,ic.y+24,metrics.width+18,20);
-        ctx.strokeRect(ic.x-metrics.width/2-9,ic.y+24,metrics.width+18,20);
+        ctx.fillRect(ic.x-metrics.width/2-9,labelY-4,metrics.width+18,20);
+        ctx.strokeRect(ic.x-metrics.width/2-9,labelY-4,metrics.width+18,20);
         ctx.fillStyle='#ffe6a6';
-        ctx.fillText(text,ic.x,ic.y+28);
+        ctx.fillText(text,ic.x,labelY);
         ctx.fillStyle='rgba(8,10,12,.78)';
         ctx.fillRect(ic.x-bossW/2,bossY,bossW,bossH);
         ctx.fillStyle='rgba(98,20,20,.95)';
@@ -1512,13 +1532,13 @@ function drawPlacedIcons(){
       ctx.font='700 11px Inter, Segoe UI, sans-serif';
       ctx.fillStyle='#fff2d0';
       ctx.textBaseline='top';
-      ctx.fillText(ic.name||ic.label||'Pin',ic.x,ic.y+16);
+      ctx.fillText(ic.name||ic.label||'Pin',ic.x,ic.y+iconSize/2+2);
     }
     if(ic.kind==='trader'){
       ctx.font='700 11px Inter, Segoe UI, sans-serif';
       ctx.fillStyle='#f5d27a';
       ctx.textBaseline='top';
-      ctx.fillText(`${ic.name||'Trader'} L${ic.traderLevel||1}`,ic.x,ic.y+16);
+      ctx.fillText(`${ic.name||'Trader'} L${ic.traderLevel||1}`,ic.x,ic.y+iconSize/2+2);
     }
     if(ic===dragTarget&&isDragging){
       ctx.beginPath();
@@ -1537,7 +1557,7 @@ function drawPlacedIcons(){
     ctx.font='18px serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    drawTokenArt(ic,ic.x,ic.y,24,ic.em||ic.icon);
+    drawTokenArt(ic,ic.x,ic.y,tokenDrawSize(ic,24),ic.em||ic.icon);
     ctx.globalAlpha=0.5;
     ctx.font='700 11px Inter, Segoe UI, sans-serif';
     ctx.fillStyle='#aaa';
@@ -1652,19 +1672,21 @@ function drawPlayers(){
       }
       ctx.restore();
     }
+    const iconSize=tokenDrawSize(p,34);
+    const ringRadius=Math.max(25,iconSize/2+7);
     if(id===selectedTargetUid){
       ctx.beginPath();
-      ctx.arc(x,y,25,0,Math.PI*2);
+      ctx.arc(x,y,ringRadius,0,Math.PI*2);
       ctx.strokeStyle='rgba(102,167,216,.95)';
       ctx.lineWidth=2;
       ctx.setLineDash([4,3]);
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    ctx.font='27px serif';
+    ctx.font=Math.round(tokenDrawSize(p,27))+'px serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    drawTokenArt(p,x,y,34,p.icon||p.em||'🧙');
+    drawTokenArt(p,x,y,iconSize,p.icon||p.em||'ðŸ§™');
     ctx.beginPath();
     ctx.arc(x,y+4,3.5,0,Math.PI*2);
     ctx.fillStyle=p.color||'#48b37f';
@@ -1673,7 +1695,7 @@ function drawPlayers(){
     ctx.fillStyle=p.color||'#48b37f';
     ctx.textBaseline='top';
     ctx.textAlign='center';
-    ctx.fillText(`${p.name||id.slice(0,6)} L${p.level||1}`,x,y+17);
+    ctx.fillText(`${p.name||id.slice(0,6)} L${p.level||1}`,x,y+iconSize/2+1);
     ctx.restore();
   }
 }
@@ -1809,7 +1831,7 @@ function iconAt(x,y){
   for(let i=placedIcons.length-1;i>=0;i--){
     const ic=placedIcons[i];
     const dx=x-ic.x, dy=y-ic.y;
-    if(Math.sqrt(dx*dx+dy*dy)<20) return ic;
+    if(Math.sqrt(dx*dx+dy*dy)<tokenHitRadius(ic,20)) return ic;
   }
   return null;
 }
@@ -1831,7 +1853,7 @@ function playerAt(x,y){
     const px=characterX(p), py=characterY(p);
     if(px==null||py==null) continue;
     const dx=x-px, dy=y-py;
-    if(Math.sqrt(dx*dx+dy*dy)<22) return {id,p};
+    if(Math.sqrt(dx*dx+dy*dy)<tokenHitRadius(p,22)) return {id,p};
   }
   return null;
 }
@@ -1840,7 +1862,7 @@ function activeCharacterAt(x,y){
   const px=characterX(ch), py=characterY(ch);
   if(px==null||py==null) return null;
   const dx=x-px, dy=y-py;
-  return Math.sqrt(dx*dx+dy*dy)<22 ? {id:ch.id,p:{...ch,isMe:true}} : null;
+  return Math.sqrt(dx*dx+dy*dy)<tokenHitRadius(ch,22) ? {id:ch.id,p:{...ch,isMe:true}} : null;
 }
 function canMoveCharacterNow(ch){
   if(!combatMode || isDM()) return true;
@@ -2183,7 +2205,7 @@ function populateBuilderOptions(){
     card.innerHTML=`<div class="stat-name"><span>${ab}</span><b id="mod-${ab}">+0</b></div><input type="number" id="stat-${ab}" min="1" max="30" value="10">`;
     stats.appendChild(card);
   }
-  ['char-race','char-class','char-level',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
+  ['char-race','char-class','char-level','char-color','char-token-scale',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
     document.getElementById(id).addEventListener('input',updateBuilderPreview);
     document.getElementById(id).addEventListener('change',updateBuilderPreview);
   });
@@ -2191,7 +2213,7 @@ function populateBuilderOptions(){
 function openAddCharModal(){
   pendingModalSave={mode:'add'};
   document.getElementById('modal-title').textContent='Create character';
-  fillBuilder(hydrateCharacter({name:'',icon:'🧙',color:randomColor()}));
+  fillBuilder(hydrateCharacter({name:'',icon:'ðŸ§™',color:randomColor()}));
   document.getElementById('modal-overlay').classList.add('show');
 }
 function openEditCharModal(charId=activeCharacterId){
@@ -2211,6 +2233,7 @@ function fillBuilder(ch){
   document.getElementById('char-background').value=ch.background || '';
   document.getElementById('char-alignment').value=ch.alignment || 'True Neutral';
   document.getElementById('char-color').value=colorToInput(ch.color);
+  document.getElementById('char-token-scale').value=tokenScale(ch);
   for(const ab of ABILITIES) document.getElementById('stat-'+ab).value=ch.stats[ab] || 10;
   selectedCharTokenArt=ch.tokenArt||'';
   buildModalIcons(ch.icon);
@@ -2231,8 +2254,9 @@ function readBuilder(){
     alignment:document.getElementById('char-alignment').value,
     stats,
     skills:pendingModalSave?.skills || {},
-    icon:document.querySelector('.mi.sel')?.dataset.em || '🧙',
+    icon:document.querySelector('.mi.sel')?.dataset.em || 'ðŸ§™',
     tokenArt:selectedCharTokenArt||'',
+    tokenScale:Number(document.getElementById('char-token-scale').value)||1,
     color:document.getElementById('char-color').value,
     gold:pendingModalSave?.gold || 0
   });
@@ -2249,7 +2273,7 @@ function updateBuilderPreview(){
   document.getElementById('derived-preview').innerHTML=[
     ['HP',d.HP],['AC',d.AC],['Init',(d.initiative>=0?'+':'')+d.initiative],
     ['Attack',(d.attackBonus>=0?'+':'')+d.attackBonus],['Prof','+'+d.proficiencyBonus],['Slots',d.spellSlots],
-    [d.resourceName,d.resourceMax],['Passive',d.passivePerception],['Reveal',d.revealRadius]
+    [d.resourceName,d.resourceMax],['Passive',d.passivePerception],['Reveal',d.revealRadius],['Token',Math.round(tokenScale(ch)*100)+'%']
   ].map(([label,val])=>`<div class="derived-card"><b>${val}</b><span>${label}</span></div>`).join('');
   const traits=[...(RACE_DEFS[ch.race]?.traits||[]),...(CLASS_DEFS[ch.class]?.abilities||[])];
   document.getElementById('trait-preview').innerHTML=traits.map(t=>`<span class="ability">${t}</span>`).join('');
@@ -2443,7 +2467,7 @@ function updateCharactersList(){
       <div class="char-avatar">${ch.icon}</div>
       <div>
         <div class="char-title">${escapeHtml(ch.name)}</div>
-        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} · ${placed?'Placed':'Unplaced'}</div>
+        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} Â· ${placed?'Placed':'Unplaced'}</div>
       </div>
       <div class="char-actions"></div>`;
     d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
@@ -2470,7 +2494,7 @@ function updateActiveSummary(){
   const death=ch.deathSaves || {success:0,fail:0};
   const equipped=equippedItems(ch);
   const abilities=[...(ch.abilities||[]),...(ch.bonusActions||[]).map(a=>({...a,name:`Bonus: ${a.name}`})),...equippedAbilityRows(ch)];
-  const deathControls=(ch.currentHP??d.HP)<=0 ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save ✓ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
+  const deathControls=(ch.currentHP??d.HP)<=0 ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save âœ“ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   el.innerHTML=`
     <div class="char-chip sel" style="cursor:default">
       <div class="char-avatar">${ch.icon}</div>
@@ -2504,8 +2528,8 @@ function updateActiveSummary(){
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
     ${deathControls}
     <div class="action-buttons">
-      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">⚔ ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">✦ ${escapeHtml(s.name)}</button>`).join('')}
+      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">âš” ${escapeHtml(w.name)}</button>`).join('')}
+      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">âœ¦ ${escapeHtml(s.name)}</button>`).join('')}
     </div>
     <div class="action-buttons">
       ${ABILITIES.map(ab=>`<button onclick="rollSavingThrow('${ch.id}','${ab}')">${ab} Save</button>`).join('')}
@@ -2585,7 +2609,7 @@ function buildIconGrid(){
   for(const ic of MAP_ICONS){
     const d=document.createElement('div');
     d.className='icon-cell'+(selectedMapIcon.id===ic.id?' sel':'');
-    d.innerHTML=`<span class="icon-em">${ic.em}</span><span>${ic.label}${ic.hidden?' 👁':''}</span>`;
+    d.innerHTML=`<span class="icon-em">${ic.em}</span><span>${ic.label}${ic.hidden?' ðŸ‘':''}</span>`;
     d.onclick=()=>{ if(!isDM()) return requireDM(); selectedMapIcon=prepareMapIconForPlacement(ic); setMode('place'); buildIconGrid(); };
     el.appendChild(d);
   }
@@ -2607,7 +2631,7 @@ function createNamedPin(){
   const name=prompt('Pin label');
   if(!name) return;
   const note=prompt('Pin note, optional') || '';
-  selectedMapIcon={id:'pin-'+Date.now(),kind:'pin',em:'📍',icon:'📍',label:name.trim(),name:name.trim(),note,hidden:false};
+  selectedMapIcon={id:'pin-'+Date.now(),kind:'pin',em:'ðŸ“',icon:'ðŸ“',label:name.trim(),name:name.trim(),note,hidden:false};
   setMode('place');
   buildIconGrid();
   showCritOverlay('Click the map to place the pin','roll','Pin');
@@ -2615,9 +2639,9 @@ function createNamedPin(){
 function ensureDefaultEnemies(){
   if(enemyTemplates.length) return;
   enemyTemplates=[
-    hydrateEnemyTemplate({name:'Goblin Scout',icon:'👺',hp:7,ac:13,color:'#e06b62'}),
-    hydrateEnemyTemplate({name:'Skeleton Guard',icon:'💀',tokenArt:'assets/undead_stylised_svg_pack/skeleton.svg',hp:13,ac:13,color:'#d6d8df'}),
-    hydrateEnemyTemplate({name:'Orc Brute',icon:'👹',hp:15,ac:13,color:'#b65f4a'})
+    hydrateEnemyTemplate({name:'Goblin Scout',icon:'ðŸ‘º',hp:7,ac:13,color:'#e06b62'}),
+    hydrateEnemyTemplate({name:'Skeleton Guard',icon:'ðŸ’€',tokenArt:'assets/undead_stylised_svg_pack/skeleton.svg',hp:13,ac:13,color:'#d6d8df'}),
+    hydrateEnemyTemplate({name:'Orc Brute',icon:'ðŸ‘¹',hp:15,ac:13,color:'#b65f4a'})
   ];
   selectedEnemyId=enemyTemplates[0].id;
 }
@@ -2630,7 +2654,7 @@ function updateEnemyList(){
       <div class="enemy-icon">${tokenThumbHtml(enemy,enemy.icon)}</div>
       <div>
         <div class="enemy-name">${escapeHtml(enemy.name)}</div>
-        <div class="enemy-meta">AC ${enemy.ac} · HP ${enemy.hp}</div>
+        <div class="enemy-meta">AC ${enemy.ac} Â· HP ${enemy.hp}</div>
       </div>
       <div class="enemy-actions">
         <button onclick="event.stopPropagation();openEnemyModal('${enemy.id}')">Edit</button>
@@ -2647,7 +2671,7 @@ function selectEnemy(id){
 }
 function enemyToMapIcon(enemy){
   enemy=hydrateEnemyTemplate(enemy||{});
-  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',weapons:enemy.weapons||[],spells:enemy.spells||[],statuses:[],loot:[],lootGenerated:false};
+  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',tokenScale:tokenScale(enemy),hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',weapons:enemy.weapons||[],spells:enemy.spells||[],statuses:[],loot:[],lootGenerated:false};
 }
 function placeSelectedEnemy(){
   if(!isDM()) return requireDM();
@@ -2668,6 +2692,7 @@ function openEnemyModal(id=null){
   document.getElementById('enemy-hp').value=enemy.hp;
   document.getElementById('enemy-ac').value=enemy.ac;
   document.getElementById('enemy-attack').value=enemy.attackBonus ?? 4;
+  document.getElementById('enemy-token-scale').value=tokenScale(enemy);
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
@@ -2686,12 +2711,13 @@ function openPlacedEnemyModal(uid){
   pendingEnemyPlacedUid=uid;
   document.getElementById('enemy-modal-title').textContent='Edit placed enemy';
   document.getElementById('enemy-name').value=enemy.name;
-  document.getElementById('enemy-icon').value=enemy.icon||enemy.em||'👹';
+  document.getElementById('enemy-icon').value=enemy.icon||enemy.em||'ðŸ‘¹';
   pendingEnemyTokenArt=enemy.tokenArt||'';
   renderAssetPicker('enemy-asset-picker',pendingEnemyTokenArt,path=>{ pendingEnemyTokenArt=path; });
   document.getElementById('enemy-hp').value=enemy.maxHP||enemy.hp||1;
   document.getElementById('enemy-ac').value=enemy.ac;
   document.getElementById('enemy-attack').value=enemy.attackBonus ?? 4;
+  document.getElementById('enemy-token-scale').value=tokenScale(enemy);
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
@@ -2753,8 +2779,9 @@ function saveEnemyTemplate(){
   const data=hydrateEnemyTemplate({
     id:pendingEnemyEditId,
     name:document.getElementById('enemy-name').value.trim()||'Enemy',
-    icon:document.getElementById('enemy-icon').value.trim()||'👹',
+    icon:document.getElementById('enemy-icon').value.trim()||'ðŸ‘¹',
     tokenArt:pendingEnemyTokenArt||'',
+    tokenScale:Number(document.getElementById('enemy-token-scale').value)||1,
     hp:document.getElementById('enemy-hp').value,
     ac:document.getElementById('enemy-ac').value,
     attackBonus:document.getElementById('enemy-attack').value,
@@ -2811,7 +2838,7 @@ function updatePlayersList(){
   for(const [id,p] of Object.entries(grouped)){
     const d=document.createElement('div');
     d.className='player-chip';
-    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${p.icon||'🧙'}</span><span>${escapeHtml(p.name||id.slice(0,6))} L${p.level||1}</span>`;
+    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${p.icon||'ðŸ§™'}</span><span>${escapeHtml(p.name||id.slice(0,6))} L${p.level||1}</span>`;
     el.appendChild(d);
   }
 }
@@ -2827,7 +2854,7 @@ function showRadialMenu(ch,x,y){
   if(!menu) return;
   const canUse=canControlCharacter(ch);
   menu.innerHTML=`
-    <div class="radial-center">${ch.icon||'🧙'}</div>
+    <div class="radial-center">${ch.icon||'ðŸ§™'}</div>
     <button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch.id}')">d20</button>
     <button class="radial-btn" onclick="hideRadialMenu();openSaveWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Saves</button>
     <button class="radial-btn" onclick="radialActions('${ch.id}')">Actions</button>
@@ -2870,14 +2897,14 @@ function showSheet(ch,x,y){
   const d=ch.derived || calculateDerived(ch);
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
   const death=ch.deathSaves || {success:0,fail:0};
-  const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save ✓ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
+  const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save âœ“ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   const restControls=ch.isMe ? `<div class="death-row"><button onclick="shortRest('${ch.id}')">Short rest</button><button onclick="longRest('${ch.id}')">Long rest</button></div>` : '';
   const statusList=normalizeStatuses(ch.statuses);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(ch,ch.icon)}</div>
       <div><div class="sheet-name">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     <div class="mini-stat-row">
       <div class="mini-stat"><b>${ch.currentHP ?? d.HP}/${d.HP}</b><span>HP</span></div>
@@ -2890,8 +2917,8 @@ function showSheet(ch,x,y){
     </div>
     <div class="ability-list">${[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class'])].map(t=>`<span class="ability">${t}</span>`).join('')}</div>
     <div class="action-buttons">
-      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">⚔ ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">✦ ${escapeHtml(s.name)}</button>`).join('')}
+      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">âš” ${escapeHtml(w.name)}</button>`).join('')}
+      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">âœ¦ ${escapeHtml(s.name)}</button>`).join('')}
     </div>
     <div class="pill-row">${statusList.map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
@@ -2912,8 +2939,8 @@ function showEnemySheet(enemy,x,y){
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(enemy,enemy.icon||enemy.em)}</div>
-      <div><div class="sheet-name">${escapeHtml(enemy.name)}</div><div class="sheet-sub">Enemy · AC ${enemy.ac}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <div><div class="sheet-name">${escapeHtml(enemy.name)}</div><div class="sheet-sub">Enemy Â· AC ${enemy.ac}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     <div class="mini-stat-row" style="${dm?'':'grid-template-columns:repeat(2,1fr)'}">
       <div class="mini-stat"><b>${enemy.hp}/${enemy.maxHP}</b><span>HP</span></div>
@@ -2955,9 +2982,9 @@ function showIconSheet(icon,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${icon.icon||icon.em||'📍'}</div>
+      <div class="sheet-icon">${icon.icon||icon.em||'ðŸ“'}</div>
       <div><div class="sheet-name">${escapeHtml(icon.name||icon.label||'Map icon')}</div><div class="sheet-sub">${icon.hidden?'Hidden':'Visible'} icon</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     ${icon.note?`<div class="sheet-detail"><h4>Note</h4><div class="hint">${escapeHtml(icon.note)}</div></div>`:''}
     <div class="sheet-actions">
@@ -2978,9 +3005,9 @@ function showChestSheet(chest,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${chest.opened?'🧰':(chest.icon||chest.em||'📦')}</div>
-      <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest · ${chest.opened?'Opened':'Closed'}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <div class="sheet-icon">${chest.opened?'ðŸ§°':(chest.icon||chest.em||'ðŸ“¦')}</div>
+      <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest Â· ${chest.opened?'Opened':'Closed'}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     ${!chest.opened?`<div class="sheet-detail"><h4>Chest</h4><div class="hint">A level ${chest.chestLevel} chest. Open it to roll loot from the chest pool.</div></div>`:''}
     ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
@@ -3155,9 +3182,9 @@ function showTraderSheet(trader,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${trader.icon||trader.em||'💰'}</div>
-      <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader · Level ${trader.traderLevel||1}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <div class="sheet-icon">${trader.icon||trader.em||'ðŸ’°'}</div>
+      <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader Â· Level ${trader.traderLevel||1}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     ${(trader.description||p)?`<div class="sheet-detail"><h4>Context</h4><div class="hint">${escapeHtml(trader.description||'No description')}</div>${p?`<div class="hint" style="margin-top:6px"><b>${escapeHtml(p.greeting||'')}</b><br>${escapeHtml(p.buyLine||'')}<br>${escapeHtml(p.sellLine||'')}</div>`:''}</div>`:''}
     <div class="sheet-detail"><h4>Dialogue</h4><div class="hint">${escapeHtml(contextLine)}</div></div>
@@ -3555,9 +3582,9 @@ function showEffectSheet(fx,x,y){
   const name=fx.type==='fire'?'Hazard':fx.type[0].toUpperCase()+fx.type.slice(1);
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${fx.type==='poison'?'☠️':fx.type==='fire'?'🔥':'💧'}</div>
+      <div class="sheet-icon">${fx.type==='poison'?'â˜ ï¸':fx.type==='fire'?'ðŸ”¥':'ðŸ’§'}</div>
       <div><div class="sheet-name">${name} area</div><div class="sheet-sub">${fx.radius}px radius</div></div>
-      <button class="sheet-close" onclick="hideSheet()">×</button>
+      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
     </div>
     <label class="small">Radius: <strong id="fx-radius-val">${fx.radius}</strong>px</label>
     <input type="range" min="20" max="220" step="5" value="${fx.radius}" oninput="resizeAreaEffect('${fx.id}',+this.value)">
@@ -4970,7 +4997,7 @@ function ensureDefaultCharacter(){
     class:'Fighter',
     level:1,
     stats:{STR:15,DEX:13,CON:14,INT:10,WIS:12,CHA:8},
-    icon:'🧙',
+    icon:'ðŸ§™',
     color:randomColor()
   });
   myCharacters=[ch];
@@ -5027,3 +5054,4 @@ setInterval(()=>{ if(areaEffects.length || placedIcons.some(ic=>ic.kind==='enemy
 </script>
 </body>
 </html>
+

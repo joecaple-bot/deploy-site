@@ -234,6 +234,10 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
               <input id="color" type="color" value="#48b37f">
             </div>
             <div>
+              <label>Token size</label>
+              <input id="token-scale" type="range" min="0.75" max="2" step="0.05" value="1">
+            </div>
+            <div>
               <label>Manual AC</label>
               <input id="manual-ac" type="number" min="1" placeholder="Auto">
             </div>
@@ -640,6 +644,7 @@ function hydrateCharacter(raw={}){
     position:{x:raw.position?.x??raw.x??null,y:raw.position?.y??raw.y??null},
     icon:raw.icon||raw.em||'🧙',
     tokenArt:raw.tokenArt||'',
+    tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     color:raw.color||randomColor(),
     gold:Math.max(0,Number(raw.gold)||0),
     currentHP:Number(raw.currentHP??raw.derived?.HP??0),
@@ -747,7 +752,7 @@ function setup(){
   renderSubclassOptions();
   document.getElementById('icons').innerHTML=PLAYER_ICONS.map(icon=>`<button class="icon-btn" data-icon="${icon}" onclick="selectIcon('${icon}')">${icon}</button>`).join('');
   document.getElementById('stats').innerHTML=ABILITIES.map(ab=>`<div class="stat"><div class="stat-top"><span>${ab}</span><b id="mod-${ab}">+0</b></div><input id="stat-${ab}" type="number" min="1" max="30" value="10"></div>`).join('');
-  ['name','race','class','subclass','custom-race','custom-class','custom-subclass','level','color','manual-ac','manual-hp','manual-attack','gold','background','alignment','notes',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
+  ['name','race','class','subclass','custom-race','custom-class','custom-subclass','level','color','token-scale','manual-ac','manual-hp','manual-attack','gold','background','alignment','notes',...ABILITIES.map(a=>'stat-'+a)].forEach(id=>{
     document.getElementById(id).addEventListener('input',()=>{renderLive();scheduleSave()});
     document.getElementById(id).addEventListener('change',()=>{renderLive();scheduleSave()});
   });
@@ -769,6 +774,7 @@ function fillForm(ch){
   document.getElementById('custom-subclass').value=SUBCLASS_DEFS[ch.class]?.options.includes(ch.subclass)?'':(ch.subclass||'');
   document.getElementById('level').value=ch.level;
   document.getElementById('color').value=/^#[0-9a-f]{6}$/i.test(ch.color)?ch.color:'#48b37f';
+  document.getElementById('token-scale').value=Math.max(.5,Math.min(3,Number(ch.tokenScale)||1));
   document.getElementById('manual-ac').value=ch.overrides?.AC ?? '';
   document.getElementById('manual-hp').value=ch.overrides?.maxHP ?? '';
   document.getElementById('manual-attack').value=ch.overrides?.attackBonus ?? '';
@@ -808,6 +814,7 @@ function readFormFor(existing=null){
     position:existing?.position||{x:null,y:null},
     icon:selectedIcon,
     tokenArt:selectedTokenArt||'',
+    tokenScale:Number(document.getElementById('token-scale').value)||1,
     color:document.getElementById('color').value,
     overrides:{
       AC:document.getElementById('manual-ac').value,
@@ -890,7 +897,7 @@ function renderLive(){
   const usedSlots=Object.values(ch.spellSlotUsage||{}).reduce((sum,v)=>sum+(Number(v)||0),0);
   document.getElementById('derived').innerHTML=[
     ['HP',d.HP],['AC',d.AC],['Initiative',(d.initiative>=0?'+':'')+d.initiative],['Attack',(d.attackBonus>=0?'+':'')+d.attackBonus],
-    ['Proficiency','+'+d.proficiencyBonus],['Spell Slots',`${usedSlots}/${d.spellSlots}`],['Gold',`${Math.max(0,Number(ch.gold)||0)} gp`],[d.resourceName,d.resourceMax],['Reveal',d.revealRadius]
+    ['Proficiency','+'+d.proficiencyBonus],['Spell Slots',`${usedSlots}/${d.spellSlots}`],['Gold',`${Math.max(0,Number(ch.gold)||0)} gp`],['Token',`${Math.round((Number(ch.tokenScale)||1)*100)}%`],[d.resourceName,d.resourceMax],['Reveal',d.revealRadius]
   ].map(([label,value])=>`<div class="derived-card"><b>${value}</b><span>${label}</span></div>`).join('');
   const gearAbilities=equippedItems(ch).flatMap(item=>[item.ability,item.bonusAction&&`Bonus: ${item.bonusAction}`].filter(Boolean));
   const sheetAbilities=[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class']),...(ch.abilities||[]).map(a=>a.name),...(ch.bonusActions||[]).map(a=>a.name),...gearAbilities];
