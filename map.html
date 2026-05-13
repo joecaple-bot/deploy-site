@@ -173,6 +173,12 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-actions button:hover .action-full,.combat-actions button:focus-visible .action-full{display:block}
 .combat-empty{font-size:11px;color:var(--muted);line-height:1.45}
 .combat-empty button{margin-top:7px;font-size:11px;padding:6px 8px}
+.quick-use{margin-top:10px;border-top:1px solid rgba(202,168,107,.28);padding-top:9px}
+.quick-use h4{margin:0 0 7px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#e7c982}
+.quick-use-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.quick-use-list button{font-size:11px;text-align:left;padding:7px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(180deg,rgba(38,31,22,.95),rgba(13,15,19,.95));border-color:rgba(202,168,107,.32)}
+.quick-use-list button b{font-weight:700;color:#fff1cd}
+.quick-use-list button span{color:#d9c59b}
 #floating-end-turn{display:none;position:absolute;right:14px;top:14px;z-index:76;width:min(260px,calc(100% - 28px));border:1px solid rgba(202,168,107,.65);background:rgba(24,27,32,.96);box-shadow:var(--shadow);border-radius:10px;padding:10px}
 #floating-end-turn.show{display:block;animation:endTurnIn .18s ease both}
 #floating-end-turn b{display:block;font-size:12px;margin-bottom:3px;color:#fff2d0}
@@ -1136,6 +1142,41 @@ function inventoryWeaponProfile(item={}){
 function canMakeInventoryWeapon(item={}){
   return !!inventoryWeaponProfile(item);
 }
+function inventoryConsumableProfile(item={}){
+  const text=`${item.name||''} ${item.description||''}`.toLowerCase();
+  const rarity=item.rarity||'Common';
+  const byRarity={
+    Common:{die:'d4',bonus:0},
+    Uncommon:{die:'d6',bonus:1},
+    Rare:{die:'d8',bonus:2},
+    'Very Rare':{die:'d10',bonus:3},
+    Legendary:{die:'d12',bonus:4}
+  }[rarity] || {die:'d4',bonus:0};
+  if(/(healing|heal|cure|salve|potion|medicine|goodberry|tonic|draught|elixir)/.test(text)){
+    return {type:'healing',label:'Heal',...byRarity};
+  }
+  if(/(bless|guidance|inspiration|bardic|haste|aid|shield of faith|protection)/.test(text)){
+    const effect=/guidance/.test(text)?'Guidance':/bardic|inspiration/.test(text)?'Bardic Inspiration':/haste/.test(text)?'Haste':/shield of faith|protection/.test(text)?'Shield of Faith':'Bless';
+    return {type:'buff',label:effect,die:null,bonus:0,effect};
+  }
+  return null;
+}
+function quickUseHtml(ch){
+  if(!ch || !canControlCharacter(ch)) return '';
+  const items=(ch.inventory||[]).filter(item=>inventoryConsumableProfile(item)).slice(0,6);
+  if(!items.length) return '';
+  return `<div class="quick-use"><h4>Quick Use</h4><div class="quick-use-list">${items.map(item=>{
+    const profile=inventoryConsumableProfile(item);
+    const qty=Math.max(1,Number(item.qty)||1);
+    return `<button title="${escapeHtml(item.description||item.name)}" onclick="useCharacterConsumable('${ch.id}','${item.id}')"><b>x${qty}</b> ${escapeHtml(item.name)} <span>${profile.type==='healing'?profile.die:profile.label}</span></button>`;
+  }).join('')}</div></div>`;
+}
+function decrementInventoryItem(ch,itemId){
+  ch.inventory=(ch.inventory||[]).map(item=>{
+    if(item.id!==itemId) return item;
+    return {...item,qty:Math.max(0,(Number(item.qty)||1)-1)};
+  }).filter(item=>(Number(item.qty)||0)>0);
+}
 function makeInventoryWeapon(characterId,itemId){
   const ch=characterById(characterId);
   if(!ch || !canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
@@ -1158,6 +1199,42 @@ function makeInventoryWeapon(characterId,itemId){
   updateAllPanels();
   updateCombatPopout();
   syncCharacter(ch);
+  scheduleSave();
+}
+function useCharacterConsumable(characterId,itemId){
+  const ch=characterById(characterId);
+  if(!ch || !canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
+  const item=(ch.inventory||[]).find(x=>x.id===itemId);
+  const profile=inventoryConsumableProfile(item);
+  if(!item || !profile) return showCritOverlay('That item is not usable yet','roll','Item');
+  const friendly=selectedTargetCharacter();
+  const target=friendly || ch;
+  if(profile.type==='healing'){
+    const roll=rollDiceExpression('1'+profile.die,profile.bonus);
+    const before=target.currentHP ?? target.derived.HP;
+    const after=Math.min(target.derived.HP,before+roll.total);
+    target.currentHP=after;
+    decrementInventoryItem(ch,item.id);
+    addChatMessage({kind:'heal',character:ch.name,label:`Uses ${item.name}`,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
+    const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${profile.die} ${formatBonus(profile.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:'item'};
+    playSfx('heal');
+    showCritOverlay(effect.text,effect.overlayType,effect.title);
+    playActionAnimation(ch,'spell',effect);
+    emitLiveEffect(effect);
+  } else if(profile.type==='buff'){
+    const updated=addCharacterStatus(target.id,profile.effect,10,{sourceId:ch.id,sourceSpell:item.name});
+    decrementInventoryItem(ch,item.id);
+    addChatMessage({kind:'buff',character:ch.name,label:`Uses ${item.name}`,detail:`${profile.effect} applied to ${target.name}`});
+    const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:profile.effect,kind:'buff',characterId:ch.id,targetCharacterId:target.id,currentHP:updated?.currentHP, statuses:updated?.statuses||target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:'item'};
+    playSfx('buff');
+    showCritOverlay(effect.text,effect.overlayType,effect.title);
+    playActionAnimation(ch,'spell',effect);
+    emitLiveEffect(effect);
+  }
+  updateAllPanels();
+  updateCombatPopout();
+  syncCharacter(ch);
+  if(target.id!==ch.id) syncCharacter(target);
   scheduleSave();
 }
 function normalizeInventoryItem(item={}){
@@ -3038,7 +3115,7 @@ function updateCombatPopout(){
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
   title.textContent=`${ch.name} actions`;
   if(!weapons.length&&!spells.length){
-    body.innerHTML=`<div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
+    body.innerHTML=`<div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>${quickUseHtml(ch)}`;
     return;
   }
   body.innerHTML=`
@@ -3046,7 +3123,8 @@ function updateCombatPopout(){
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
       ${spells.map(s=>actionButtonHtml('Spell',s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
-    </div>`;
+    </div>
+    ${quickUseHtml(ch)}`;
 }
 function buildIconGrid(){
   const el=document.getElementById('icon-grid');
@@ -3380,8 +3458,11 @@ function showSheet(ch,x,y){
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
   const inventoryRows=(ch.inventory||[]).slice(0,8).map(item=>{
     const profile=inventoryWeaponProfile(item);
+    const consumable=inventoryConsumableProfile(item);
     const already=(ch.weapons||[]).some(w=>w.sourceItemId===item.id || w.name===item.name);
-    return `<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name||'Item')} <small>x${item.qty||1}</small></span><span>${profile?`${profile.die} ${formatBonus(profile.bonus)} ${already?'<small>added</small>':`<button onclick="makeInventoryWeapon('${ch.id}','${item.id}')">Make weapon</button>`}`:''}</span></div>`;
+    const useButton=consumable&&canControlCharacter(ch)?`<button onclick="useCharacterConsumable('${ch.id}','${item.id}')">Use</button>`:'';
+    const weaponButton=profile?`${profile.die} ${formatBonus(profile.bonus)} ${already?'<small>added</small>':`<button onclick="makeInventoryWeapon('${ch.id}','${item.id}')">Make weapon</button>`}`:'';
+    return `<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name||'Item')} <small>x${item.qty||1}</small></span><span>${useButton} ${weaponButton}</span></div>`;
   }).join('');
   const death=ch.deathSaves || {success:0,fail:0};
   const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
