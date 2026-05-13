@@ -132,6 +132,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .body-chip.Belt{left:50%;top:268px;transform:translateX(-50%)}
 .body-chip.Shield{left:-12px;top:162px}
 .equipment-menu-title{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
+.equipment-stack{display:block}
 .equipment-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .equip-row{border:1px solid var(--line);border-radius:var(--radius);padding:9px;background:#111419}
 .equip-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -396,7 +397,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
           <button onclick="autoEquipFromInventory()" style="font-size:11px;padding:6px 8px">Auto equip</button>
         </div>
         <div class="section-body">
-          <div class="equipment-grid" id="equipment-list"></div>
+          <div class="equipment-stack" id="equipment-list"></div>
         </div>
       </div>
 
