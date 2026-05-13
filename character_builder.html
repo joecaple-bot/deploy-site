@@ -1422,12 +1422,30 @@ function saveSelected(){
   renderList();
   writeStorage('Character saved');
 }
-function saveAndReturn(){
-  saveSelected();
-  goToMap();
-}
+function saveAndReturn(){ goToMap(true); }
 function campaignQuery(){return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID)}
-function goToMap(){window.location.href='map.html'+campaignQuery()}
+function persistBeforeLeaving(){
+  if(document.getElementById('name')&&selectedId){
+    commitForm();
+    state.myCharacters=state.myCharacters.map(hydrateCharacter);
+    state.myId=BUILDER_PLAYER_ID;
+    state.partyCharacters=[
+      ...state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:BUILDER_PLAYER_ID})),
+      ...(state.partyCharacters||[]).filter(ch=>(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
+    ];
+    state.activeCharacterId=selectedId;
+    try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
+  }
+}
+async function goToMap(shouldSave=true){
+  if(shouldSave) writeStorage('Character saved');
+  else persistBeforeLeaving();
+  if(cloudReady&&!applyingCloudState){
+    clearTimeout(cloudSaveTimer);
+    try{ await saveCloudState(state); }catch(e){}
+  }
+  window.location.href='map.html'+campaignQuery();
+}
 function exportSelected(){
   commitForm();
   navigator.clipboard?.writeText(JSON.stringify(selected(),null,2));
@@ -1599,6 +1617,7 @@ function escapeHtml(value){
 }
 function escapeAttr(value){return escapeHtml(value)}
 window.addEventListener('beforeunload',()=>{
+  persistBeforeLeaving();
   clearInterval(cloudPollTimer);
   clearTimeout(cloudIdleTimer);
   if(cloudClient&&cloudChannel) cloudClient.removeChannel(cloudChannel);
