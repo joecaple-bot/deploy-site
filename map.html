@@ -202,6 +202,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 #sheet-popup.enemy{border-color:rgba(224,107,98,.7);box-shadow:0 22px 80px rgba(80,0,0,.45)}
 #radial-menu{display:none;position:absolute;z-index:86;width:202px;height:202px;pointer-events:none}
 #radial-menu.show{display:block}
+#radial-menu.skill-wheel{width:328px;height:auto;pointer-events:auto}
 .radial-center{position:absolute;left:72px;top:72px;width:58px;height:58px;border-radius:50%;border:1px solid rgba(102,167,216,.72);background:rgba(17,20,25,.96);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:var(--shadow)}
 .radial-btn{position:absolute;width:56px;height:56px;border-radius:50%;font-size:10px;line-height:1.1;padding:4px;text-align:center;pointer-events:auto;background:rgba(32,36,43,.97);border-color:rgba(102,167,216,.45)}
 .radial-btn:hover{border-color:rgba(202,168,107,.9);background:#272c34}
@@ -211,6 +212,12 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .radial-btn:nth-child(5){left:73px;top:144px}
 .radial-btn:nth-child(6){left:14px;top:112px}
 .radial-btn:nth-child(7){left:14px;top:34px}
+.skill-wheel-panel{border:1px solid var(--line);border-radius:10px;background:rgba(17,20,25,.98);box-shadow:var(--shadow);padding:10px;pointer-events:auto}
+.skill-wheel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.skill-wheel-head b{font-size:12px;color:#fff2d0}
+.skill-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;max-height:380px;overflow:auto}
+.skill-grid button{display:flex;justify-content:space-between;gap:6px;font-size:10px;padding:7px 8px;text-align:left}
+.skill-grid span:last-child{color:#fff2d0}
 .sheet-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sheet-icon{font-size:28px}
 .sheet-name{font-size:14px;font-weight:700}
@@ -2941,21 +2948,22 @@ function updatePlayersList(){
 /* ===== NEW SECTION: Mini sheet, damage, statuses, dice, turns ===== */
 function hideRadialMenu(){
   const menu=document.getElementById('radial-menu');
-  if(menu) menu.classList.remove('show');
+  if(menu) menu.classList.remove('show','skill-wheel');
 }
 function showRadialMenu(ch,x,y){
   hideSheet();
   const menu=document.getElementById('radial-menu');
   if(!menu) return;
+  menu.classList.remove('skill-wheel');
   const canUse=canControlCharacter(ch);
   menu.innerHTML=`
     <div class="radial-center">${cleanEmoji(ch.icon,'\u{1F9D9}')}</div>
     <button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch.id}')">d20</button>
-    <button class="radial-btn" onclick="hideRadialMenu();openSaveWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Saves</button>
+    <button class="radial-btn" onclick="openSkillWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Skills</button>
+    <button class="radial-btn" onclick="openSaveWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Saves</button>
     <button class="radial-btn" onclick="radialActions('${ch.id}')">Actions</button>
     <button class="radial-btn" onclick="hideRadialMenu();showSheet(characterById('${ch.id}'),${Math.round(x)},${Math.round(y)})">Sheet</button>
-    <button class="radial-btn" onclick="radialRest('${ch.id}','short')">Short<br>Rest</button>
-    <button class="radial-btn" onclick="radialRest('${ch.id}','long')">Long<br>Rest</button>`;
+    <button class="radial-btn" onclick="openRestWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Rest</button>`;
   const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
   menu.style.left=Math.max(6,Math.min(maxX,x-101))+'px';
   menu.style.top=Math.max(6,Math.min(maxY,y-101))+'px';
@@ -2977,14 +2985,47 @@ function radialRest(id,type){
   if(type==='long') longRest(id);
   else shortRest(id);
 }
+function openRestWheel(id,x,y){
+  const ch=characterById(id);
+  if(!ch) return;
+  const menu=document.getElementById('radial-menu');
+  menu.classList.remove('skill-wheel');
+  menu.innerHTML=`<div class="radial-center">REST</div>
+    <button class="radial-btn" onclick="showRadialMenu(characterById('${id}'),${Math.round(x)},${Math.round(y)})">Back</button>
+    <button class="radial-btn" onclick="radialRest('${id}','short')">Short<br>Rest</button>
+    <button class="radial-btn" onclick="radialRest('${id}','long')">Long<br>Rest</button>`;
+  const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
+  menu.style.left=Math.max(6,Math.min(maxX,x-101))+'px';
+  menu.style.top=Math.max(6,Math.min(maxY,y-101))+'px';
+  menu.classList.add('show');
+}
 function openSaveWheel(id,x,y){
   const ch=characterById(id);
   if(!ch) return;
   const menu=document.getElementById('radial-menu');
+  menu.classList.remove('skill-wheel');
   menu.innerHTML=`<div class="radial-center">SAVE</div>${ABILITIES.map(ab=>`<button class="radial-btn" onclick="hideRadialMenu();rollSavingThrow('${id}','${ab}')">${ab}</button>`).join('')}`;
   const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
   menu.style.left=Math.max(6,Math.min(maxX,x-101))+'px';
   menu.style.top=Math.max(6,Math.min(maxY,y-101))+'px';
+  menu.classList.add('show');
+}
+function openSkillWheel(id,x,y){
+  const ch=characterById(id);
+  if(!ch) return;
+  const menu=document.getElementById('radial-menu');
+  const skills=Object.keys(SKILL_DEFS);
+  menu.innerHTML=`
+    <div class="skill-wheel-panel">
+      <div class="skill-wheel-head"><b>${escapeHtml(ch.name)} skills</b><button onclick="showRadialMenu(characterById('${id}'),${Math.round(x)},${Math.round(y)})" style="font-size:10px;padding:4px 7px">Back</button></div>
+      <div class="skill-grid">
+        ${skills.map(skill=>`<button onclick="hideRadialMenu();rollSkillCheck('${id}','${skill}')"><span>${escapeHtml(skillLabel(skill))}</span><span>${formatSigned(skillTotal(ch,skill))}</span></button>`).join('')}
+      </div>
+    </div>`;
+  menu.classList.add('skill-wheel');
+  const maxX=wrap.clientWidth-336, maxY=wrap.clientHeight-420;
+  menu.style.left=Math.max(6,Math.min(maxX,x-164))+'px';
+  menu.style.top=Math.max(6,Math.min(maxY,y-120))+'px';
   menu.classList.add('show');
 }
 function showSheet(ch,x,y){
@@ -3993,6 +4034,48 @@ function rollSavingThrow(id=activeCharacterId,ability='DEX'){
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   emitLiveEffect({kind:'roll',...effect,roll:lastRoll});
   updateActiveSummary();
+}
+function skillBreakdown(character,skill){
+  const stats=statsWithRace(character);
+  const itemStats=itemStatBonuses(character);
+  for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
+  const ability=SKILL_DEFS[skill] || 'DEX';
+  const data=character.skills?.[skill]||{};
+  const pb=proficiencyBonus(character.level||1);
+  const profMult=data.expertise?2:data.proficient?1:0;
+  const abilityBonus=abilityMod(stats[ability]||10);
+  const profBonus=pb*profMult;
+  const flatBonus=Number(data.bonus)||0;
+  return {ability,pb,profMult,abilityBonus,profBonus,flatBonus,total:abilityBonus+profBonus+flatBonus};
+}
+function skillDetailLabel(skill,breakdown){
+  const parts=[breakdown.ability];
+  if(breakdown.profMult===2) parts.push('expertise');
+  else if(breakdown.profMult===1) parts.push('proficiency');
+  if(breakdown.flatBonus) parts.push('bonus');
+  return `${skillLabel(skill)} (${parts.join(' + ')})`;
+}
+function rollSkillCheck(id=activeCharacterId,skill='Perception'){
+  const ch=characterById(id)||getActiveCharacter();
+  if(!ch || !SKILL_DEFS[skill]) return;
+  if(!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
+  activeCharacterId=ch.id;
+  activeEnemyUid=null;
+  const breakdown=skillBreakdown(ch,skill);
+  const result=rollWithBuffs(ch,'1d20',breakdown.total,'check');
+  const profLabel=breakdown.profMult===2 ? ` + ${breakdown.profBonus} expertise` : breakdown.profMult===1 ? ` + ${breakdown.profBonus} proficiency` : '';
+  const flatLabel=breakdown.flatBonus ? ` ${formatBonus(breakdown.flatBonus)} custom` : '';
+  const baseLabel=`1d20 ${formatBonus(breakdown.abilityBonus)} ${breakdown.ability}${profLabel}${flatLabel}`;
+  lastRoll={roll:result.rolls[0],mod:breakdown.total,total:result.total,character:ch.name};
+  addChatMessage({kind:'skill',character:ch.name,label:skillLabel(skill),detail:rollDetailWithBuff(result,baseLabel),total:result.total,rolls:result.rolls});
+  const visual=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:skillDetailLabel(skill,breakdown));
+  playSfx(sfxForRoll(result.rolls[0],true));
+  showCritOverlay(visual.text,visual.overlayType,visual.title);
+  emitLiveEffect({kind:'skill',...visual,roll:lastRoll});
+  updateActiveSummary();
+  updateCombatPopout();
+  syncCharacter(ch);
+  scheduleSave();
 }
 function rollSimpleDie(sides){
   const ch=getActiveCharacter();
