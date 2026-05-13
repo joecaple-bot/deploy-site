@@ -572,8 +572,8 @@ const AUDIO_PACKS = {
   }
 };
 const LOOT_RARITY_WEIGHTS = {
-  normal:{Common:64,Uncommon:20,Rare:10,'Very Rare':4,Legendary:2},
-  boss:{Common:15,Uncommon:25,Rare:20,'Very Rare':30,Legendary:10},
+  normal:{Common:86,Uncommon:11,Rare:2,'Very Rare':1,Legendary:0},
+  boss:{Common:24,Uncommon:36,Rare:20,'Very Rare':15,Legendary:5},
   chest1:{Common:78,Uncommon:17,Rare:4,'Very Rare':1,Legendary:0},
   chest2:{Common:45,Uncommon:35,Rare:15,'Very Rare':4,Legendary:1},
   chest3:{Common:18,Uncommon:30,Rare:30,'Very Rare':17,Legendary:5}
@@ -3436,11 +3436,11 @@ function goldDropProfile(source={}){
 }
 function maybeGoldDrop(source={}){
   const rules={
-    normal:{chance:.18,min:4,max:18},
-    boss:{chance:.55,min:40,max:180},
-    chest1:{chance:.22,min:6,max:28},
-    chest2:{chance:.42,min:22,max:90},
-    chest3:{chance:.68,min:80,max:260}
+    normal:{chance:.12,min:1,max:7},
+    boss:{chance:.45,min:18,max:80},
+    chest1:{chance:.18,min:3,max:14},
+    chest2:{chance:.34,min:10,max:42},
+    chest3:{chance:.55,min:28,max:120}
   };
   const rule=rules[goldDropProfile(source)] || rules.normal;
   if(Math.random()>rule.chance) return null;
@@ -3453,7 +3453,7 @@ function maybeGoldDrop(source={}){
   });
 }
 function randomLootForSource(source,count=null){
-  count=count ?? (source?.boss ? 3 : 1+Math.floor(Math.random()*2));
+  count=count ?? (source?.boss ? 2+Math.floor(Math.random()*2) : (Math.random()<.68 ? 1 : 2));
   const tables=lootTables();
   const picks=[];
   for(let i=0;i<count;i++){
