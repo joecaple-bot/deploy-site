@@ -98,6 +98,40 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .combine-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
 .combine-preview{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
 .combine-preview b{color:#fff2d0}
+.equipment-board{display:grid;grid-template-columns:1fr minmax(220px,360px) 1fr;gap:10px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);background:radial-gradient(circle at center,rgba(102,167,216,.08),rgba(17,20,25,.95) 60%);padding:12px;margin-bottom:10px}
+.equip-side{display:grid;gap:8px}
+.equip-point{border:1px solid var(--line);border-radius:var(--radius);background:rgba(13,16,20,.94);padding:8px}
+.equip-point.active{border-color:rgba(202,168,107,.78);box-shadow:0 0 0 1px rgba(202,168,107,.12) inset}
+.equip-point label{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}
+.equip-point select{height:32px;padding:0 7px;font-size:12px}
+.equip-point .tiny{margin-top:5px;min-height:14px}
+.silhouette-stage{position:relative;min-height:520px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-left:1px solid rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.04)}
+.silhouette-stage:before{content:"";position:absolute;inset:20px;background:radial-gradient(circle at center,rgba(255,255,255,.18),rgba(255,255,255,.04) 48%,transparent 70%);filter:blur(10px);opacity:.6}
+.humanoid{position:relative;width:190px;height:470px;filter:drop-shadow(0 22px 34px rgba(0,0,0,.72))}
+.humanoid div{position:absolute;background:linear-gradient(135deg,#050607,#14171b);border:1px solid rgba(255,255,255,.05)}
+.humanoid .aura{left:50%;top:48%;width:230px;height:440px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at center,rgba(255,255,255,.08),transparent 62%);border:0}
+.humanoid .head{left:64px;top:8px;width:62px;height:72px;border-radius:48% 48% 42% 42%}
+.humanoid .neck{left:82px;top:76px;width:26px;height:24px;border-radius:8px}
+.humanoid .torso{left:44px;top:96px;width:102px;height:158px;border-radius:38px 38px 24px 24px;clip-path:polygon(22% 0,78% 0,100% 38%,86% 100%,14% 100%,0 38%)}
+.humanoid .hips{left:55px;top:238px;width:80px;height:62px;border-radius:20px 20px 30px 30px}
+.humanoid .arm-l{left:5px;top:112px;width:42px;height:190px;border-radius:28px 16px 24px 34px;transform:rotate(13deg);transform-origin:top right}
+.humanoid .arm-r{right:5px;top:112px;width:42px;height:190px;border-radius:16px 28px 34px 24px;transform:rotate(-13deg);transform-origin:top left}
+.humanoid .leg-l{left:50px;top:290px;width:42px;height:170px;border-radius:20px 18px 28px 28px}
+.humanoid .leg-r{right:50px;top:290px;width:42px;height:170px;border-radius:18px 20px 28px 28px}
+.body-chip{position:absolute;min-width:64px;max-width:120px;border:1px solid rgba(202,168,107,.5);background:rgba(13,16,20,.86);border-radius:999px;padding:5px 8px;font-size:10px;color:#fff2d0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.body-chip.empty{border-color:rgba(102,167,216,.2);color:var(--muted);background:rgba(13,16,20,.58)}
+.body-chip.Helmet{left:50%;top:6px;transform:translateX(-50%)}
+.body-chip.Chestplate{left:50%;top:162px;transform:translateX(-50%)}
+.body-chip.Pendant{left:50%;top:88px;transform:translateX(-50%)}
+.body-chip.Bracelet{right:2px;top:220px}
+.body-chip.Ring-1{left:-2px;top:228px}
+.body-chip.Ring-2{right:-4px;top:258px}
+.body-chip.Boots{left:50%;bottom:0;transform:translateX(-50%)}
+.body-chip.Cloak{left:50%;top:116px;transform:translateX(-50%)}
+.body-chip.Gloves{left:-4px;top:258px}
+.body-chip.Belt{left:50%;top:268px;transform:translateX(-50%)}
+.body-chip.Shield{left:-12px;top:162px}
+.equipment-menu-title{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
 .equipment-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .equip-row{border:1px solid var(--line);border-radius:var(--radius);padding:9px;background:#111419}
 .equip-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -146,6 +180,8 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
   .stats{grid-template-columns:repeat(3,1fr)}
   .derived{grid-template-columns:repeat(2,1fr)}
   .item-row{grid-template-columns:1fr 1fr}
+  .equipment-board{grid-template-columns:1fr}
+  .silhouette-stage{order:-1;min-height:420px}
   .equipment-grid,.slot-grid{grid-template-columns:1fr}
   .skills-grid{grid-template-columns:1fr}
   .preset-grid,.checklist{grid-template-columns:1fr 1fr}
@@ -1188,7 +1224,20 @@ function renderEquipment(ch=selected()){
   const el=document.getElementById('equipment-list');
   if(!el) return;
   const items=ch.inventory||[];
-  el.innerHTML=EQUIPMENT_SLOTS.map(slot=>{
+  const slotHtml=slot=>{
+    const equippedId=ch.equipment?.[slot]||'';
+    const options=items.filter(item=>!item.slot||item.slot===slot||item.id===equippedId);
+    const item=items.find(i=>i.id===equippedId);
+    return `<div class="equip-point ${item?'active '+rarityClass(item.rarity):''}">
+      <div class="equip-head"><b>${slot}</b><span class="tiny">${item?escapeHtml(item.rarity):'Empty'}</span></div>
+      <select data-equipment-slot="${slot}">
+        <option value="">None</option>
+        ${options.map(i=>`<option value="${i.id}" ${i.id===equippedId?'selected':''}>${escapeHtml(i.name)}</option>`).join('')}
+      </select>
+      <div class="tiny" style="margin-top:6px">${item?`AC ${formatSigned(item.acBonus)} · ${equipmentStatText(item)}`:'No item equipped'}</div>
+    </div>`;
+  };
+  const detailHtml=slot=>{
     const equippedId=ch.equipment?.[slot]||'';
     const options=items.filter(item=>!item.slot||item.slot===slot||item.id===equippedId);
     const item=items.find(i=>i.id===equippedId);
@@ -1200,9 +1249,34 @@ function renderEquipment(ch=selected()){
       </select>
       <div class="tiny" style="margin-top:6px">${item?`AC ${formatSigned(item.acBonus)} · ${equipmentStatText(item)}`:'No item equipped'}</div>
     </div>`;
-  }).join('');
+  };
+  const chip=(slot)=>{
+    const item=items.find(i=>i.id===(ch.equipment?.[slot]||''));
+    const cls=slot.replace(/\s+/g,'-');
+    return `<span class="body-chip ${cls} ${item?'':'empty'}">${escapeHtml(item?.name||slot)}</span>`;
+  };
+  el.innerHTML=`
+    <div class="equipment-board">
+      <div class="equip-side">${['Helmet','Pendant','Ring 1','Gloves','Shield'].map(slotHtml).join('')}</div>
+      <div class="silhouette-stage">
+        <div class="humanoid" aria-hidden="true">
+          <div class="aura"></div><div class="head"></div><div class="neck"></div><div class="torso"></div><div class="hips"></div>
+          <div class="arm-l"></div><div class="arm-r"></div><div class="leg-l"></div><div class="leg-r"></div>
+          ${EQUIPMENT_SLOTS.map(chip).join('')}
+        </div>
+      </div>
+      <div class="equip-side">${['Chestplate','Bracelet','Ring 2','Boots','Cloak','Belt'].map(slotHtml).join('')}</div>
+    </div>
+    <div class="equipment-menu-title"><h3>Slot menu</h3><span class="tiny">Detailed controls</span></div>
+    <div class="equipment-grid">${EQUIPMENT_SLOTS.map(detailHtml).join('')}</div>`;
   el.querySelectorAll('select').forEach(input=>{
-    input.addEventListener('change',()=>{selected().equipment=readEquipment();renderLive();scheduleSave()});
+    input.addEventListener('change',()=>{
+      document.querySelectorAll(`[data-equipment-slot="${input.dataset.equipmentSlot}"]`).forEach(select=>select.value=input.value);
+      selected().equipment=readEquipment();
+      renderEquipment(selected());
+      renderLive();
+      scheduleSave();
+    });
   });
 }
 function rarityClass(rarity='Common'){ return 'rarity-'+String(rarity).toLowerCase().replace(/\s+/g,'-'); }
