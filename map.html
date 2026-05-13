@@ -1818,7 +1818,10 @@ function requireDM(){
 function toggleRole(){
   userRole=isDM()?'player':'dm';
   localStorage.setItem(roleKey(),userRole);
-  if(!isDM()) setMode('move');
+  if(!isDM()){
+    activeEnemyUid=null;
+    setMode('move');
+  }
   updateRoleUI();
   updateAllPanels();
 }
@@ -2080,7 +2083,6 @@ canvas.addEventListener('mousedown',e=>{
       if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat');
       pushDMUndo('drag character');
       activeCharacterId=hit.id;
-      activeEnemyUid=null;
       updateAllPanels();
       dragTarget='player';
       dragOffX=x-characterX(hit.p);
@@ -2176,7 +2178,7 @@ canvas.addEventListener('touchstart',e=>{
     const ic=isDM()?iconAt(x,y):null;
     if(ic){ pushDMUndo(ic.kind==='enemy'?'drag enemy':'drag icon'); dragTarget=ic; dragOffX=x-ic.x; dragOffY=y-ic.y; isDragging=true; return; }
     const hit=playerAt(x,y);
-    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); activeCharacterId=hit.id; activeEnemyUid=null; dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
+    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); activeCharacterId=hit.id; dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
   }
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
@@ -2569,7 +2571,7 @@ function updateCharactersList(){
         <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} &middot; ${placed?'Placed':'Unplaced'}</div>
       </div>
       <div class="char-actions"></div>`;
-    d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; activeEnemyUid=null; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
+    d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
     const actions=d.querySelector('.char-actions');
     const edit=document.createElement('button');
     edit.textContent='Edit';
@@ -2974,7 +2976,6 @@ function radialActions(id){
   hideRadialMenu();
   if(!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
   activeCharacterId=id;
-  activeEnemyUid=null;
   updateAllPanels();
   document.getElementById('combat-popout')?.classList.remove('collapsed');
 }
@@ -3089,8 +3090,8 @@ function showEnemySheet(enemy,x,y){
     ${dm&&enemy.notes?`<div class="sheet-detail"><h4>DM notes</h4><div class="hint">${escapeHtml(enemy.notes)}</div></div>`:''}
     ${dm&&(enemy.statuses||[]).length?`<div class="pill-row">${normalizeStatuses(enemy.statuses).map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>`:''}
     ${dm?`<div class="action-buttons">
-      ${(enemy.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="setActiveEnemy('${enemy.uid}');rollEnemyAction('${enemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)}</button>`).join('')}
-      ${(enemy.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="setActiveEnemy('${enemy.uid}');rollEnemyAction('${enemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)}</button>`).join('')}
+      ${(enemy.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="setActiveEnemy('${enemy.uid}',true);rollEnemyAction('${enemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)}</button>`).join('')}
+      ${(enemy.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="setActiveEnemy('${enemy.uid}',true);rollEnemyAction('${enemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)}</button>`).join('')}
     </div>`:''}
     ${dm?`<div class="tracker">
       <span>Damage / heal</span>
@@ -3099,7 +3100,7 @@ function showEnemySheet(enemy,x,y){
     </div>`:''}
     ${dm?`<div class="sheet-actions">
       <button class="primary" onclick="setTarget('${enemy.uid}')">${selectedTargetUid===enemy.uid?'Targeted':'Target'}</button>
-      <button onclick="setActiveEnemy('${enemy.uid}')">${activeEnemyUid===enemy.uid?'Controlling':'Control'}</button>
+      <button onclick="setActiveEnemy('${enemy.uid}')">${activeEnemyUid===enemy.uid?'Unlock control':'Control enemy'}</button>
       <button onclick="toggleEnemyBoss('${enemy.uid}')">${enemy.boss?'Boss: On':'Boss: Off'}</button>
       <button onclick="openPlacedEnemyModal('${enemy.uid}')">Edit</button>
       <button onclick="adjustEnemyHP('${enemy.uid}',-5)">-5 HP</button>
@@ -3344,11 +3345,11 @@ const oldHideSheet=hideSheet;
 hideSheet=function(){ oldHideSheet(); hideRadialMenu(); };
 function enemyByUid(uid){ return placedIcons.find(ic=>ic.uid===uid&&ic.kind==='enemy'); }
 function mapIconByUid(uid){ return placedIcons.find(ic=>ic.uid===uid); }
-function setActiveEnemy(uid){
+function setActiveEnemy(uid,force=false){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(uid);
   if(!enemy) return;
-  if(activeEnemyUid===uid){
+  if(activeEnemyUid===uid && !force){
     clearActiveEnemy();
     return;
   }
@@ -4060,7 +4061,6 @@ function rollSkillCheck(id=activeCharacterId,skill='Perception'){
   if(!ch || !SKILL_DEFS[skill]) return;
   if(!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
   activeCharacterId=ch.id;
-  activeEnemyUid=null;
   const breakdown=skillBreakdown(ch,skill);
   const result=rollWithBuffs(ch,'1d20',breakdown.total,'check');
   const profLabel=breakdown.profMult===2 ? ` + ${breakdown.profBonus} expertise` : breakdown.profMult===1 ? ` + ${breakdown.profBonus} proficiency` : '';
@@ -4640,7 +4640,7 @@ function advanceTurn(){
   activeTurnIndex=(activeTurnIndex+1)%turnOrder.length;
   turnActionState={};
   const id=turnOrder[activeTurnIndex];
-  if(myCharacters.some(c=>c.id===id)){ activeCharacterId=id; activeEnemyUid=null; }
+  if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
   if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls});
   playSfx('turn');
@@ -4711,7 +4711,7 @@ function updateTurnOrder(){
     div.className='turn-item'+(i===activeTurnIndex?' active':'');
     const init=initiativeRolls[id] ?? ch.derived?.initiative ?? 0;
     div.innerHTML=`<span>${ch.icon} ${escapeHtml(ch.name)}${ch.isEnemy?' (enemy)':''}</span><span>${init>=0?'+':''}${init}</span>`;
-    div.onclick=()=>{ activeTurnIndex=i; if(canControlCharacter(ch)){ activeCharacterId=id; activeEnemyUid=null; } if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; } updateAllPanels(); draw(); scheduleSave(); };
+    div.onclick=()=>{ activeTurnIndex=i; if(canControlCharacter(ch)) activeCharacterId=id; if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; } updateAllPanels(); draw(); scheduleSave(); };
     el.appendChild(div);
   });
 }
@@ -5254,7 +5254,7 @@ function connectWS(){
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
           turnActionState={};
           const id=turnOrder[activeTurnIndex];
-          if(myCharacters.some(c=>c.id===id)){ activeCharacterId=id; activeEnemyUid=null; }
+          if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
           if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
           playSfx('turn');
           updateAllPanels();
