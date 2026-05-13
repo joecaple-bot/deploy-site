@@ -1343,20 +1343,38 @@ function drawAoeBurst(fx,t){
   ctx.globalAlpha=alpha;
   ctx.beginPath();
   ctx.arc(fx.x,fx.y,radius,0,Math.PI*2);
-  ctx.fillStyle='rgba(102,167,216,.12)';
+  ctx.fillStyle='rgba(255,118,48,.18)';
   ctx.fill();
-  ctx.strokeStyle=fx.color||'rgba(120,210,255,.75)';
+  ctx.strokeStyle='rgba(255,222,112,.96)';
+  ctx.lineWidth=5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(fx.x,fx.y,radius*.62,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,84,52,.82)';
   ctx.lineWidth=3;
-  ctx.setLineDash([10,6]);
+  ctx.setLineDash([8,5]);
   ctx.stroke();
   ctx.setLineDash([]);
+  const core=12+18*(1-t);
+  ctx.beginPath();
+  ctx.arc(fx.x,fx.y,core,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,238,180,.92)';
+  ctx.fill();
   for(let i=0;i<16;i++){
-    const a=i*Math.PI*2/16+t*3;
+    const a=i*Math.PI*2/16+t*4.5;
     ctx.beginPath();
-    ctx.arc(fx.x+Math.cos(a)*radius,fx.y+Math.sin(a)*radius,2.2,0,Math.PI*2);
-    ctx.fillStyle='rgba(210,240,255,.9)';
+    ctx.arc(fx.x+Math.cos(a)*radius,fx.y+Math.sin(a)*radius,2.8,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,235,160,.96)';
     ctx.fill();
   }
+  ctx.font='800 12px Inter, Segoe UI, sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(255,245,215,.98)';
+  ctx.strokeStyle='rgba(70,20,0,.9)';
+  ctx.lineWidth=3;
+  ctx.strokeText('AoE',fx.x,fx.y-radius-10);
+  ctx.fillText('AoE',fx.x,fx.y-radius-10);
   ctx.restore();
 }
 
@@ -1692,7 +1710,7 @@ function aoeCenter(caster,item){
 }
 function aoeTargetsFor(casterKind,mode,center,radius,actionType){
   const allChars=Object.values(allCharactersById()).filter(ch=>entityPoint(ch).x!=null);
-  const enemies=placedIcons.filter(ic=>ic.kind==='enemy' && ic.hp>0 && (!ic.hidden || isRevealed(ic.x,ic.y)));
+  const enemies=placedIcons.filter(ic=>ic.kind==='enemy' && ic.hp>0);
   let pools=[];
   if(casterKind==='character'){
     if(mode==='allies') pools=allChars.map(ch=>({kind:'character',entity:ch}));
