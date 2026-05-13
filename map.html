@@ -1002,6 +1002,7 @@ let mapRevision = 0;
 let mode = 'move';
 let selectedMapIcon = MAP_ICONS[6];
 let revealRadius = 30;
+let fogRevision = 0;
 let placedIcons = [];
 let enemyTemplates = [];
 let selectedEnemyId = null;
@@ -1152,6 +1153,7 @@ function undoLastDMAction(){
   mapImageData=snap.mapImageData||'';
   mapUrl=snap.mapUrl||'';
   mapRevision=Number(snap.mapRevision)||0;
+  fogRevision=Number(snap.fogRevision)||0;
   areaEffects=snap.areaEffects.map(hydrateAreaEffect);
   myCharacters=snap.myCharacters.map(hydrateCharacter);
   selectedTargetUid=snap.selectedTargetUid;
@@ -1745,6 +1747,7 @@ function clearFog(){
   revealCtx.fillRect(0,0,revealCanvas.width,revealCanvas.height);
   applyReveal();
   draw();
+  syncFogNow('clear');
   scheduleSave();
 }
 function resetFog(){
@@ -1753,7 +1756,19 @@ function resetFog(){
   initFog();
   revealAllCharacters();
   draw();
+  syncFogNow('reset');
   scheduleSave();
+}
+async function syncFogNow(reason='fog'){
+  fogRevision=Date.now();
+  try{
+    await saveCloudAssets(true);
+  }catch(err){
+    console.warn('Fog asset sync failed',err);
+  }
+  scheduleCloudSave(buildPersistedState(),true);
+  broadcast({type:'fogRefresh',fogRevision,reason});
+  broadcastCloudFog(fogRevision,reason);
 }
 function showConfirm(){ if(!isDM()) return requireDM(); document.getElementById('confirm-overlay').classList.add('show'); }
 function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('show'); }
@@ -1763,6 +1778,7 @@ function doHardReset(){
   mapImageData='';
   mapUrl='';
   mapRevision=Date.now();
+  fogRevision=Date.now();
   placedIcons=[];
   areaEffects=[];
   enemyTemplates=[];
@@ -4444,6 +4460,7 @@ function buildPersistedState(){
     mapImageData,
     mapUrl,
     mapRevision,
+    fogRevision,
     campaign:campaignInfo,
     placedIcons:placedIcons.map(hydratePlacedIcon),
     areaEffects:areaEffects.map(hydrateAreaEffect),
@@ -4479,6 +4496,7 @@ function loadState(){
     mapImageData=state.mapImageData || '';
     mapUrl=state.mapUrl || '';
     mapRevision=Number(state.mapRevision)||0;
+    fogRevision=Number(state.fogRevision)||0;
     placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
     areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
     selectedEffect=state.selectedEffect || 'poison';
@@ -4531,6 +4549,7 @@ function applyPersistedState(state){
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
   const incomingMapRevision=Number(state.mapRevision)||0;
+  const incomingFogRevision=Number(state.fogRevision)||0;
   const incomingMapUrl=state.mapUrl || '';
   const needsAssetMap=!incomingMapUrl && !state.mapImageData && incomingMapRevision && incomingMapRevision!==mapRevision;
   if(incomingMapUrl){
@@ -4544,6 +4563,8 @@ function applyPersistedState(state){
   } else {
     mapRevision=incomingMapRevision || mapRevision;
   }
+  const needsFogAsset=incomingFogRevision && incomingFogRevision>fogRevision;
+  fogRevision=Math.max(fogRevision,incomingFogRevision);
   placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
   areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
   selectedEffect=state.selectedEffect || 'poison';
@@ -4572,6 +4593,7 @@ function applyPersistedState(state){
   else { mapImg=null; draw(); }
   initFog();
   if(state.fogRevealData) loadRevealFromDataUrl(state.fogRevealData);
+  else if(needsFogAsset) loadCloudAssets();
   else revealAllCharacters();
   draw();
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
@@ -4643,6 +4665,14 @@ function initSupabaseCloud(){
     .on('broadcast',{event:'live-effect'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
       handleLiveEffect(payload.payload?.effect);
+    })
+    .on('broadcast',{event:'fog-refresh'},payload=>{
+      if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
+      const incoming=Number(payload.payload?.fogRevision)||Date.now();
+      if(incoming>=fogRevision){
+        fogRevision=incoming;
+        loadCloudAssets();
+      }
     })
     .subscribe();
   clearInterval(cloudPollTimer);
@@ -4741,6 +4771,9 @@ function mergeCloudStateBeforeSave(state){
   if(remoteRev>localRev){
     state={...state,mapRevision:remoteRev,mapUrl:latestCloudState.mapUrl||state.mapUrl||''};
   }
+  const localFogRev=Number(state.fogRevision)||0;
+  const remoteFogRev=Number(latestCloudState.fogRevision)||0;
+  if(remoteFogRev>localFogRev) state={...state,fogRevision:remoteFogRev};
   if(latestCloudState.campaign && !state.campaign) state.campaign=latestCloudState.campaign;
   return state;
 }
@@ -4763,13 +4796,14 @@ async function loadCloudAssets(){
     loadMapFromDataUrl(mapImageData,()=>draw());
   }
   if(data.fog_reveal_data) setTimeout(()=>loadRevealFromDataUrl(data.fog_reveal_data),80);
+  if(data.fog_reveal_data) fogRevision=Math.max(fogRevision,assetRevision);
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
 }
 async function saveCloudAssets(includeFog=false){
   if(!cloudReady || (!mapImageData && !includeFog)) return;
   const asset={
     id:CLOUD_CAMPAIGN_ID,
-    map_revision:mapRevision || Date.now(),
+    map_revision:Math.max(Number(mapRevision)||0,Number(fogRevision)||0) || Date.now(),
     updated_by:CLOUD_CLIENT_ID,
     updated_at:new Date().toISOString()
   };
@@ -4777,6 +4811,14 @@ async function saveCloudAssets(includeFog=false){
   else if(mapImageData) asset.map_image_data=mapImageData;
   if(includeFog && revealCanvas.width) asset.fog_reveal_data=revealCanvas.toDataURL('image/png');
   await cloudClient.from(CLOUD_ASSETS_TABLE).upsert(asset);
+}
+function broadcastCloudFog(fogRevision,reason='fog'){
+  if(!cloudReady || !cloudChannel) return;
+  cloudChannel.send({
+    type:'broadcast',
+    event:'fog-refresh',
+    payload:{fogRevision,reason,updated_by:CLOUD_CLIENT_ID}
+  });
 }
 function broadcastCloudState(state){
   if(!cloudReady || !cloudChannel) return;
@@ -4871,6 +4913,12 @@ function connectWS(){
           updateActiveSummary();
         } else if(msg.type==='liveEffect'){
           handleLiveEffect(msg.effect);
+        } else if(msg.type==='fogRefresh'){
+          const incoming=Number(msg.fogRevision)||Date.now();
+          if(incoming>=fogRevision){
+            fogRevision=incoming;
+            loadCloudAssets();
+          }
         } else if(msg.type==='combatMode'){
           combatMode=msg.combatMode===true;
           initiativeRolls=msg.initiativeRolls||{};
