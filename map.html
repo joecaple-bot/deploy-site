@@ -243,6 +243,291 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #turn-list{font-size:12px;margin-top:7px}
 .turn-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:var(--radius);padding:5px 7px;margin-bottom:5px;background:#13161a}
 .turn-item.active{border-color:rgba(202,168,107,.75);background:rgba(202,168,107,.11)}
+
+/* ===== PREMIUM DND UI TEST SKIN: dark stone / parchment / brass ===== */
+:root{
+  --bg:#070606;
+  --panel:#15120f;
+  --panel-2:#211b15;
+  --panel-3:#2d241a;
+  --line:rgba(202,151,74,.34);
+  --muted:#b79d77;
+  --text:#f5ead7;
+  --accent:#f0a83a;
+  --accent-2:#ff7a1f;
+  --danger:#d85b43;
+  --radius:12px;
+  --shadow:0 24px 80px rgba(0,0,0,.68),0 0 0 1px rgba(255,219,145,.06) inset;
+}
+body{
+  background:
+    radial-gradient(circle at 18% 0%,rgba(240,122,31,.12),transparent 30%),
+    radial-gradient(circle at 88% 12%,rgba(240,168,58,.08),transparent 26%),
+    linear-gradient(135deg,#050505,#0e0b09 45%,#060504);
+  color:var(--text);
+}
+body:before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(35deg,rgba(255,255,255,.025) 0 1px,transparent 1px 14px);
+  opacity:.38;
+}
+#app{position:relative;z-index:1}
+#toolbar{
+  padding:10px 12px;
+  background:
+    linear-gradient(180deg,rgba(30,24,18,.96),rgba(11,10,9,.98)),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 18px);
+  border-bottom:1px solid rgba(240,168,58,.42);
+  box-shadow:0 10px 30px rgba(0,0,0,.55),0 1px 0 rgba(255,235,174,.08) inset;
+}
+#toolbar button,button{
+  border-color:rgba(202,151,74,.42);
+  background:linear-gradient(180deg,rgba(45,35,24,.94),rgba(15,13,12,.96));
+  color:#f7ead2;
+  box-shadow:0 1px 0 rgba(255,230,170,.08) inset,0 8px 18px rgba(0,0,0,.22);
+  transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease,background .12s ease;
+}
+#toolbar button:hover,button:hover{
+  background:linear-gradient(180deg,rgba(58,42,26,.98),rgba(22,17,13,.98));
+  border-color:rgba(255,189,80,.78);
+  box-shadow:0 0 18px rgba(240,128,32,.22),0 1px 0 rgba(255,230,170,.12) inset;
+  transform:translateY(-1px);
+}
+#toolbar button.active,button.primary{
+  background:linear-gradient(180deg,rgba(111,63,22,.95),rgba(43,25,14,.98));
+  border-color:rgba(255,178,66,.9);
+  color:#fff4cf;
+  box-shadow:0 0 18px rgba(255,128,31,.26),0 0 0 1px rgba(255,221,151,.1) inset;
+}
+button.danger{border-color:rgba(216,91,67,.75);color:#ffd5c9}
+input,select,textarea{
+  background:linear-gradient(180deg,rgba(14,12,10,.96),rgba(7,7,7,.96));
+  border-color:rgba(202,151,74,.32);
+  color:#f8eddc;
+  box-shadow:0 1px 0 rgba(255,230,170,.05) inset;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;
+  border-color:rgba(255,181,69,.84);
+  box-shadow:0 0 0 2px rgba(240,128,32,.16),0 0 18px rgba(240,128,32,.12);
+}
+#canvas-wrap{
+  background:
+    radial-gradient(circle at center,rgba(255,130,40,.08),transparent 50%),
+    linear-gradient(135deg,#0a0a0b,#12100d 52%,#070707);
+  border-right:1px solid rgba(202,151,74,.22);
+}
+#sidebar{
+  width:320px;
+  background:
+    linear-gradient(180deg,rgba(23,18,13,.98),rgba(9,8,7,.99)),
+    radial-gradient(circle at 50% 0%,rgba(240,168,58,.12),transparent 34%);
+  border-left:1px solid rgba(240,168,58,.4);
+  box-shadow:-18px 0 54px rgba(0,0,0,.48),1px 0 0 rgba(255,230,170,.07) inset;
+}
+#sidebar-scroll{padding:14px}
+h3{
+  font-family:Georgia,'Times New Roman',serif;
+  color:#e8c47d;
+  letter-spacing:.12em;
+  text-shadow:0 0 14px rgba(240,168,58,.24);
+}
+.panel-head{border-bottom:1px solid rgba(202,151,74,.18);padding-bottom:6px}
+.hdiv{
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(240,168,58,.5),transparent);
+  margin:14px 0;
+}
+.char-chip,.enemy-card,.sheet-detail,.mini-stat,.chat-log,.new-player-nudge,.turn-item,#sheet-popup,#modal,#confirm-box{
+  background:
+    linear-gradient(180deg,rgba(30,25,19,.92),rgba(13,12,11,.95)),
+    radial-gradient(circle at 14% 0%,rgba(255,219,145,.08),transparent 38%);
+  border-color:rgba(202,151,74,.34);
+  box-shadow:0 10px 28px rgba(0,0,0,.28),0 0 0 1px rgba(255,230,170,.04) inset;
+}
+.char-chip:hover,.enemy-card:hover,.turn-item:hover{border-color:rgba(255,185,72,.72);background:linear-gradient(180deg,rgba(39,30,21,.96),rgba(16,14,12,.96))}
+.char-chip.sel,.enemy-card.sel,.turn-item.active{
+  border-color:rgba(255,178,66,.86);
+  background:linear-gradient(180deg,rgba(65,39,18,.82),rgba(18,14,11,.95));
+  box-shadow:0 0 20px rgba(240,128,32,.18),0 0 0 1px rgba(255,230,170,.08) inset;
+}
+.mini-stat b,.sheet-name,.char-title,.enemy-name{color:#fff1cd;text-shadow:0 0 10px rgba(240,168,58,.18)}
+.pill,.campaign-badge{
+  background:rgba(20,15,10,.74);
+  border-color:rgba(202,151,74,.35);
+  color:#d9c59b;
+}
+.pill.on{border-color:rgba(255,178,66,.86);color:#fff1cd;background:rgba(105,57,18,.38)}
+#combat-popout,#floating-end-turn{
+  border-radius:14px;
+  border-color:rgba(255,185,72,.52);
+  box-shadow:0 24px 90px rgba(0,0,0,.7),0 0 22px rgba(240,128,32,.12),0 0 0 1px rgba(255,230,170,.08) inset;
+}
+#sheet-popup{
+  width:280px;
+  border-radius:14px;
+}
+.radial-center,.radial-btn{
+  border-color:rgba(255,185,72,.5);
+  background:linear-gradient(180deg,rgba(43,31,20,.96),rgba(12,11,10,.98));
+  box-shadow:0 10px 34px rgba(0,0,0,.46),0 0 16px rgba(240,128,32,.1);
+}
+.radial-btn:hover{border-color:rgba(255,203,106,.9);box-shadow:0 0 20px rgba(240,128,32,.24)}
+.modal-top{
+  background:linear-gradient(90deg,rgba(32,23,15,.96),rgba(17,14,11,.96));
+  border-bottom-color:rgba(202,151,74,.3);
+}
+.modal-top h2{
+  font-family:Georgia,'Times New Roman',serif;
+  color:#fff1cd;
+}
+.chat-msg{border-bottom-color:rgba(202,151,74,.14)}
+.asset-cell,.icon-cell,.mi{border-color:rgba(202,151,74,.18);background:rgba(13,11,9,.72)}
+.asset-cell.sel,.icon-cell.sel,.mi.sel{border-color:rgba(255,178,66,.86);box-shadow:0 0 16px rgba(240,128,32,.18)}
+
+/* ===== PREMIUM DND UI TEST SKIN PASS 2: ornate cinematic framing ===== */
+#toolbar:before{
+  content:"";position:fixed;left:10px;right:10px;top:7px;height:1px;pointer-events:none;z-index:4;
+  background:linear-gradient(90deg,transparent,rgba(255,222,151,.45),rgba(255,119,24,.28),rgba(255,222,151,.45),transparent);
+  box-shadow:0 0 18px rgba(255,128,31,.35);
+}
+#canvas-wrap:before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.62),transparent 10%,transparent 82%,rgba(0,0,0,.48)),
+    linear-gradient(180deg,rgba(0,0,0,.58),transparent 14%,transparent 80%,rgba(0,0,0,.55));
+}
+#canvas-wrap:after{
+  content:"";position:absolute;inset:8px;pointer-events:none;z-index:4;border-radius:18px;
+  border:1px solid rgba(202,151,74,.24);
+  box-shadow:0 0 0 1px rgba(255,230,170,.045) inset,0 0 36px rgba(240,128,32,.08) inset;
+}
+#sidebar{
+  position:relative;
+}
+#sidebar:before{
+  content:"";position:absolute;left:9px;right:9px;top:9px;height:56px;pointer-events:none;
+  border:1px solid rgba(202,151,74,.28);border-bottom:0;border-radius:16px 16px 0 0;
+  background:radial-gradient(circle at 50% 0%,rgba(255,184,72,.18),transparent 60%);
+}
+#sidebar-scroll{
+  scrollbar-color:rgba(202,151,74,.58) rgba(13,11,9,.8);
+}
+.panel-head h3,h3{
+  position:relative;
+}
+.panel-head h3:after,h3:after{
+  content:"";display:block;width:42px;height:1px;margin-top:5px;
+  background:linear-gradient(90deg,rgba(255,184,72,.9),transparent);
+  box-shadow:0 0 10px rgba(255,128,31,.35);
+}
+.char-chip,.enemy-card,.sheet-detail,.mini-stat,.chat-log,.new-player-nudge,.turn-item,#sheet-popup,#modal,#confirm-box,#combat-popout,#floating-end-turn{
+  position:relative;
+}
+.char-chip:before,.enemy-card:before,.sheet-detail:before,.chat-log:before,#sheet-popup:before,#modal:before,#confirm-box:before,#combat-popout:after{
+  content:"";position:absolute;inset:3px;pointer-events:none;border-radius:inherit;
+  border:1px solid rgba(255,230,170,.055);
+}
+.char-chip:after,.enemy-card:after,.sheet-detail:after,#sheet-popup:after,#modal:after,#combat-popout .combat-top:before{
+  content:"";position:absolute;width:9px;height:9px;pointer-events:none;
+  border-top:1px solid rgba(255,197,89,.55);border-left:1px solid rgba(255,197,89,.55);
+  left:7px;top:7px;opacity:.75;
+}
+.combat-top:after,.modal-top:after{
+  content:"";position:absolute;right:10px;top:50%;width:70px;height:1px;transform:translateY(-50%);
+  background:linear-gradient(90deg,transparent,rgba(255,184,72,.55),transparent);
+}
+.char-avatar,.enemy-icon,.sheet-icon,.icon-em{
+  filter:drop-shadow(0 0 8px rgba(255,132,31,.25));
+}
+.mini-stat{
+  background:
+    radial-gradient(circle at 50% 0%,rgba(255,184,72,.16),transparent 55%),
+    linear-gradient(180deg,rgba(27,21,15,.96),rgba(10,9,8,.96));
+}
+.mini-stat span,.sheet-sub,.char-meta,.enemy-meta,.hint,label{
+  color:#c9af82;
+}
+.chat-log{
+  background:
+    linear-gradient(180deg,rgba(17,13,10,.96),rgba(8,8,7,.96)),
+    radial-gradient(circle at 15% 0%,rgba(255,184,72,.08),transparent 42%);
+}
+.chat-msg b,.compact-list b{
+  color:#ffd98c;
+}
+.dice-row button,.effect-controls button,.action-buttons button,.char-actions button,.enemy-actions button{
+  background:linear-gradient(180deg,rgba(34,25,17,.96),rgba(11,10,9,.96));
+}
+#combat-popout{
+  width:min(500px,calc(100% - 24px));
+}
+.combat-top{
+  padding:13px 14px;
+}
+.combat-top b{
+  font-size:16px;
+  text-transform:capitalize;
+}
+.combat-actions button{
+  border-radius:10px;
+}
+.combat-actions button .action-full{
+  border-radius:10px;
+  background:
+    linear-gradient(180deg,rgba(55,34,17,.98),rgba(12,10,8,.99)),
+    radial-gradient(circle at 50% 0%,rgba(255,184,72,.16),transparent 64%);
+}
+.radial-center{
+  outline:1px solid rgba(255,230,170,.08);
+  outline-offset:4px;
+}
+.radial-btn{
+  font-family:Georgia,'Times New Roman',serif;
+}
+#floating-end-turn{
+  background:
+    radial-gradient(circle at 20% 0%,rgba(255,50,20,.18),transparent 45%),
+    linear-gradient(180deg,rgba(35,18,14,.98),rgba(9,8,8,.98));
+}
+#floating-end-turn b{
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:14px;
+}
+#crit-overlay{
+  background:radial-gradient(circle at center,rgba(255,160,40,.24),rgba(0,0,0,0) 58%);
+}
+.crit-burst b{
+  font-family:Georgia,'Times New Roman',serif;
+}
+.campaign-badge{
+  border-radius:999px;
+  box-shadow:0 0 12px rgba(72,179,127,.08),0 0 0 1px rgba(255,230,170,.04) inset;
+}
+#combat-popout{
+  position:absolute;
+  left:12px;
+  bottom:12px;
+  z-index:140;
+}
+#sheet-popup{
+  position:absolute;
+  z-index:150;
+}
+#radial-menu{
+  position:absolute;
+  z-index:151;
+}
+#floating-end-turn{
+  position:absolute;
+  z-index:152;
+}
+#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay{
+  position:absolute;
+}
+#sheet-popup,#radial-menu,#floating-end-turn,#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay{
+  z-index:150;
+}
 @media(max-width:860px){
   #main{flex-direction:column}
   #toolbar{align-items:flex-start;max-height:128px}
@@ -813,7 +1098,8 @@ function normalizeActionItem(item={}){
     aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
     effect:item.effect || defaultActionEffect(item.name || '', inferred),
-    description:item.description||''
+    description:item.description||'',
+    sourceItemId:item.sourceItemId||''
   };
 }
 function inferActionType(item={}){
@@ -835,6 +1121,44 @@ function normalizeTextItem(item={}){
     name:item.name || 'New ability',
     description:item.description || ''
   };
+}
+function inventoryWeaponProfile(item={}){
+  const text=`${item.name||''} ${item.description||''}`.toLowerCase();
+  if(!/(sword|blade|dagger|axe|mace|club|hammer|spear|javelin|bow|crossbow|staff|wand|rapier|scimitar|halberd|glaive|pike|flail|whip|sickle|sling|dart)/.test(text)) return null;
+  let die='d6';
+  if(/greatsword|maul|greataxe|halberd|glaive|pike/.test(text)) die='d12';
+  else if(/longsword|battleaxe|warhammer|rapier|morningstar|flail|crossbow|longbow/.test(text)) die='d8';
+  else if(/shortsword|scimitar|mace|spear|quarterstaff|shortbow|handaxe/.test(text)) die='d6';
+  else if(/dagger|club|sickle|dart|sling/.test(text)) die='d4';
+  const rarityBonus={Common:0,Uncommon:1,Rare:2,'Very Rare':3,Legendary:4}[item.rarity]||0;
+  return {die,bonus:rarityBonus};
+}
+function canMakeInventoryWeapon(item={}){
+  return !!inventoryWeaponProfile(item);
+}
+function makeInventoryWeapon(characterId,itemId){
+  const ch=characterById(characterId);
+  if(!ch || !canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
+  const item=(ch.inventory||[]).find(x=>x.id===itemId);
+  const profile=inventoryWeaponProfile(item);
+  if(!item || !profile) return showCritOverlay('That item is not weapon-like','roll','Item');
+  ch.weapons=Array.isArray(ch.weapons)?ch.weapons:[];
+  if(ch.weapons.some(w=>w.sourceItemId===item.id || w.name===item.name)) return showCritOverlay('Weapon already added','roll','Item');
+  const weapon=normalizeActionItem({
+    name:item.name,
+    die:profile.die,
+    bonus:profile.bonus,
+    actionType:'damage',
+    description:item.description || `Improvised weapon made from ${item.name}.`,
+    sourceItemId:item.id
+  });
+  weapon.sourceItemId=item.id;
+  ch.weapons.push(weapon);
+  addChatMessage({kind:'item',character:ch.name,label:`Weapon added: ${item.name}`,detail:`${profile.die} ${formatBonus(profile.bonus)}`});
+  updateAllPanels();
+  updateCombatPopout();
+  syncCharacter(ch);
+  scheduleSave();
 }
 function normalizeInventoryItem(item={}){
   const statBonuses={};
@@ -920,7 +1244,8 @@ function hydrateActionItem(raw={}){
     aoeRadius:Math.max(0,Math.min(240,Number(raw.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||0)),
     effect:raw.effect || raw.name || '',
-    description:raw.description || ''
+    description:raw.description || '',
+    sourceItemId:raw.sourceItemId || ''
   };
 }
 function hydrateEnemyTemplate(raw={}){
@@ -3053,6 +3378,11 @@ function showSheet(ch,x,y){
   pop.classList.remove('enemy');
   const d=ch.derived || calculateDerived(ch);
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
+  const inventoryRows=(ch.inventory||[]).slice(0,8).map(item=>{
+    const profile=inventoryWeaponProfile(item);
+    const already=(ch.weapons||[]).some(w=>w.sourceItemId===item.id || w.name===item.name);
+    return `<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name||'Item')} <small>x${item.qty||1}</small></span><span>${profile?`${profile.die} ${formatBonus(profile.bonus)} ${already?'<small>added</small>':`<button onclick="makeInventoryWeapon('${ch.id}','${item.id}')">Make weapon</button>`}`:''}</span></div>`;
+  }).join('');
   const death=ch.deathSaves || {success:0,fail:0};
   const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   const restControls=ch.isMe ? `<div class="death-row"><button onclick="shortRest('${ch.id}')">Short rest</button><button onclick="longRest('${ch.id}')">Long rest</button></div>` : '';
@@ -3080,6 +3410,7 @@ function showSheet(ch,x,y){
     <div class="pill-row">${statusList.map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
     <div class="compact-list" style="margin-top:7px">${topSkills(ch).slice(0,4).map(([skill,total])=>`<div><span>${escapeHtml(skillLabel(skill))}</span><span>${formatSigned(total)}</span></div>`).join('')}</div>
+    <div class="sheet-detail"><h4>Inventory</h4><div class="compact-list">${inventoryRows || '<div><span>No inventory yet</span><span></span></div>'}</div></div>
     ${deathControls}
     ${restControls}
     <div class="sheet-actions">${ownerActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;

@@ -714,7 +714,8 @@ function normalizeActionItem(item={}){
     aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
     effect:item.effect||defaultActionEffect(item.name||'',inferred),
-    description:item.description||''
+    description:item.description||'',
+    sourceItemId:item.sourceItemId||''
   };
 }
 function inferActionType(item={}){
@@ -745,6 +746,20 @@ function normalizeInventoryItem(item={}){
     bonusAction:item.bonusAction||'',
     description:item.description||''
   };
+}
+function inventoryWeaponProfile(item={}){
+  const text=`${item.name||''} ${item.description||''}`.toLowerCase();
+  if(!/(sword|blade|dagger|axe|mace|club|hammer|spear|javelin|bow|crossbow|staff|wand|rapier|scimitar|halberd|glaive|pike|flail|whip|sickle|sling|dart)/.test(text)) return null;
+  let die='d6';
+  if(/greatsword|maul|greataxe|halberd|glaive|pike/.test(text)) die='d12';
+  else if(/longsword|battleaxe|warhammer|rapier|morningstar|flail|crossbow|longbow/.test(text)) die='d8';
+  else if(/shortsword|scimitar|mace|spear|quarterstaff|shortbow|handaxe/.test(text)) die='d6';
+  else if(/dagger|club|sickle|dart|sling/.test(text)) die='d4';
+  const rarityBonus={Common:0,Uncommon:1,Rare:2,'Very Rare':3,Legendary:4}[item.rarity]||0;
+  return {die,bonus:rarityBonus};
+}
+function canMakeInventoryWeapon(item={}){
+  return !!inventoryWeaponProfile(item);
 }
 function normalizeTextItem(item={}){
   return {id:item.id||'t_'+Date.now()+Math.random().toString(36).slice(2,7),name:item.name||'New ability',description:item.description||''};
@@ -972,7 +987,8 @@ function readActionItems(type){
     aoeRadius:row.querySelector(`[data-${type}-aoe-radius]`)?.value,
     saveDC:row.querySelector(`[data-${type}-save-dc]`)?.value,
     effect:row.querySelector(`[data-${type}-effect]`)?.value.trim(),
-    description:row.querySelector(`[data-${type}-desc]`)?.value.trim()
+    description:row.querySelector(`[data-${type}-desc]`)?.value.trim(),
+    sourceItemId:row.dataset.sourceItemId||''
   })).filter(item=>item.name);
 }
 function renderActionItems(ch=selected()){
@@ -984,7 +1000,7 @@ function renderActionList(type,items){
   const el=document.getElementById(`${type}-list`);
   if(!el) return;
   el.innerHTML=items.map(item=>`
-    <div class="item-row" data-${type}-row data-id="${item.id}">
+    <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}">
       <div><label>${type==='weapon'?'Weapon':'Spell'}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${type==='weapon'?'Longsword':'Fire Bolt'}"></div>
       <div><label>Damage die</label><select data-${type}-die>${DAMAGE_DICE.map(d=>`<option ${d===item.die?'selected':''}>${d}</option>`).join('')}</select></div>
       <div><label>Bonus</label><input data-${type}-bonus type="number" value="${item.bonus}" step="1"></div>
@@ -1289,19 +1305,24 @@ function renderInventory(ch=selected()){
   const el=document.getElementById('inventory-list');
   if(!el) return;
   renderCombineControls(ch);
-  el.innerHTML=(ch.inventory||[]).map(item=>`
+  el.innerHTML=(ch.inventory||[]).map(item=>{
+    const weapon=inventoryWeaponProfile(item);
+    const already=(ch.weapons||[]).some(w=>w.sourceItemId===item.id || w.name===item.name);
+    return `
     <div class="item-row magic ${rarityClass(item.rarity)}" data-inventory-row data-id="${item.id}">
       <div><label>Item</label><input data-inventory-name value="${escapeHtml(item.name)}" placeholder="Rope, key, potion"></div>
       <div><label>Qty</label><input data-inventory-qty type="number" min="1" value="${item.qty}"></div>
       <div><label>Rarity</label><select data-inventory-rarity>${ITEM_RARITIES.map(r=>`<option ${r===item.rarity?'selected':''}>${r}</option>`).join('')}</select></div>
       <button onclick="removeInventoryItem('${item.id}')">Remove</button>
+      ${weapon?`<button type="button" ${already?'disabled':''} onclick="makeInventoryWeaponFromInventory('${item.id}')">${already?'Weapon added':`Make weapon ${weapon.die}`}</button>`:''}
       <div><label>Equip slot</label><select data-inventory-slot><option value="">Inventory only</option>${EQUIPMENT_SLOTS.map(slot=>`<option value="${slot}" ${slot===item.slot?'selected':''}>${slot}</option>`).join('')}</select></div>
       <div><label>AC Bonus</label><input data-inventory-ac type="number" value="${item.acBonus}" step="1"></div>
       <div style="grid-column:span 2"><label>Stat Bonuses</label><div class="grid" style="grid-template-columns:repeat(6,1fr);gap:5px">${ABILITIES.map(ab=>`<input title="${ab}" data-inventory-stat-${ab.toLowerCase()} type="number" value="${item.statBonuses?.[ab]||0}" step="1">`).join('')}</div></div>
       <input data-inventory-ability value="${escapeHtml(item.ability||'')}" placeholder="Granted ability, e.g. Darkvision">
       <input data-inventory-bonus-action value="${escapeHtml(item.bonusAction||'')}" placeholder="Granted bonus action">
       <textarea data-inventory-desc placeholder="Description, use, charges">${escapeHtml(item.description||'')}</textarea>
-    </div>`).join('')||'<div class="muted">No inventory items yet.</div>';
+    </div>`;
+  }).join('')||'<div class="muted">No inventory items yet.</div>';
   el.querySelectorAll('input,select,textarea').forEach(input=>{
     input.addEventListener('input',()=>{syncInventoryToCharacter();renderEquipment();renderLive();scheduleSave()});
     input.addEventListener('change',()=>{syncInventoryToCharacter();renderEquipment();renderLive();scheduleSave()});
@@ -1392,6 +1413,32 @@ function updateCombinePreview(){
 function syncInventoryToCharacter(){const ch=selected(); if(ch){ ch.inventory=readInventoryItems(); ch.equipment=readEquipment(); }}
 function addInventoryItem(){syncInventoryToCharacter(); selected().inventory.push(normalizeInventoryItem({name:'New Item',qty:1,rarity:'Common'})); renderInventory(); renderEquipment(); scheduleSave();}
 function removeInventoryItem(id){syncInventoryToCharacter(); selected().inventory=(selected().inventory||[]).filter(item=>item.id!==id); for(const [slot,itemId] of Object.entries(selected().equipment||{})){ if(itemId===id) delete selected().equipment[slot]; } renderInventory(); renderEquipment(); scheduleSave();}
+function makeInventoryWeaponFromInventory(itemId){
+  syncInventoryToCharacter();
+  syncActionItemsToCharacter();
+  const ch=selected();
+  if(!ch) return;
+  const item=(ch.inventory||[]).find(x=>x.id===itemId);
+  const profile=inventoryWeaponProfile(item);
+  if(!item || !profile){ toast('That item is not weapon-like'); return; }
+  ch.weapons=Array.isArray(ch.weapons)?ch.weapons:[];
+  if(ch.weapons.some(w=>w.sourceItemId===item.id || w.name===item.name)){
+    toast('Weapon already added');
+    return;
+  }
+  ch.weapons.push(normalizeActionItem({
+    name:item.name,
+    die:profile.die,
+    bonus:profile.bonus,
+    actionType:'damage',
+    description:item.description || `Improvised weapon made from ${item.name}.`,
+    sourceItemId:item.id
+  }));
+  renderActionItems(ch);
+  renderEquipment(ch);
+  renderLive();
+  writeStorage(`Weapon added: ${item.name}`);
+}
 function combineInventoryItems(){
   syncInventoryToCharacter();
   const ch=selected();
