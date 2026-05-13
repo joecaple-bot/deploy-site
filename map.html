@@ -299,7 +299,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
           <label>Name</label>
           <input id="enemy-name" placeholder="Goblin Scout">
           <label>Icon</label>
-          <input id="enemy-icon" maxlength="4" placeholder="ðŸ‘¹">
+          <input id="enemy-icon" maxlength="4" placeholder="&#x1F479;">
           <div id="enemy-asset-picker"></div>
           <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
             <div><label>HP</label><input id="enemy-hp" type="number" min="1" value="7"></div>
@@ -511,22 +511,22 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 <script src="assets_manifest.js"></script>
 <script>
 /* ===== Existing map/icon data, expanded for the character creator ===== */
-const PLAYER_ICONS = ['ðŸ§™','ðŸ§','ðŸ§Ÿ','ðŸ§›','ðŸ§œ','ðŸ¦¸','ðŸ¤º','ðŸ¥·','ðŸ§‘â€ðŸš€','ðŸ‘¸','ðŸ¤´','ðŸ§ž','ðŸ‰','ðŸ¦Š','ðŸº','ðŸ›¡ï¸'];
+const PLAYER_ICONS = ['\u{1F9D9}','\u{1F9DD}','\u{1F9DF}','\u{1F9DB}','\u{1F9DC}','\u{1F9B8}','\u{1F93A}','\u{1F977}','\u{1F9D1}\u200D\u{1F680}','\u{1F478}','\u{1F934}','\u{1F9DE}','\u{1F409}','\u{1F98A}','\u{1F43A}','\u{1F6E1}\uFE0F'];
 const MAP_ICONS = [
-  {id:'chest',em:'ðŸ“¦',label:'Chest',hidden:true},
-  {id:'enemy',em:'ðŸ‘¹',label:'Enemy',hidden:true},
-  {id:'potion',em:'ðŸ§ª',label:'Potion',hidden:true},
-  {id:'key',em:'ðŸ—ï¸',label:'Key',hidden:true},
-  {id:'scroll',em:'ðŸ“œ',label:'Scroll',hidden:true},
-  {id:'trader',em:'ðŸ’°',label:'Trader',hidden:false,kind:'trader'},
-  {id:'trap',em:'ðŸª¤',label:'Trap',hidden:true},
-  {id:'flag',em:'ðŸš©',label:'Flag',hidden:false},
-  {id:'star',em:'â­',label:'Interest',hidden:false},
-  {id:'skull',em:'ðŸ’€',label:'Danger',hidden:false},
-  {id:'door',em:'ðŸšª',label:'Exit',hidden:false},
-  {id:'pin',em:'ðŸ“',label:'Pin',hidden:false,kind:'pin'},
-  {id:'fire',em:'ðŸ”¥',label:'Hazard',hidden:false},
-  {id:'tent',em:'â›º',label:'Camp',hidden:false}
+  {id:'chest',em:'\u{1F4E6}',label:'Chest',hidden:true},
+  {id:'enemy',em:'\u{1F479}',label:'Enemy',hidden:true},
+  {id:'potion',em:'\u{1F9EA}',label:'Potion',hidden:true},
+  {id:'key',em:'\u{1F5DD}\uFE0F',label:'Key',hidden:true},
+  {id:'scroll',em:'\u{1F4DC}',label:'Scroll',hidden:true},
+  {id:'trader',em:'\u{1F4B0}',label:'Trader',hidden:false,kind:'trader'},
+  {id:'trap',em:'\u{1FAA4}',label:'Trap',hidden:true},
+  {id:'flag',em:'\u{1F6A9}',label:'Flag',hidden:false},
+  {id:'star',em:'\u2B50',label:'Interest',hidden:false},
+  {id:'skull',em:'\u{1F480}',label:'Danger',hidden:false},
+  {id:'door',em:'\u{1F6AA}',label:'Exit',hidden:false},
+  {id:'pin',em:'\u{1F4CD}',label:'Pin',hidden:false,kind:'pin'},
+  {id:'fire',em:'\u{1F525}',label:'Hazard',hidden:false},
+  {id:'tent',em:'\u26FA',label:'Camp',hidden:false}
 ];
 
 /* ===== NEW SECTION: Local sound packs ===== */
@@ -663,6 +663,10 @@ function statsWithRace(character){
   for(const [ab,bonus] of Object.entries(mods)) out[ab]=(out[ab]||10)+bonus;
   return out;
 }
+function cleanEmoji(value,fallback='?'){
+  const text=String(value||'');
+  return text && !/[\u00F0\u00C3\u00C2\u00E2]/.test(text) ? text : fallback;
+}
 function normalizeSkills(skills={}){
   const out={};
   for(const skill of Object.keys(SKILL_DEFS)){
@@ -751,7 +755,7 @@ function hydrateCharacter(raw={}){
       x:raw.position?.x ?? raw.x ?? null,
       y:raw.position?.y ?? raw.y ?? null
     },
-    icon:raw.icon || raw.em || 'ðŸ§™',
+    icon:cleanEmoji(raw.icon || raw.em,'\u{1F9D9}'),
     tokenArt:raw.tokenArt || '',
     tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     color:raw.color || randomColor(),
@@ -895,7 +899,7 @@ function hydrateEnemyTemplate(raw={}){
   return {
     id:raw.id || 'e_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Enemy',
-    icon:raw.icon || raw.em || 'ðŸ‘¹',
+    icon:cleanEmoji(raw.icon || raw.em,'\u{1F479}'),
     tokenArt:raw.tokenArt || '',
     tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     hp:Math.max(1,Number(raw.hp ?? raw.maxHP ?? 7)),
@@ -913,7 +917,7 @@ function hydratePlacedIcon(raw={}){
   const icon={...raw};
   if(icon.kind==='enemy'){
     icon.name=icon.name || icon.label || 'Enemy';
-    icon.icon=icon.icon || icon.em || 'ðŸ‘¹';
+    icon.icon=cleanEmoji(icon.icon || icon.em,'\u{1F479}');
     icon.em=icon.icon;
     icon.tokenArt=icon.tokenArt || '';
     icon.tokenScale=Math.max(.5,Math.min(3,Number(icon.tokenScale)||1));
@@ -939,7 +943,7 @@ function hydratePlacedIcon(raw={}){
   if(icon.id==='chest' || icon.kind==='chest'){
     icon.kind='chest';
     icon.id='chest';
-    icon.icon=icon.icon || icon.em || 'ðŸ“¦';
+    icon.icon=cleanEmoji(icon.icon || icon.em,'\u{1F4E6}');
     icon.em=icon.icon;
     icon.name=icon.name || icon.label || 'Loot Chest';
     icon.label=icon.name;
@@ -952,7 +956,7 @@ function hydratePlacedIcon(raw={}){
   if(icon.id==='trader' || icon.kind==='trader'){
     icon.kind='trader';
     icon.id='trader';
-    icon.icon=icon.icon || icon.em || 'ðŸ’°';
+    icon.icon=cleanEmoji(icon.icon || icon.em,'\u{1F4B0}');
     icon.em=icon.icon;
     icon.traderType=TRADER_TYPES.includes(icon.traderType) ? icon.traderType : 'General';
     icon.traderLevel=Math.max(1,Math.min(3,Number(icon.traderLevel)||1));
@@ -1121,7 +1125,7 @@ function renderAssetPicker(targetId,currentPath,onSelect){
   const items=assetManifest().filter(item=>item.folder===currentFolder);
   el.innerHTML=`
     <details class="asset-picker">
-      <summary>â˜° Git art override ${currentPath?'on':'off'}</summary>
+      <summary>\u2630 Git art override ${currentPath?'on':'off'}</summary>
       <div class="asset-tools">
         <select data-asset-folder>${folders.map(folder=>`<option value="${escapeHtml(folder)}" ${folder===currentFolder?'selected':''}>${escapeHtml(folder)}</option>`).join('')}</select>
         <select data-asset-item>${items.map(item=>`<option value="${escapeHtml(item.path)}" ${item.path===currentPath?'selected':''}>${escapeHtml(item.name)} (${Math.ceil((item.bytes||0)/1024)}kb)</option>`).join('')}</select>
@@ -1686,7 +1690,7 @@ function drawPlayers(){
     ctx.font=Math.round(tokenDrawSize(p,27))+'px serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    drawTokenArt(p,x,y,iconSize,p.icon||p.em||'ðŸ§™');
+    drawTokenArt(p,x,y,iconSize,cleanEmoji(p.icon||p.em,'\u{1F9D9}'));
     ctx.beginPath();
     ctx.arc(x,y+4,3.5,0,Math.PI*2);
     ctx.fillStyle=p.color||'#48b37f';
@@ -2213,7 +2217,7 @@ function populateBuilderOptions(){
 function openAddCharModal(){
   pendingModalSave={mode:'add'};
   document.getElementById('modal-title').textContent='Create character';
-  fillBuilder(hydrateCharacter({name:'',icon:'ðŸ§™',color:randomColor()}));
+  fillBuilder(hydrateCharacter({name:'',icon:'\u{1F9D9}',color:randomColor()}));
   document.getElementById('modal-overlay').classList.add('show');
 }
 function openEditCharModal(charId=activeCharacterId){
@@ -2254,7 +2258,7 @@ function readBuilder(){
     alignment:document.getElementById('char-alignment').value,
     stats,
     skills:pendingModalSave?.skills || {},
-    icon:document.querySelector('.mi.sel')?.dataset.em || 'ðŸ§™',
+    icon:document.querySelector('.mi.sel')?.dataset.em || '\u{1F9D9}',
     tokenArt:selectedCharTokenArt||'',
     tokenScale:Number(document.getElementById('char-token-scale').value)||1,
     color:document.getElementById('char-color').value,
@@ -2467,7 +2471,7 @@ function updateCharactersList(){
       <div class="char-avatar">${ch.icon}</div>
       <div>
         <div class="char-title">${escapeHtml(ch.name)}</div>
-        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} Â· ${placed?'Placed':'Unplaced'}</div>
+        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} &middot; ${placed?'Placed':'Unplaced'}</div>
       </div>
       <div class="char-actions"></div>`;
     d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
@@ -2494,7 +2498,7 @@ function updateActiveSummary(){
   const death=ch.deathSaves || {success:0,fail:0};
   const equipped=equippedItems(ch);
   const abilities=[...(ch.abilities||[]),...(ch.bonusActions||[]).map(a=>({...a,name:`Bonus: ${a.name}`})),...equippedAbilityRows(ch)];
-  const deathControls=(ch.currentHP??d.HP)<=0 ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save âœ“ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
+  const deathControls=(ch.currentHP??d.HP)<=0 ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   el.innerHTML=`
     <div class="char-chip sel" style="cursor:default">
       <div class="char-avatar">${ch.icon}</div>
@@ -2528,8 +2532,8 @@ function updateActiveSummary(){
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
     ${deathControls}
     <div class="action-buttons">
-      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">âš” ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">âœ¦ ${escapeHtml(s.name)}</button>`).join('')}
+      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">\u2694 ${escapeHtml(w.name)}</button>`).join('')}
+      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">\u2726 ${escapeHtml(s.name)}</button>`).join('')}
     </div>
     <div class="action-buttons">
       ${ABILITIES.map(ab=>`<button onclick="rollSavingThrow('${ch.id}','${ab}')">${ab} Save</button>`).join('')}
@@ -2609,7 +2613,7 @@ function buildIconGrid(){
   for(const ic of MAP_ICONS){
     const d=document.createElement('div');
     d.className='icon-cell'+(selectedMapIcon.id===ic.id?' sel':'');
-    d.innerHTML=`<span class="icon-em">${ic.em}</span><span>${ic.label}${ic.hidden?' ðŸ‘':''}</span>`;
+    d.innerHTML=`<span class="icon-em">${ic.em}</span><span>${ic.label}${ic.hidden?' \u{1F441}':''}</span>`;
     d.onclick=()=>{ if(!isDM()) return requireDM(); selectedMapIcon=prepareMapIconForPlacement(ic); setMode('place'); buildIconGrid(); };
     el.appendChild(d);
   }
@@ -2631,7 +2635,7 @@ function createNamedPin(){
   const name=prompt('Pin label');
   if(!name) return;
   const note=prompt('Pin note, optional') || '';
-  selectedMapIcon={id:'pin-'+Date.now(),kind:'pin',em:'ðŸ“',icon:'ðŸ“',label:name.trim(),name:name.trim(),note,hidden:false};
+  selectedMapIcon={id:'pin-'+Date.now(),kind:'pin',em:'\u{1F4CD}',icon:'\u{1F4CD}',label:name.trim(),name:name.trim(),note,hidden:false};
   setMode('place');
   buildIconGrid();
   showCritOverlay('Click the map to place the pin','roll','Pin');
@@ -2639,9 +2643,9 @@ function createNamedPin(){
 function ensureDefaultEnemies(){
   if(enemyTemplates.length) return;
   enemyTemplates=[
-    hydrateEnemyTemplate({name:'Goblin Scout',icon:'ðŸ‘º',hp:7,ac:13,color:'#e06b62'}),
-    hydrateEnemyTemplate({name:'Skeleton Guard',icon:'ðŸ’€',tokenArt:'assets/undead_stylised_svg_pack/skeleton.svg',hp:13,ac:13,color:'#d6d8df'}),
-    hydrateEnemyTemplate({name:'Orc Brute',icon:'ðŸ‘¹',hp:15,ac:13,color:'#b65f4a'})
+    hydrateEnemyTemplate({name:'Goblin Scout',icon:'\u{1F47A}',hp:7,ac:13,color:'#e06b62'}),
+    hydrateEnemyTemplate({name:'Skeleton Guard',icon:'\u{1F480}',tokenArt:'assets/undead_stylised_svg_pack/skeleton.svg',hp:13,ac:13,color:'#d6d8df'}),
+    hydrateEnemyTemplate({name:'Orc Brute',icon:'\u{1F479}',hp:15,ac:13,color:'#b65f4a'})
   ];
   selectedEnemyId=enemyTemplates[0].id;
 }
@@ -2654,7 +2658,7 @@ function updateEnemyList(){
       <div class="enemy-icon">${tokenThumbHtml(enemy,enemy.icon)}</div>
       <div>
         <div class="enemy-name">${escapeHtml(enemy.name)}</div>
-        <div class="enemy-meta">AC ${enemy.ac} Â· HP ${enemy.hp}</div>
+        <div class="enemy-meta">AC ${enemy.ac} &middot; HP ${enemy.hp}</div>
       </div>
       <div class="enemy-actions">
         <button onclick="event.stopPropagation();openEnemyModal('${enemy.id}')">Edit</button>
@@ -2711,7 +2715,7 @@ function openPlacedEnemyModal(uid){
   pendingEnemyPlacedUid=uid;
   document.getElementById('enemy-modal-title').textContent='Edit placed enemy';
   document.getElementById('enemy-name').value=enemy.name;
-  document.getElementById('enemy-icon').value=enemy.icon||enemy.em||'ðŸ‘¹';
+  document.getElementById('enemy-icon').value=cleanEmoji(enemy.icon||enemy.em,'\u{1F479}');
   pendingEnemyTokenArt=enemy.tokenArt||'';
   renderAssetPicker('enemy-asset-picker',pendingEnemyTokenArt,path=>{ pendingEnemyTokenArt=path; });
   document.getElementById('enemy-hp').value=enemy.maxHP||enemy.hp||1;
@@ -2779,7 +2783,7 @@ function saveEnemyTemplate(){
   const data=hydrateEnemyTemplate({
     id:pendingEnemyEditId,
     name:document.getElementById('enemy-name').value.trim()||'Enemy',
-    icon:document.getElementById('enemy-icon').value.trim()||'ðŸ‘¹',
+    icon:cleanEmoji(document.getElementById('enemy-icon').value.trim(),'\u{1F479}'),
     tokenArt:pendingEnemyTokenArt||'',
     tokenScale:Number(document.getElementById('enemy-token-scale').value)||1,
     hp:document.getElementById('enemy-hp').value,
@@ -2838,7 +2842,7 @@ function updatePlayersList(){
   for(const [id,p] of Object.entries(grouped)){
     const d=document.createElement('div');
     d.className='player-chip';
-    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${p.icon||'ðŸ§™'}</span><span>${escapeHtml(p.name||id.slice(0,6))} L${p.level||1}</span>`;
+    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${cleanEmoji(p.icon,'\u{1F9D9}')}</span><span>${escapeHtml(p.name||id.slice(0,6))} L${p.level||1}</span>`;
     el.appendChild(d);
   }
 }
@@ -2854,7 +2858,7 @@ function showRadialMenu(ch,x,y){
   if(!menu) return;
   const canUse=canControlCharacter(ch);
   menu.innerHTML=`
-    <div class="radial-center">${ch.icon||'ðŸ§™'}</div>
+    <div class="radial-center">${cleanEmoji(ch.icon,'\u{1F9D9}')}</div>
     <button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch.id}')">d20</button>
     <button class="radial-btn" onclick="hideRadialMenu();openSaveWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Saves</button>
     <button class="radial-btn" onclick="radialActions('${ch.id}')">Actions</button>
@@ -2897,14 +2901,14 @@ function showSheet(ch,x,y){
   const d=ch.derived || calculateDerived(ch);
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
   const death=ch.deathSaves || {success:0,fail:0};
-  const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save âœ“ ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
+  const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   const restControls=ch.isMe ? `<div class="death-row"><button onclick="shortRest('${ch.id}')">Short rest</button><button onclick="longRest('${ch.id}')">Long rest</button></div>` : '';
   const statusList=normalizeStatuses(ch.statuses);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(ch,ch.icon)}</div>
       <div><div class="sheet-name">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     <div class="mini-stat-row">
       <div class="mini-stat"><b>${ch.currentHP ?? d.HP}/${d.HP}</b><span>HP</span></div>
@@ -2917,8 +2921,8 @@ function showSheet(ch,x,y){
     </div>
     <div class="ability-list">${[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class'])].map(t=>`<span class="ability">${t}</span>`).join('')}</div>
     <div class="action-buttons">
-      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">âš” ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">âœ¦ ${escapeHtml(s.name)}</button>`).join('')}
+      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">\u2694 ${escapeHtml(w.name)}</button>`).join('')}
+      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">\u2726 ${escapeHtml(s.name)}</button>`).join('')}
     </div>
     <div class="pill-row">${statusList.map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
@@ -2939,8 +2943,8 @@ function showEnemySheet(enemy,x,y){
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(enemy,enemy.icon||enemy.em)}</div>
-      <div><div class="sheet-name">${escapeHtml(enemy.name)}</div><div class="sheet-sub">Enemy Â· AC ${enemy.ac}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <div><div class="sheet-name">${escapeHtml(enemy.name)}</div><div class="sheet-sub">Enemy &middot; AC ${enemy.ac}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     <div class="mini-stat-row" style="${dm?'':'grid-template-columns:repeat(2,1fr)'}">
       <div class="mini-stat"><b>${enemy.hp}/${enemy.maxHP}</b><span>HP</span></div>
@@ -2982,9 +2986,9 @@ function showIconSheet(icon,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${icon.icon||icon.em||'ðŸ“'}</div>
+      <div class="sheet-icon">${cleanEmoji(icon.icon||icon.em,'\u{1F4CD}')}</div>
       <div><div class="sheet-name">${escapeHtml(icon.name||icon.label||'Map icon')}</div><div class="sheet-sub">${icon.hidden?'Hidden':'Visible'} icon</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     ${icon.note?`<div class="sheet-detail"><h4>Note</h4><div class="hint">${escapeHtml(icon.note)}</div></div>`:''}
     <div class="sheet-actions">
@@ -3005,9 +3009,9 @@ function showChestSheet(chest,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${chest.opened?'ðŸ§°':(chest.icon||chest.em||'ðŸ“¦')}</div>
-      <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest Â· ${chest.opened?'Opened':'Closed'}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <div class="sheet-icon">${chest.opened?'\u{1F9F0}':cleanEmoji(chest.icon||chest.em,'\u{1F4E6}')}</div>
+      <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest &middot; ${chest.opened?'Opened':'Closed'}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     ${!chest.opened?`<div class="sheet-detail"><h4>Chest</h4><div class="hint">A level ${chest.chestLevel} chest. Open it to roll loot from the chest pool.</div></div>`:''}
     ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
@@ -3182,9 +3186,9 @@ function showTraderSheet(trader,x,y){
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${trader.icon||trader.em||'ðŸ’°'}</div>
-      <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader Â· Level ${trader.traderLevel||1}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <div class="sheet-icon">${cleanEmoji(trader.icon||trader.em,'\u{1F4B0}')}</div>
+      <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader &middot; Level ${trader.traderLevel||1}</div></div>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     ${(trader.description||p)?`<div class="sheet-detail"><h4>Context</h4><div class="hint">${escapeHtml(trader.description||'No description')}</div>${p?`<div class="hint" style="margin-top:6px"><b>${escapeHtml(p.greeting||'')}</b><br>${escapeHtml(p.buyLine||'')}<br>${escapeHtml(p.sellLine||'')}</div>`:''}</div>`:''}
     <div class="sheet-detail"><h4>Dialogue</h4><div class="hint">${escapeHtml(contextLine)}</div></div>
@@ -3582,9 +3586,9 @@ function showEffectSheet(fx,x,y){
   const name=fx.type==='fire'?'Hazard':fx.type[0].toUpperCase()+fx.type.slice(1);
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${fx.type==='poison'?'â˜ ï¸':fx.type==='fire'?'ðŸ”¥':'ðŸ’§'}</div>
+      <div class="sheet-icon">${fx.type==='poison'?'\u2620\uFE0F':fx.type==='fire'?'\u{1F525}':'\u{1F4A7}'}</div>
       <div><div class="sheet-name">${name} area</div><div class="sheet-sub">${fx.radius}px radius</div></div>
-      <button class="sheet-close" onclick="hideSheet()">Ã—</button>
+      <button class="sheet-close" onclick="hideSheet()">&times;</button>
     </div>
     <label class="small">Radius: <strong id="fx-radius-val">${fx.radius}</strong>px</label>
     <input type="range" min="20" max="220" step="5" value="${fx.radius}" oninput="resizeAreaEffect('${fx.id}',+this.value)">
@@ -4997,7 +5001,7 @@ function ensureDefaultCharacter(){
     class:'Fighter',
     level:1,
     stats:{STR:15,DEX:13,CON:14,INT:10,WIS:12,CHA:8},
-    icon:'ðŸ§™',
+    icon:'\u{1F9D9}',
     color:randomColor()
   });
   myCharacters=[ch];
