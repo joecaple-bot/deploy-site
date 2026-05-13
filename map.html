@@ -2073,6 +2073,7 @@ canvas.addEventListener('mousedown',e=>{
       if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat');
       pushDMUndo('drag character');
       activeCharacterId=hit.id;
+      activeEnemyUid=null;
       updateAllPanels();
       dragTarget='player';
       dragOffX=x-characterX(hit.p);
@@ -2168,7 +2169,7 @@ canvas.addEventListener('touchstart',e=>{
     const ic=isDM()?iconAt(x,y):null;
     if(ic){ pushDMUndo(ic.kind==='enemy'?'drag enemy':'drag icon'); dragTarget=ic; dragOffX=x-ic.x; dragOffY=y-ic.y; isDragging=true; return; }
     const hit=playerAt(x,y);
-    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); activeCharacterId=hit.id; dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
+    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); activeCharacterId=hit.id; activeEnemyUid=null; dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
   }
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
@@ -2561,7 +2562,7 @@ function updateCharactersList(){
         <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} &middot; ${placed?'Placed':'Unplaced'}</div>
       </div>
       <div class="char-actions"></div>`;
-    d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
+    d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; activeEnemyUid=null; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
     const actions=d.querySelector('.char-actions');
     const edit=document.createElement('button');
     edit.textContent='Edit';
@@ -2663,7 +2664,7 @@ function updateCombatPopout(){
     const targetLabel=targetCharacter?`${escapeHtml(targetCharacter.name)} AC ${targetCharacter.derived?.AC||'-'} HP ${targetCharacter.currentHP}/${targetCharacter.derived?.HP||targetCharacter.currentHP}`:targetEnemy?`${escapeHtml(targetEnemy.name)} AC ${targetEnemy.ac} HP ${targetEnemy.hp}/${targetEnemy.maxHP}`:'None selected';
     title.textContent=`${activeEnemy.name} actions`;
     body.innerHTML=`
-      <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
+      <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''} <button onclick="clearActiveEnemy()" style="font-size:10px;padding:2px 5px">Release control</button></div>
       <div class="combat-actions">
       ${weapons.map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)} <span class="tiny">${escapeHtml(w.actionType||'damage')} ${escapeHtml(w.die||'d6')} ${formatBonus(w.bonus)}${isAoeAction(w)?` AoE ${w.aoeRadius}`:''}</span></button>`).join('')}
         ${spells.map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)} <span class="tiny">${escapeHtml(s.actionType||'damage')} ${escapeHtml(s.die||'d6')} ${formatBonus(s.bonus)}${isAoeAction(s)?` AoE ${s.aoeRadius}`:''}</span></button>`).join('')}
@@ -2965,6 +2966,7 @@ function radialActions(id){
   hideRadialMenu();
   if(!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
   activeCharacterId=id;
+  activeEnemyUid=null;
   updateAllPanels();
   document.getElementById('combat-popout')?.classList.remove('collapsed');
 }
@@ -3305,8 +3307,17 @@ function setActiveEnemy(uid){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(uid);
   if(!enemy) return;
+  if(activeEnemyUid===uid){
+    clearActiveEnemy();
+    return;
+  }
   activeEnemyUid=uid;
   addChatMessage({kind:'enemy',character:'DM',label:`Controlling: ${enemy.name}`});
+  updateCombatPopout();
+  draw();
+}
+function clearActiveEnemy(){
+  activeEnemyUid=null;
   updateCombatPopout();
   draw();
 }
@@ -4546,7 +4557,7 @@ function advanceTurn(){
   activeTurnIndex=(activeTurnIndex+1)%turnOrder.length;
   turnActionState={};
   const id=turnOrder[activeTurnIndex];
-  if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
+  if(myCharacters.some(c=>c.id===id)){ activeCharacterId=id; activeEnemyUid=null; }
   if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls});
   playSfx('turn');
@@ -4617,7 +4628,7 @@ function updateTurnOrder(){
     div.className='turn-item'+(i===activeTurnIndex?' active':'');
     const init=initiativeRolls[id] ?? ch.derived?.initiative ?? 0;
     div.innerHTML=`<span>${ch.icon} ${escapeHtml(ch.name)}${ch.isEnemy?' (enemy)':''}</span><span>${init>=0?'+':''}${init}</span>`;
-    div.onclick=()=>{ activeTurnIndex=i; if(canControlCharacter(ch)) activeCharacterId=id; if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; } updateAllPanels(); draw(); scheduleSave(); };
+    div.onclick=()=>{ activeTurnIndex=i; if(canControlCharacter(ch)){ activeCharacterId=id; activeEnemyUid=null; } if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; } updateAllPanels(); draw(); scheduleSave(); };
     el.appendChild(div);
   });
 }
@@ -4690,7 +4701,6 @@ function buildPersistedState(){
     enemyTemplates,
     selectedEnemyId,
     selectedTargetUid,
-    activeEnemyUid,
     myCharacters,
     partyCharacters,
     activeCharacterId,
@@ -4725,7 +4735,7 @@ function loadState(){
     enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
     selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
     selectedTargetUid=state.selectedTargetUid || null;
-    activeEnemyUid=state.activeEnemyUid || null;
+    activeEnemyUid=null;
     myCharacters=(state.myCharacters || []).map(hydrateCharacter);
     activeCharacterId=state.activeCharacterId || myCharacters[0]?.id || null;
     revealRadius=Number(state.revealRadius)||30;
@@ -4793,7 +4803,7 @@ function applyPersistedState(state){
   enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
   selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
   selectedTargetUid=state.selectedTargetUid || null;
-  activeEnemyUid=state.activeEnemyUid || null;
+  activeEnemyUid=null;
   applyCharacterStateFromCampaign(state);
   revealRadius=Number(state.revealRadius)||30;
   turnOrder=Array.isArray(state.turnOrder) ? state.turnOrder : [];
@@ -5161,7 +5171,7 @@ function connectWS(){
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
           turnActionState={};
           const id=turnOrder[activeTurnIndex];
-          if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
+          if(myCharacters.some(c=>c.id===id)){ activeCharacterId=id; activeEnemyUid=null; }
           if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
           playSfx('turn');
           updateAllPanels();
