@@ -510,10 +510,10 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
         <div id="players-list"></div>
 
         <div class="hdiv"></div>
-        <h3>Campaign backup</h3>
+        <h3 class="dm-only">Campaign backup</h3>
         <button class="full-btn danger dm-only" onclick="undoLastDMAction()">Undo last DM action</button>
-        <button class="full-btn" onclick="exportCampaignBackup()">Export campaign JSON</button>
-        <button class="full-btn" onclick="importCampaignBackup()">Import campaign JSON</button>
+        <button class="full-btn dm-only" onclick="exportCampaignBackup()">Export session backup</button>
+        <button class="full-btn dm-only" onclick="importCampaignBackup()">Import session backup</button>
 
         <div class="hdiv"></div>
         <h3>Tips</h3>
@@ -4746,17 +4746,35 @@ function centerActiveCharacter(){
 }
 
 /* ===== NEW SECTION: Save / load persistence ===== */
+function backupStateFromPayload(payload){
+  return payload?.state && payload.backupType ? payload.state : payload;
+}
+function backupFileName(){
+  const safeCampaign=String(CLOUD_CAMPAIGN_ID||'campaign').replace(/[^a-z0-9_-]+/gi,'-').slice(0,60) || 'campaign';
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  return `${safeCampaign}-session-backup-${stamp}.json`;
+}
 function exportCampaignBackup(){
-  const data=JSON.stringify(buildPersistedState(),null,2);
+  if(!isDM()) return requireDM();
+  const backup={
+    backupType:'fog-of-war-session',
+    version:2,
+    exportedAt:new Date().toISOString(),
+    campaignId:CLOUD_CAMPAIGN_ID,
+    state:buildPersistedState()
+  };
+  const data=JSON.stringify(backup,null,2);
   const blob=new Blob([data],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`${CLOUD_CAMPAIGN_ID}-campaign-backup.json`;
+  a.download=backupFileName();
   a.click();
   URL.revokeObjectURL(a.href);
+  addChatMessage({kind:'backup',character:'DM',label:'Session backup exported'});
 }
 function importCampaignBackup(){
   if(!isDM()) return requireDM();
+  if(!confirm('Importing a session backup will replace the current map, fog, enemies, chests, characters, chat, and turn order for this campaign. Continue?')) return;
   const input=document.createElement('input');
   input.type='file';
   input.accept='application/json';
@@ -4766,11 +4784,16 @@ function importCampaignBackup(){
     const reader=new FileReader();
     reader.onload=()=>{
       try{
-        const state=JSON.parse(String(reader.result||'{}'));
+        const payload=JSON.parse(String(reader.result||'{}'));
+        const state=backupStateFromPayload(payload);
+        if(!state || typeof state!=='object') throw new Error('Invalid backup');
+        pushDMUndo('import session backup');
         state.campaign={...(state.campaign||{}),id:CLOUD_CAMPAIGN_ID};
         applyPersistedState(state);
+        addChatMessage({kind:'backup',character:'DM',label:'Session backup imported',detail:file.name});
         saveState();
-        addChatMessage({kind:'backup',character:'Table',label:'Campaign backup imported'});
+        saveCloudAssets(true);
+        scheduleCloudSave(buildPersistedState(),true);
       }catch(e){
         showCritOverlay('Import failed','fail');
       }
