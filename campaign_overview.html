@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Overview</title>
+<style>
+:root{--bg:#090807;--panel:#15120f;--panel2:#211a13;--line:#5f4526;--text:#f7ecd5;--muted:#bca985;--accent:#d99a3f;--green:#6fc48a;--danger:#d66b5f;--shadow:0 24px 90px rgba(0,0,0,.55)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0,rgba(172,95,28,.18),transparent 34%),linear-gradient(135deg,#070706,#12100d 50%,#090807);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+button,input,textarea,select{font:inherit}button{border:1px solid rgba(217,154,63,.45);border-radius:8px;background:linear-gradient(180deg,#2a2118,#14110e);color:var(--text);padding:8px 11px;cursor:pointer}button.primary{background:linear-gradient(180deg,#8d5a22,#533514);border-color:#d99a3f}.danger{border-color:rgba(214,107,95,.65);color:#ffd4cf}
+header{height:58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(217,154,63,.28);background:rgba(8,7,6,.86);position:sticky;top:0;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+h1{font-family:Georgia,'Times New Roman',serif;font-size:19px;margin:0 auto 0 0;color:#ffe7b3}.badge{font-size:11px;color:#d9c59b;border:1px solid rgba(217,154,63,.32);border-radius:999px;padding:5px 9px}
+main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 58px)}section{border:1px solid rgba(217,154,63,.28);border-radius:14px;background:linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);padding:14px;min-height:0;overflow:auto}
+h2{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin:0 0 10px;color:#ffe7b3}.card{border:1px solid rgba(217,154,63,.2);border-radius:10px;background:rgba(9,10,12,.5);padding:10px;margin-bottom:9px}.name{font-weight:800}.meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:15px}
+textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9px;background:#0c0f13;color:var(--text);padding:10px}textarea{min-height:130px;resize:vertical;line-height:1.45}.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>*{flex:1}.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{font-size:12px}.tabs button.active{border-color:#d99a3f;color:#ffe7b3}.hidden{display:none}.list{max-height:360px;overflow:auto}.session-title{display:flex;justify-content:space-between;gap:8px}.toast{position:fixed;right:18px;bottom:18px;display:none;border:1px solid rgba(111,196,138,.7);background:#132118;color:#eaffef;border-radius:9px;padding:10px 12px;font-size:12px}.toast.show{display:block}
+@media(max-width:1050px){main{grid-template-columns:1fr}section{max-height:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Campaign Overview</h1>
+  <span class="badge" id="campaign-badge"></span>
+  <button onclick="goMap()">Map</button>
+  <button onclick="goBuilder()">Characters</button>
+  <button onclick="goManager()">Campaigns</button>
+  <button id="role-btn" onclick="toggleRole()">Role</button>
+</header>
+<main>
+  <section>
+    <h2>Characters</h2>
+    <div id="characters"></div>
+    <h2 style="margin-top:18px">NPCs & Scene Pieces</h2>
+    <div id="npcs"></div>
+  </section>
+  <section>
+    <div class="tabs">
+      <button id="tab-public" class="active" onclick="setTab('public')">Player Notes</button>
+      <button id="tab-recaps" onclick="setTab('recaps')">Recaps</button>
+      <button id="tab-sessions" onclick="setTab('sessions')">Saved Sessions</button>
+      <button id="tab-dm" onclick="setTab('dm')">DM Notes</button>
+    </div>
+    <div id="panel-public">
+      <h2>Campaign Notes</h2>
+      <textarea id="public-notes" placeholder="Shared player-facing notes, leads, places, NPC names, rumors..."></textarea>
+      <div class="row"><button class="primary" onclick="savePortal()">Save shared notes</button></div>
+    </div>
+    <div id="panel-recaps" class="hidden">
+      <h2>Add Recap</h2>
+      <div class="row"><input id="recap-title" placeholder="Session title"><button class="primary" onclick="addRecap()">Add recap</button></div>
+      <textarea id="recap-body" placeholder="What happened last time?"></textarea>
+      <h2>Recaps</h2><div id="recaps" class="list"></div>
+    </div>
+    <div id="panel-sessions" class="hidden">
+      <h2>Saved Sessions</h2>
+      <div id="sessions" class="list"></div>
+    </div>
+    <div id="panel-dm" class="hidden">
+      <h2>DM Session Notes</h2>
+      <textarea id="dm-notes" placeholder="Private DM prep, secrets, encounter changes, loot plans..."></textarea>
+      <div class="row"><input id="session-title" placeholder="Session name"><button class="primary" onclick="saveSession()">Save session log</button></div>
+      <button onclick="savePortal()">Save DM notes</button>
+    </div>
+  </section>
+  <section>
+    <h2>Current State</h2>
+    <div class="grid" id="state-cards"></div>
+    <h2 style="margin-top:18px">Latest Chat / Table Log</h2>
+    <div id="chat" class="list"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
+const CLOUD_TABLE='campaign_states';
+const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
+const CLOUD_CAMPAIGN_KEY='fogOfWarDnDCampaignId.v1';
+const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
+const CLOUD_CAMPAIGN_ID=new URLSearchParams(location.search).get('campaign')||localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';
+localStorage.setItem(CLOUD_CAMPAIGN_KEY,CLOUD_CAMPAIGN_ID);
+const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
+let state={};
+let role=localStorage.getItem(roleKey())||'player';
+let tab='public';
+function storageKey(){return `${STORAGE_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
+function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
+function unlockKey(){return `${CAMPAIGN_UNLOCK_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
+function portal(){state.campaignPortal=state.campaignPortal||{publicNotes:'',dmNotes:'',recaps:[],sessions:[]};return state.campaignPortal}
+function isDM(){return role==='dm'}
+function toggleRole(){role=isDM()?'player':'dm';localStorage.setItem(roleKey(),role);render()}
+function setTab(next){tab=next;if(next==='dm'&&!isDM()) tab='public';render()}
+function campaignQuery(){return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID)}
+function goMap(){location.href='map.html'+campaignQuery()}
+function goBuilder(){location.href='character_builder.html'+campaignQuery()}
+function goManager(){location.href='campaign_manager.html'+campaignQuery()}
+async function loadState(){
+  try{const raw=localStorage.getItem(storageKey());if(raw) state=JSON.parse(raw)}catch(e){}
+  const {data}=await client.from(CLOUD_TABLE).select('state').eq('id',CLOUD_CAMPAIGN_ID).maybeSingle();
+  if(data?.state){
+    if(!hasAccess(data.state)) return goManager();
+    state=data.state;
+    try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){}
+  }
+  render();
+}
+function hasAccess(nextState){const hash=nextState.campaign?.passwordHash;return !hash||localStorage.getItem(unlockKey())===hash}
+async function savePortal(){
+  portal().publicNotes=document.getElementById('public-notes')?.value||portal().publicNotes||'';
+  if(isDM()) portal().dmNotes=document.getElementById('dm-notes')?.value||portal().dmNotes||'';
+  portal().updatedAt=new Date().toISOString();
+  try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){}
+  await client.from(CLOUD_TABLE).upsert({id:CLOUD_CAMPAIGN_ID,state,updated_by:'campaign-overview',updated_at:new Date().toISOString()});
+  toast('Campaign overview saved');
+  render();
+}
+function addRecap(){
+  const title=document.getElementById('recap-title').value.trim()||`Recap ${new Date().toLocaleDateString()}`;
+  const body=document.getElementById('recap-body').value.trim();
+  if(!body) return toast('Write a recap first');
+  portal().recaps=[{id:'recap_'+Date.now(),title,body,createdAt:new Date().toISOString(),author:isDM()?'DM':'Player'},...(portal().recaps||[])].slice(0,40);
+  document.getElementById('recap-title').value='';document.getElementById('recap-body').value='';
+  savePortal();
+}
+function saveSession(){
+  if(!isDM()) return toast('DM mode required');
+  const title=document.getElementById('session-title').value.trim()||`Session ${new Date().toLocaleDateString()}`;
+  const body=document.getElementById('dm-notes').value.trim();
+  portal().sessions=[{id:'session_'+Date.now(),title,body,createdAt:new Date().toISOString(),chat:(state.chatMessages||[]).slice(-30)},...(portal().sessions||[])].slice(0,50);
+  savePortal();
+}
+function render(){
+  document.getElementById('campaign-badge').textContent='Campaign: '+CLOUD_CAMPAIGN_ID;
+  document.getElementById('role-btn').textContent='Role: '+(isDM()?'DM':'Player');
+  ['public','recaps','sessions','dm'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('active',tab===t);document.getElementById('panel-'+t).classList.toggle('hidden',tab!==t)});
+  document.getElementById('tab-dm').style.display=isDM()?'':'none';
+  const p=portal();
+  document.getElementById('public-notes').value=p.publicNotes||'';
+  document.getElementById('dm-notes').value=p.dmNotes||'';
+  const chars=(state.partyCharacters||state.myCharacters||[]).filter(Boolean);
+  document.getElementById('characters').innerHTML=chars.map(ch=>`<div class="card"><div class="name">${esc(ch.icon||'') } ${esc(ch.name||'Character')}</div><div class="meta">L${ch.level||1} ${esc(ch.race||'')} ${esc(ch.class||'')} · HP ${ch.currentHP??ch.derived?.HP??'-'}/${ch.derived?.HP??'-'} · AC ${ch.derived?.AC??'-'} · ${esc(ch.owner?'Player':'Local')}</div></div>`).join('')||'<div class="meta">No characters yet.</div>';
+  const npcs=(state.placedIcons||[]).filter(x=>['enemy','trader','chest'].includes(x.kind));
+  document.getElementById('npcs').innerHTML=npcs.map(n=>`<div class="card"><div class="name">${esc(n.icon||n.em||'')} ${esc(n.name||n.label||n.kind)}</div><div class="meta">${esc(n.kind||'icon')} ${n.hp!=null?`· HP ${n.hp}/${n.maxHP||n.hp} · AC ${n.ac||'-'}`:''}</div></div>`).join('')||'<div class="meta">No NPCs or scene pieces yet.</div>';
+  document.getElementById('state-cards').innerHTML=[
+    ['Characters',chars.length],['NPCs',npcs.length],['Recaps',(p.recaps||[]).length],['Saved Sessions',(p.sessions||[]).length],['Turn Items',(state.turnOrder||[]).length],['Chat Lines',(state.chatMessages||[]).length]
+  ].map(([a,b])=>`<div class="card stat"><b>${b}</b>${a}</div>`).join('');
+  document.getElementById('recaps').innerHTML=(p.recaps||[]).map(r=>`<div class="card"><div class="session-title"><div class="name">${esc(r.title)}</div><div class="meta">${new Date(r.createdAt).toLocaleString()}</div></div><div class="meta">${esc(r.author||'Player')}</div><p>${esc(r.body)}</p></div>`).join('')||'<div class="meta">No recaps yet.</div>';
+  document.getElementById('sessions').innerHTML=(p.sessions||[]).map(s=>`<div class="card"><div class="session-title"><div class="name">${esc(s.title)}</div><div class="meta">${new Date(s.createdAt).toLocaleString()}</div></div><p>${esc(s.body||'No notes')}</p><div class="meta">${(s.chat||[]).length} chat lines saved</div></div>`).join('')||'<div class="meta">No saved sessions yet.</div>';
+  document.getElementById('chat').innerHTML=(state.chatMessages||[]).slice(-25).reverse().map(m=>`<div class="card"><div class="meta">${esc(m.time||'')}</div><div><b>${esc(m.character||'Table')}</b>: ${esc(m.label||m.text||'')}</div>${m.detail?`<div class="meta">${esc(m.detail)}</div>`:''}</div>`).join('')||'<div class="meta">No chat yet.</div>';
+}
+function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
+function esc(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+loadState();
+</script>
+</body>
+</html>

@@ -43,6 +43,7 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
     <button class="primary" onclick="focusCreate()">New campaign</button>
     <button onclick="goMap()">Open map</button>
     <button onclick="goBuilder()">Characters</button>
+    <button onclick="goOverview()">Overview</button>
   </div>
   <div class="grid">
     <section class="panel" id="create">
@@ -152,6 +153,7 @@ function focusCreate(){location.hash='create';document.getElementById('new-name'
 function openMap(id){localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);location.href='map.html?campaign='+encodeURIComponent(id)}
 function goMap(){const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';location.href='map.html?campaign='+encodeURIComponent(id)}
 function goBuilder(){const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';location.href='character_builder.html?campaign='+encodeURIComponent(id)}
+function goOverview(){const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';location.href='campaign_overview.html?campaign='+encodeURIComponent(id)}
 function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 const requested=new URLSearchParams(location.search).get('campaign');

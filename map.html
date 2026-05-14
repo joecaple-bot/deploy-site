@@ -183,6 +183,12 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #quick-use-popout h3{margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#fff1cd}
 #quick-use-popout .quick-empty{font-size:11px;color:var(--muted);line-height:1.35}
 #quick-use-popout .quick-use{margin-top:0;border-top:0;padding-top:0}
+#campaign-notes-popout{display:none;position:absolute;right:14px;top:64px;z-index:145;width:min(380px,calc(100% - 28px));max-height:calc(100% - 86px);overflow:auto;border:1px solid rgba(202,168,107,.48);border-radius:14px;background:linear-gradient(180deg,rgba(27,22,16,.97),rgba(10,12,15,.98));box-shadow:0 24px 90px rgba(0,0,0,.65),0 0 0 1px rgba(255,230,170,.08) inset}
+#campaign-notes-popout.show{display:block}
+.notes-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(202,168,107,.28)}
+.notes-top b{font-family:Georgia,'Times New Roman',serif;color:#fff1cd;margin-right:auto}
+.notes-tabs{display:flex;gap:6px;padding:10px 12px 0}.notes-tabs button{font-size:11px;padding:6px 8px}.notes-tabs button.active{border-color:rgba(255,185,72,.78);color:#fff1cd}
+#notes-body{padding:12px}.notes-card{border:1px solid rgba(202,168,107,.22);border-radius:10px;background:rgba(9,10,12,.55);padding:9px;margin-bottom:8px}.notes-card textarea,.notes-card input{width:100%;border:1px solid rgba(202,168,107,.25);border-radius:8px;background:#0c0f13;color:var(--text);padding:8px}.notes-card textarea{min-height:120px;resize:vertical}.notes-card h4{margin:0 0 6px;font-family:Georgia,'Times New Roman',serif;color:#fff1cd}.notes-card p{margin:6px 0 0;color:#d9c59b;font-size:12px;line-height:1.4}.notes-actions{display:flex;gap:6px;margin-top:8px}.notes-actions button{font-size:11px;padding:6px 8px}
 #floating-end-turn{display:none;position:absolute;right:14px;top:14px;z-index:76;width:min(260px,calc(100% - 28px));border:1px solid rgba(202,168,107,.65);background:rgba(24,27,32,.96);box-shadow:var(--shadow);border-radius:10px;padding:10px}
 #floating-end-turn.show{display:block;animation:endTurnIn .18s ease both}
 #floating-end-turn b{display:block;font-size:12px;margin-bottom:3px;color:#fff2d0}
@@ -557,6 +563,8 @@ h3{
     <button class="dm-only" onclick="useHostedMapFromPrompt()">Hosted map</button>
     <button onclick="goToCampaigns()">Campaigns</button>
     <button onclick="goToCharacters()">Characters</button>
+    <button onclick="goToOverview()">Overview</button>
+    <button onclick="openCampaignNotes()">Notes</button>
     <span id="campaign-badge" class="campaign-badge"></span>
     <div class="sep"></div>
     <button id="btn-move" class="active" onclick="setMode('move')">Move</button>
@@ -608,6 +616,18 @@ h3{
       <div id="quick-use-popout">
         <h3>Quick Use</h3>
         <div id="quick-use-body" class="quick-empty">No active character.</div>
+      </div>
+      <div id="campaign-notes-popout">
+        <div class="notes-top">
+          <b id="notes-title">Campaign Notes</b>
+          <button onclick="closeCampaignNotes()">Close</button>
+        </div>
+        <div class="notes-tabs">
+          <button id="notes-tab-public" onclick="setCampaignNotesTab('public')">Shared</button>
+          <button id="notes-tab-recaps" onclick="setCampaignNotesTab('recaps')">Recaps</button>
+          <button id="notes-tab-dm" class="dm-only" onclick="setCampaignNotesTab('dm')">DM</button>
+        </div>
+        <div id="notes-body"></div>
       </div>
       <div id="floating-end-turn">
         <b>Your turn is ready to end</b>
@@ -1520,6 +1540,8 @@ let cloudIdleTimer = null;
 let cloudPausedForIdle = false;
 let critTimer = null;
 let campaignInfo = null;
+let campaignPortal = {publicNotes:'',dmNotes:'',recaps:[],sessions:[]};
+let campaignNotesTab = 'public';
 let latestCloudState = null;
 let selectedCharTokenArt = '';
 let pendingEnemyTokenArt = '';
@@ -2973,6 +2995,7 @@ function updateAllPanels(){
   updateTurnOrder();
   updateChatLog();
   updateQuickUsePopout();
+  if(document.getElementById('campaign-notes-popout')?.classList.contains('show')) renderCampaignNotes();
   updateInitiativePrompt();
 }
 function isPlaceholderCharacter(ch){
@@ -5258,6 +5281,7 @@ function buildPersistedState(){
     mapRevision,
     fogRevision,
     campaign:campaignInfo,
+    campaignPortal,
     placedIcons:placedIcons.map(hydratePlacedIcon),
     areaEffects:areaEffects.map(hydrateAreaEffect),
     selectedEffect,
@@ -5282,12 +5306,22 @@ function saveState(){
   try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
   scheduleCloudSave(state);
 }
+function normalizeCampaignPortal(raw={}){
+  return {
+    publicNotes:raw.publicNotes||'',
+    dmNotes:raw.dmNotes||'',
+    recaps:Array.isArray(raw.recaps)?raw.recaps:[],
+    sessions:Array.isArray(raw.sessions)?raw.sessions:[],
+    updatedAt:raw.updatedAt||''
+  };
+}
 function loadState(){
   try{
     const raw=localStorage.getItem(storageKey());
     if(!raw) return false;
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
+    campaignPortal=normalizeCampaignPortal(state.campaignPortal);
     mapImageData=state.mapImageData || '';
     mapUrl=state.mapUrl || '';
     mapRevision=Number(state.mapRevision)||0;
@@ -5343,6 +5377,7 @@ function applyPersistedState(state){
   if(!hasCampaignAccess(state)) return redirectToCampaignManager();
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
+  campaignPortal=normalizeCampaignPortal(state.campaignPortal);
   const incomingMapRevision=Number(state.mapRevision)||0;
   const incomingFogRevision=Number(state.fogRevision)||0;
   const incomingMapUrl=state.mapUrl || '';
@@ -5570,6 +5605,7 @@ function mergeCloudStateBeforeSave(state){
   const remoteFogRev=Number(latestCloudState.fogRevision)||0;
   if(remoteFogRev>localFogRev) state={...state,fogRevision:remoteFogRev};
   if(latestCloudState.campaign && !state.campaign) state.campaign=latestCloudState.campaign;
+  if(latestCloudState.campaignPortal && !state.campaignPortal) state.campaignPortal=latestCloudState.campaignPortal;
   return state;
 }
 function stripCloudState(state){
@@ -5778,11 +5814,71 @@ function escapeHtml(value){
 function campaignQuery(){
   return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID);
 }
+function portalState(){
+  campaignPortal=normalizeCampaignPortal(campaignPortal);
+  return campaignPortal;
+}
+function openCampaignNotes(tab=isDM()?'dm':'public'){
+  campaignNotesTab=tab==='dm'&&!isDM()?'public':tab;
+  document.getElementById('campaign-notes-popout')?.classList.add('show');
+  renderCampaignNotes();
+}
+function closeCampaignNotes(){
+  document.getElementById('campaign-notes-popout')?.classList.remove('show');
+}
+function setCampaignNotesTab(tab){
+  campaignNotesTab=tab==='dm'&&!isDM()?'public':tab;
+  renderCampaignNotes();
+}
+function renderCampaignNotes(){
+  const body=document.getElementById('notes-body');
+  if(!body) return;
+  const p=portalState();
+  document.getElementById('notes-title').textContent=isDM()?'DM Campaign Notes':'Campaign Notes';
+  ['public','recaps','dm'].forEach(t=>document.getElementById('notes-tab-'+t)?.classList.toggle('active',campaignNotesTab===t));
+  if(campaignNotesTab==='recaps'){
+    body.innerHTML=`<div class="notes-card"><input id="mini-recap-title" placeholder="Recap title"><textarea id="mini-recap-body" placeholder="What happened this session?"></textarea><div class="notes-actions"><button class="primary" onclick="addMiniRecap()">Add recap</button><button onclick="goToOverview()">Full overview</button></div></div>${(p.recaps||[]).slice(0,5).map(r=>`<div class="notes-card"><h4>${escapeHtml(r.title)}</h4><p>${escapeHtml(r.body)}</p></div>`).join('')||'<div class="notes-card"><p>No recaps yet.</p></div>'}`;
+  } else if(campaignNotesTab==='dm' && isDM()){
+    body.innerHTML=`<div class="notes-card"><textarea id="mini-dm-notes" placeholder="Private DM notes">${escapeHtml(p.dmNotes)}</textarea><input id="mini-session-title" placeholder="Session title"><div class="notes-actions"><button class="primary" onclick="saveMiniPortal()">Save notes</button><button onclick="saveMiniSession()">Save session</button><button onclick="goToOverview()">Full overview</button></div></div>`;
+  } else {
+    body.innerHTML=`<div class="notes-card"><textarea id="mini-public-notes" placeholder="Shared campaign notes and player-facing leads">${escapeHtml(p.publicNotes)}</textarea><div class="notes-actions"><button class="primary" onclick="saveMiniPortal()">Save shared notes</button><button onclick="goToOverview()">Full overview</button></div></div>`;
+  }
+}
+function saveMiniPortal(){
+  const p=portalState();
+  const shared=document.getElementById('mini-public-notes');
+  const dm=document.getElementById('mini-dm-notes');
+  if(shared) p.publicNotes=shared.value;
+  if(dm && isDM()) p.dmNotes=dm.value;
+  p.updatedAt=new Date().toISOString();
+  saveState();
+  addChatMessage({kind:'note',character:isDM()?'DM':'Table',label:'Campaign notes updated'});
+  renderCampaignNotes();
+}
+function addMiniRecap(){
+  const title=document.getElementById('mini-recap-title')?.value.trim()||`Recap ${new Date().toLocaleDateString()}`;
+  const body=document.getElementById('mini-recap-body')?.value.trim();
+  if(!body) return showCritOverlay('Write a recap first','roll','Notes');
+  const p=portalState();
+  p.recaps=[{id:'recap_'+Date.now(),title,body,createdAt:new Date().toISOString(),author:isDM()?'DM':'Player'},...(p.recaps||[])].slice(0,40);
+  saveMiniPortal();
+}
+function saveMiniSession(){
+  if(!isDM()) return requireDM();
+  const p=portalState();
+  const title=document.getElementById('mini-session-title')?.value.trim()||`Session ${new Date().toLocaleDateString()}`;
+  p.dmNotes=document.getElementById('mini-dm-notes')?.value||p.dmNotes||'';
+  p.sessions=[{id:'session_'+Date.now(),title,body:p.dmNotes,createdAt:new Date().toISOString(),chat:chatMessages.slice(-30)},...(p.sessions||[])].slice(0,50);
+  saveMiniPortal();
+}
 function goToCharacters(){
   window.location.href='character_builder.html'+campaignQuery();
 }
 function goToCampaigns(){
   window.location.href='campaign_manager.html'+campaignQuery();
+}
+function goToOverview(){
+  window.location.href='campaign_overview.html'+campaignQuery();
 }
 function updateCampaignBadge(){
   const el=document.getElementById('campaign-badge');
