@@ -179,6 +179,10 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .quick-use-list button{font-size:11px;text-align:left;padding:7px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(180deg,rgba(38,31,22,.95),rgba(13,15,19,.95));border-color:rgba(202,168,107,.32)}
 .quick-use-list button b{font-weight:700;color:#fff1cd}
 .quick-use-list button span{color:#d9c59b}
+#quick-use-popout{position:absolute;left:524px;bottom:12px;z-index:139;width:min(300px,calc(100% - 548px));border:1px solid rgba(202,168,107,.42);border-radius:12px;background:linear-gradient(180deg,rgba(24,22,19,.94),rgba(10,12,15,.96));box-shadow:0 18px 54px rgba(0,0,0,.52),0 0 0 1px rgba(255,230,170,.08) inset;padding:10px}
+#quick-use-popout h3{margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#fff1cd}
+#quick-use-popout .quick-empty{font-size:11px;color:var(--muted);line-height:1.35}
+#quick-use-popout .quick-use{margin-top:0;border-top:0;padding-top:0}
 #floating-end-turn{display:none;position:absolute;right:14px;top:14px;z-index:76;width:min(260px,calc(100% - 28px));border:1px solid rgba(202,168,107,.65);background:rgba(24,27,32,.96);box-shadow:var(--shadow);border-radius:10px;padding:10px}
 #floating-end-turn.show{display:block;animation:endTurnIn .18s ease both}
 #floating-end-turn b{display:block;font-size:12px;margin-bottom:3px;color:#fff2d0}
@@ -540,6 +544,7 @@ h3{
   #canvas-wrap{flex:1 0 42dvh;min-height:260px}
   #sidebar{width:100%;height:38dvh;min-height:240px;border-left:0;border-top:1px solid var(--line)}
   #combat-popout{bottom:8px;left:8px;width:calc(100% - 16px)}
+  #quick-use-popout{left:8px;right:8px;bottom:calc(8px + 190px);width:auto}
   .modal-body{grid-template-columns:1fr}
 }
 </style>
@@ -599,6 +604,10 @@ h3{
           <button onclick="toggleCombatPopout()">Hide</button>
         </div>
         <div class="combat-body" id="combat-body"></div>
+      </div>
+      <div id="quick-use-popout">
+        <h3>Quick Use</h3>
+        <div id="quick-use-body" class="quick-empty">No active character.</div>
       </div>
       <div id="floating-end-turn">
         <b>Your turn is ready to end</b>
@@ -1152,7 +1161,7 @@ function inventoryConsumableProfile(item={}){
     'Very Rare':{die:'d10',bonus:3},
     Legendary:{die:'d12',bonus:4}
   }[rarity] || {die:'d4',bonus:0};
-  if(/(healing|heal|cure|salve|potion|medicine|goodberry|tonic|draught|elixir)/.test(text)){
+  if(/(health|healing|heal|cure|restore|restorative|salve|potion|medicine|goodberry|tonic|draught|elixir|bandage|rations)/.test(text)){
     return {type:'healing',label:'Heal',...byRarity};
   }
   if(/(bless|guidance|inspiration|bardic|haste|aid|shield of faith|protection)/.test(text)){
@@ -1170,6 +1179,24 @@ function quickUseHtml(ch){
     const qty=Math.max(1,Number(item.qty)||1);
     return `<button title="${escapeHtml(item.description||item.name)}" onclick="useCharacterConsumable('${ch.id}','${item.id}')"><b>x${qty}</b> ${escapeHtml(item.name)} <span>${profile.type==='healing'?profile.die:profile.label}</span></button>`;
   }).join('')}</div></div>`;
+}
+function updateQuickUsePopout(){
+  const body=document.getElementById('quick-use-body');
+  if(!body) return;
+  const ch=getActiveCharacter();
+  if(!ch){
+    body.className='quick-empty';
+    body.innerHTML='No active character.';
+    return;
+  }
+  if(!canControlCharacter(ch)){
+    body.className='quick-empty';
+    body.innerHTML='Locked to another player.';
+    return;
+  }
+  const html=quickUseHtml(ch);
+  body.className=html?'':'quick-empty';
+  body.innerHTML=html || 'No quick items. Add a potion, salve, elixir, medicine, bless, guidance, or inspiration item.';
 }
 function decrementInventoryItem(ch,itemId){
   ch.inventory=(ch.inventory||[]).map(item=>{
@@ -2945,6 +2972,7 @@ function updateAllPanels(){
   updatePlayersList();
   updateTurnOrder();
   updateChatLog();
+  updateQuickUsePopout();
   updateInitiativePrompt();
 }
 function isPlaceholderCharacter(ch){
@@ -3115,7 +3143,7 @@ function updateCombatPopout(){
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
   title.textContent=`${ch.name} actions`;
   if(!weapons.length&&!spells.length){
-    body.innerHTML=`<div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>${quickUseHtml(ch)}`;
+    body.innerHTML=`<div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
     return;
   }
   body.innerHTML=`
@@ -3123,8 +3151,7 @@ function updateCombatPopout(){
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
       ${spells.map(s=>actionButtonHtml('Spell',s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
-    </div>
-    ${quickUseHtml(ch)}`;
+    </div>`;
 }
 function buildIconGrid(){
   const el=document.getElementById('icon-grid');
