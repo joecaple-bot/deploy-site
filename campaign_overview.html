@@ -39,6 +39,15 @@ main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;mi
 .portal-board .primary{background:linear-gradient(180deg,#b97425,#7b4315);color:#fff3d1;border-color:#9e672a}
 .portal-board .card{position:relative;background:rgba(255,239,197,.78);color:#2b1a0e;border-color:rgba(100,62,24,.25)}
 .portal-board .meta,.portal-board p{color:#5b3d20}
+.note-board{position:relative;min-height:650px;border:1px solid rgba(217,154,63,.22);border-radius:12px;background:radial-gradient(circle at 40% 28%,rgba(88,57,22,.2),transparent 42%),rgba(8,7,6,.16);overflow:hidden;cursor:copy}
+.note-board .board-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid rgba(217,154,63,.4);border-radius:999px;background:rgba(15,12,8,.72);color:#ffe7b3;padding:9px 13px;font-size:12px;opacity:0;transition:opacity .15s ease;pointer-events:none}
+.note-board:hover .board-hint{opacity:.95}
+.sticky-note{position:absolute;width:230px;min-height:172px;padding:18px 18px 16px;background:linear-gradient(rgba(255,238,190,.72),rgba(234,196,125,.84)),url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat;color:#2a1a0d;box-shadow:0 18px 38px rgba(0,0,0,.38),0 2px 8px rgba(84,45,12,.24);border-radius:12px;cursor:default;-webkit-mask-image:url("assets/ui/torn_paper_mask.png");mask-image:url("assets/ui/torn_paper_mask.png");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.sticky-note:before{content:"";position:absolute;left:50%;top:3px;width:70px;height:18px;background:rgba(238,215,167,.8);box-shadow:0 2px 7px rgba(67,39,12,.18);transform:translate(-50%,-50%) rotate(-4deg);z-index:2}
+.sticky-note input,.sticky-note textarea{background:rgba(255,250,229,.5);border-color:rgba(92,57,25,.22);color:#2a1a0d}.sticky-note input{font-weight:800;margin-bottom:7px}.sticky-note textarea{min-height:92px;resize:vertical}.sticky-note button{position:absolute;right:13px;bottom:10px;font-size:10px;padding:4px 7px;background:rgba(71,38,15,.78)}
+@supports not ((mask-image:url("")) or (-webkit-mask-image:url(""))){
+  .sticky-note{border:1px solid rgba(115,72,28,.28);border-radius:12px}
+}
 h2{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin:0 0 10px;color:#ffe7b3}.card{border:1px solid rgba(217,154,63,.2);border-radius:10px;background:rgba(9,10,12,.5);padding:10px;margin-bottom:9px}.name{font-weight:800}.meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:15px}
 textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9px;background:#0c0f13;color:var(--text);padding:10px}textarea{min-height:130px;resize:vertical;line-height:1.45}.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>*{flex:1}.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{font-size:12px}.tabs button.active{border-color:#d99a3f;color:#ffe7b3}.hidden{display:none}.list{max-height:360px;overflow:auto}.session-title{display:flex;justify-content:space-between;gap:8px}.toast{position:fixed;right:18px;bottom:18px;display:none;border:1px solid rgba(111,196,138,.7);background:#132118;color:#eaffef;border-radius:9px;padding:10px 12px;font-size:12px}.toast.show{display:block}
 @media(max-width:1050px){main{grid-template-columns:1fr}section{max-height:none}}
@@ -70,9 +79,9 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
     </div>
     <div id="panel-public">
       <h2>Campaign Notes</h2>
-      <div class="scrap-editor">
-        <textarea id="public-notes" placeholder="Shared player-facing notes, leads, places, NPC names, rumors..."></textarea>
-        <div class="row"><button class="primary" onclick="savePortal()">Save shared notes</button></div>
+      <div id="note-board" class="note-board" onclick="createBoardNote(event)">
+        <div class="board-hint">Click anywhere to create a note</div>
+        <div id="board-notes"></div>
       </div>
     </div>
     <div id="panel-recaps" class="hidden">
@@ -127,7 +136,15 @@ let tab='public';
 function storageKey(){return `${STORAGE_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
 function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
 function unlockKey(){return `${CAMPAIGN_UNLOCK_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
-function portal(){state.campaignPortal=state.campaignPortal||{};state.campaignPortal={publicNotes:'',dmNotes:'',recaps:[],sessions:[],timeline:[],stats:{},...state.campaignPortal};return state.campaignPortal}
+function portal(){
+  state.campaignPortal=state.campaignPortal||{};
+  state.campaignPortal={publicNotes:'',notes:[],dmNotes:'',recaps:[],sessions:[],timeline:[],stats:{},...state.campaignPortal};
+  if(state.campaignPortal.publicNotes&&!state.campaignPortal.notes.length){
+    state.campaignPortal.notes=[{id:'note_'+Date.now(),title:'Campaign Notes',body:state.campaignPortal.publicNotes,x:12,y:12,rot:-1}];
+    state.campaignPortal.publicNotes='';
+  }
+  return state.campaignPortal;
+}
 function isDM(){return role==='dm'}
 function toggleRole(){role=isDM()?'player':'dm';localStorage.setItem(roleKey(),role);render()}
 function setTab(next){tab=next;if(next==='dm'&&!isDM()) tab='public';render()}
@@ -149,14 +166,40 @@ async function loadState(){
   render();
 }
 function hasAccess(nextState){const hash=nextState.campaign?.passwordHash;return !hash||localStorage.getItem(unlockKey())===hash}
-async function savePortal(){
-  portal().publicNotes=document.getElementById('public-notes')?.value||portal().publicNotes||'';
+async function savePortal(renderAfter=true){
+  portal().notes=Array.isArray(portal().notes)?portal().notes:[];
   if(isDM()) portal().dmNotes=document.getElementById('dm-notes')?.value||portal().dmNotes||'';
   portal().updatedAt=new Date().toISOString();
   try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){}
   await client.from(CLOUD_TABLE).upsert({id:CLOUD_CAMPAIGN_ID,state,updated_by:'campaign-overview',updated_at:new Date().toISOString()});
   toast('Campaign overview saved');
-  render();
+  if(renderAfter) render();
+}
+function schedulePortalSave(){
+  clearTimeout(schedulePortalSave.t);
+  schedulePortalSave.t=setTimeout(()=>savePortal(false),650);
+}
+function createBoardNote(event){
+  if(event.target.closest('.sticky-note')) return;
+  const board=document.getElementById('note-board');
+  const rect=board.getBoundingClientRect();
+  const x=Math.max(2,Math.min(82,((event.clientX-rect.left)/rect.width)*100));
+  const y=Math.max(2,Math.min(78,((event.clientY-rect.top)/rect.height)*100));
+  const p=portal();
+  p.notes=[...(p.notes||[]),{id:'note_'+Date.now()+Math.random().toString(36).slice(2,5),title:'New Note',body:'',x,y,rot:(Math.random()*4-2).toFixed(2)}].slice(-80);
+  renderScrapbookNotes(p);
+  schedulePortalSave();
+}
+function updateBoardNote(id,field,value){
+  const p=portal();
+  p.notes=(p.notes||[]).map(note=>note.id===id?{...note,[field]:value}:note);
+  schedulePortalSave();
+}
+function deleteBoardNote(id){
+  const p=portal();
+  p.notes=(p.notes||[]).filter(note=>note.id!==id);
+  renderScrapbookNotes(p);
+  schedulePortalSave();
 }
 function addRecap(){
   const title=document.getElementById('recap-title').value.trim()||`Recap ${new Date().toLocaleDateString()}`;
@@ -179,8 +222,8 @@ function render(){
   ['public','recaps','timeline','sessions','dm'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('active',tab===t);document.getElementById('panel-'+t).classList.toggle('hidden',tab!==t)});
   document.getElementById('tab-dm').style.display=isDM()?'':'none';
   const p=portal();
-  document.getElementById('public-notes').value=p.publicNotes||'';
   document.getElementById('dm-notes').value=p.dmNotes||'';
+  renderScrapbookNotes(p);
   const chars=(state.partyCharacters||state.myCharacters||[]).filter(Boolean);
   document.getElementById('characters').innerHTML=chars.map(ch=>`<button class="card" style="display:block;width:100%;text-align:left" onclick="openCharacterSheet('${esc(ch.id)}')"><div class="name">${esc(ch.icon||'') } ${esc(ch.name||'Character')}</div><div class="meta">L${ch.level||1} ${esc(ch.race||'')} ${esc(ch.class||'')} · HP ${ch.currentHP??ch.derived?.HP??'-'}/${ch.derived?.HP??'-'} · AC ${ch.derived?.AC??'-'} · ${isDM()?'Open/edit sheet':(ch.owner?'Open sheet':'Local sheet')}</div></button>`).join('')||'<div class="meta">No characters yet.</div>';
   const npcs=(state.placedIcons||[]).filter(x=>['enemy','trader','chest'].includes(x.kind));
@@ -192,6 +235,16 @@ function render(){
   document.getElementById('timeline').innerHTML=(p.timeline||[]).map(e=>`<div class="scrap-note"><div class="session-title"><div class="name">${esc(e.title)}</div><div class="meta">${new Date(e.time).toLocaleString()}</div></div><div class="meta">${esc(e.actor||'Table')} ${e.rarity?`· ${esc(e.rarity)}`:''}</div><p>${esc(e.detail||'')}</p></div>`).join('')||'<div class="meta">No campaign events logged yet.</div>';
   document.getElementById('sessions').innerHTML=(p.sessions||[]).map(s=>`<div class="scrap-note"><div class="session-title"><div class="name">${esc(s.title)}</div><div class="meta">${new Date(s.createdAt).toLocaleString()}</div></div><p>${esc(s.body||'No notes')}</p><div class="meta">${(s.chat||[]).length} chat lines saved</div></div>`).join('')||'<div class="meta">No saved sessions yet.</div>';
   document.getElementById('chat').innerHTML=(state.chatMessages||[]).slice(-25).reverse().map(m=>`<div class="card"><div class="meta">${esc(m.time||'')}</div><div><b>${esc(m.character||'Table')}</b>: ${esc(m.label||m.text||'')}</div>${m.detail?`<div class="meta">${esc(m.detail)}</div>`:''}</div>`).join('')||'<div class="meta">No chat yet.</div>';
+}
+function renderScrapbookNotes(p=portal()){
+  const el=document.getElementById('board-notes');
+  if(!el) return;
+  el.innerHTML=(p.notes||[]).map(note=>`
+    <div class="sticky-note" style="left:${Number(note.x)||10}%;top:${Number(note.y)||10}%;transform:rotate(${Number(note.rot)||0}deg)" onclick="event.stopPropagation()">
+      <input value="${esc(note.title||'')}" placeholder="Title" oninput="updateBoardNote('${note.id}','title',this.value)">
+      <textarea placeholder="Body" oninput="updateBoardNote('${note.id}','body',this.value)">${esc(note.body||'')}</textarea>
+      <button onclick="event.stopPropagation();deleteBoardNote('${note.id}')">Remove</button>
+    </div>`).join('');
 }
 function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
 function esc(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
