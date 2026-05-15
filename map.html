@@ -1261,6 +1261,7 @@ function useCharacterConsumable(characterId,itemId){
     const before=target.currentHP ?? target.derived.HP;
     const after=Math.min(target.derived.HP,before+roll.total);
     target.currentHP=after;
+    campaignStat('healingDone',Math.max(0,after-before));
     decrementInventoryItem(ch,item.id);
     addChatMessage({kind:'heal',character:ch.name,label:`Uses ${item.name}`,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
     const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${profile.die} ${formatBonus(profile.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:'item'};
@@ -3958,11 +3959,13 @@ function addLootToCharacter(ch,item,sourceName='loot'){
     const amount=Math.max(1,Math.round(Number(item.amount)||1));
     ch.gold=Math.max(0,Number(ch.gold)||0)+amount;
     addChatMessage({kind:'loot',character:ch.name,label:`Took ${amount} gp`,detail:`From ${sourceName}`});
+    noteLootFound(ch,item,sourceName);
     return;
   }
   ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
   ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
   addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${sourceName}`});
+  noteLootFound(ch,item,sourceName);
 }
 function takeEnemyLoot(uid,itemId){
   const enemy=enemyByUid(uid);
@@ -4143,6 +4146,7 @@ function adjustEnemyHP(uid,delta){
   enemy.hp=Math.max(0,Math.min(enemy.maxHP,enemy.hp+delta));
   if(enemy.hp<=0){
     ensureEnemyLoot(enemy);
+    noteEnemyDefeated(enemy,'DM');
     addChatMessage({kind:'enemy',character:'Table',label:`${enemy.name} is down`});
     playSfx('enemyDown');
   } else if(delta<0) playSfx('hit');
@@ -4162,6 +4166,7 @@ function killEnemy(uid){
   const enemy=enemyByUid(uid);
   if(!enemy) return;
   pushDMUndo('remove enemy');
+  noteEnemyDefeated(enemy,'DM');
   placedIcons=placedIcons.filter(ic=>ic.uid!==uid);
   if(selectedTargetUid===uid) selectedTargetUid=null;
   if(activeEnemyUid===uid) activeEnemyUid=null;
@@ -4590,6 +4595,7 @@ function rollCharacterAction(characterId,type,itemId){
     const roll=rollDiceExpression('1'+item.die,item.bonus);
     const before=target.currentHP ?? target.derived.HP;
     const after=Math.min(target.derived.HP,before+roll.total);
+    campaignStat('healingDone',Math.max(0,after-before));
     applyCharacterPatch(target.id,{currentHP:after});
     addChatMessage({kind:'heal',character:ch.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
     const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${item.die} ${formatBonus(item.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
@@ -4626,7 +4632,8 @@ function rollCharacterAction(characterId,type,itemId){
     if(isDM()) pushDMUndo('attack damage');
     target.hp=Math.max(0,target.hp-damage.total);
     hpAfter=target.hp;
-    if(target.hp<=0){ ensureEnemyLoot(target); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
+    campaignStat('damageDealt',damage.total);
+    if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
     broadcast({type:'iconUpdate',icon:target});
   }
   lastRoll={roll:attack.rolls[0],mod:ch.derived.attackBonus,total:attack.total,character:ch.name};
@@ -4694,11 +4701,11 @@ function applyAoeResult(entry,amount,actionType,effectName){
   let after=before;
   if(actionType==='damage'){
     after=Math.max(0,before-amount);
-    if(entry.kind==='enemy'){ target.hp=after; broadcast({type:'iconUpdate',icon:target}); if(after<=0) ensureEnemyLoot(target); }
+    if(entry.kind==='enemy'){ target.hp=after; broadcast({type:'iconUpdate',icon:target}); if(amount>0) campaignStat('damageDealt',amount); if(before>0&&after<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,'AoE'); } }
     else applyCharacterPatch(target.id,{currentHP:after});
   } else if(actionType==='healing'){
     if(entry.kind==='enemy'){ after=Math.min(target.maxHP,before+amount); target.hp=after; broadcast({type:'iconUpdate',icon:target}); }
-    else { after=Math.min(target.derived?.HP||before,before+amount); applyCharacterPatch(target.id,{currentHP:after}); }
+    else { after=Math.min(target.derived?.HP||before,before+amount); campaignStat('healingDone',Math.max(0,after-before)); applyCharacterPatch(target.id,{currentHP:after}); }
   } else {
     if(entry.kind==='enemy') addEnemyStatus(target.uid,effectName,10);
     else addCharacterStatus(target.id,effectName,10);
@@ -5312,6 +5319,8 @@ function normalizeCampaignPortal(raw={}){
     dmNotes:raw.dmNotes||'',
     recaps:Array.isArray(raw.recaps)?raw.recaps:[],
     sessions:Array.isArray(raw.sessions)?raw.sessions:[],
+    timeline:Array.isArray(raw.timeline)?raw.timeline:[],
+    stats:raw.stats&&typeof raw.stats==='object'?raw.stats:{},
     updatedAt:raw.updatedAt||''
   };
 }
@@ -5817,6 +5826,53 @@ function campaignQuery(){
 function portalState(){
   campaignPortal=normalizeCampaignPortal(campaignPortal);
   return campaignPortal;
+}
+function campaignStat(key,delta=1){
+  const p=portalState();
+  p.stats=p.stats||{};
+  p.stats[key]=Math.max(0,(Number(p.stats[key])||0)+delta);
+  p.updatedAt=new Date().toISOString();
+}
+function addCampaignEvent(event={}){
+  const p=portalState();
+  p.timeline=Array.isArray(p.timeline)?p.timeline:[];
+  const key=event.key || `${event.type||'event'}:${event.title||''}:${event.detail||''}`;
+  const recent=p.timeline.slice(0,12).some(e=>e.key===key);
+  if(recent) return;
+  p.timeline=[{
+    id:'evt_'+Date.now()+Math.random().toString(36).slice(2,6),
+    key,
+    type:event.type||'note',
+    title:event.title||'Campaign event',
+    detail:event.detail||'',
+    actor:event.actor||'Table',
+    rarity:event.rarity||'',
+    time:new Date().toISOString()
+  },...p.timeline].slice(0,160);
+  p.updatedAt=new Date().toISOString();
+}
+function noteEnemyDefeated(enemy,actor='Party'){
+  if(!enemy || enemy._notedDefeated) return;
+  enemy._notedDefeated=true;
+  campaignStat('enemiesDefeated',1);
+  if(enemy.boss){
+    campaignStat('bossKills',1);
+    addCampaignEvent({type:'bossKill',title:'Boss defeated',detail:`${enemy.name} was defeated`,actor,rarity:'Legendary',key:`boss:${enemy.uid||enemy.id}`});
+  }
+}
+function noteLootFound(ch,item,sourceName='loot'){
+  if(!ch || !item) return;
+  if(isGoldLoot(item)){
+    const amount=Math.max(1,Math.round(Number(item.amount)||1));
+    campaignStat('goldFound',amount);
+    if(amount>=25) addCampaignEvent({type:'gold',title:'Gold found',detail:`${ch.name} found ${amount} gp from ${sourceName}`,actor:ch.name,rarity:'Uncommon'});
+    return;
+  }
+  const rarity=item.rarity||'Common';
+  if(['Rare','Very Rare','Legendary'].includes(rarity)){
+    campaignStat('notableLoot',1);
+    addCampaignEvent({type:'loot',title:'Notable loot found',detail:`${ch.name} found ${item.name} from ${sourceName}`,actor:ch.name,rarity});
+  }
 }
 function openCampaignNotes(tab=isDM()?'dm':'public'){
   campaignNotesTab=tab==='dm'&&!isDM()?'public':tab;

@@ -11,6 +11,12 @@ button,input,textarea,select{font:inherit}button{border:1px solid rgba(217,154,6
 header{height:58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(217,154,63,.28);background:rgba(8,7,6,.86);position:sticky;top:0;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 h1{font-family:Georgia,'Times New Roman',serif;font-size:19px;margin:0 auto 0 0;color:#ffe7b3}.badge{font-size:11px;color:#d9c59b;border:1px solid rgba(217,154,63,.32);border-radius:999px;padding:5px 9px}
 main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 58px)}section{border:1px solid rgba(217,154,63,.28);border-radius:14px;background:linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);padding:14px;min-height:0;overflow:auto}
+.portal-board{position:relative;background:
+  linear-gradient(rgba(20,16,12,.58),rgba(20,16,12,.68)),
+  url("assets/ui/campaign_overview_frame.webp") center/100% 100% no-repeat,
+  linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));padding:38px 42px}
+.portal-board:before{content:"";position:absolute;inset:14px;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 75px rgba(0,0,0,.35)}
+.portal-board>*{position:relative}
 h2{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin:0 0 10px;color:#ffe7b3}.card{border:1px solid rgba(217,154,63,.2);border-radius:10px;background:rgba(9,10,12,.5);padding:10px;margin-bottom:9px}.name{font-weight:800}.meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:15px}
 textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9px;background:#0c0f13;color:var(--text);padding:10px}textarea{min-height:130px;resize:vertical;line-height:1.45}.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>*{flex:1}.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{font-size:12px}.tabs button.active{border-color:#d99a3f;color:#ffe7b3}.hidden{display:none}.list{max-height:360px;overflow:auto}.session-title{display:flex;justify-content:space-between;gap:8px}.toast{position:fixed;right:18px;bottom:18px;display:none;border:1px solid rgba(111,196,138,.7);background:#132118;color:#eaffef;border-radius:9px;padding:10px 12px;font-size:12px}.toast.show{display:block}
 @media(max-width:1050px){main{grid-template-columns:1fr}section{max-height:none}}
@@ -26,7 +32,7 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
   <button id="role-btn" onclick="toggleRole()">Role</button>
 </header>
 <main>
-  <section>
+  <section class="portal-board">
     <h2>Characters</h2>
     <div id="characters"></div>
     <h2 style="margin-top:18px">NPCs & Scene Pieces</h2>
@@ -36,6 +42,7 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
     <div class="tabs">
       <button id="tab-public" class="active" onclick="setTab('public')">Player Notes</button>
       <button id="tab-recaps" onclick="setTab('recaps')">Recaps</button>
+      <button id="tab-timeline" onclick="setTab('timeline')">Timeline</button>
       <button id="tab-sessions" onclick="setTab('sessions')">Saved Sessions</button>
       <button id="tab-dm" onclick="setTab('dm')">DM Notes</button>
     </div>
@@ -49,6 +56,10 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
       <div class="row"><input id="recap-title" placeholder="Session title"><button class="primary" onclick="addRecap()">Add recap</button></div>
       <textarea id="recap-body" placeholder="What happened last time?"></textarea>
       <h2>Recaps</h2><div id="recaps" class="list"></div>
+    </div>
+    <div id="panel-timeline" class="hidden">
+      <h2>Campaign Timeline</h2>
+      <div id="timeline" class="list"></div>
     </div>
     <div id="panel-sessions" class="hidden">
       <h2>Saved Sessions</h2>
@@ -80,13 +91,14 @@ const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
 const CLOUD_CAMPAIGN_ID=new URLSearchParams(location.search).get('campaign')||localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';
 localStorage.setItem(CLOUD_CAMPAIGN_KEY,CLOUD_CAMPAIGN_ID);
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
+const OVERVIEW_ART='assets/ui/campaign_overview_frame.webp';
 let state={};
 let role=localStorage.getItem(roleKey())||'player';
 let tab='public';
 function storageKey(){return `${STORAGE_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
 function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
 function unlockKey(){return `${CAMPAIGN_UNLOCK_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
-function portal(){state.campaignPortal=state.campaignPortal||{publicNotes:'',dmNotes:'',recaps:[],sessions:[]};return state.campaignPortal}
+function portal(){state.campaignPortal=state.campaignPortal||{};state.campaignPortal={publicNotes:'',dmNotes:'',recaps:[],sessions:[],timeline:[],stats:{},...state.campaignPortal};return state.campaignPortal}
 function isDM(){return role==='dm'}
 function toggleRole(){role=isDM()?'player':'dm';localStorage.setItem(roleKey(),role);render()}
 function setTab(next){tab=next;if(next==='dm'&&!isDM()) tab='public';render()}
@@ -132,7 +144,7 @@ function saveSession(){
 function render(){
   document.getElementById('campaign-badge').textContent='Campaign: '+CLOUD_CAMPAIGN_ID;
   document.getElementById('role-btn').textContent='Role: '+(isDM()?'DM':'Player');
-  ['public','recaps','sessions','dm'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('active',tab===t);document.getElementById('panel-'+t).classList.toggle('hidden',tab!==t)});
+  ['public','recaps','timeline','sessions','dm'].forEach(t=>{document.getElementById('tab-'+t).classList.toggle('active',tab===t);document.getElementById('panel-'+t).classList.toggle('hidden',tab!==t)});
   document.getElementById('tab-dm').style.display=isDM()?'':'none';
   const p=portal();
   document.getElementById('public-notes').value=p.publicNotes||'';
@@ -142,14 +154,20 @@ function render(){
   const npcs=(state.placedIcons||[]).filter(x=>['enemy','trader','chest'].includes(x.kind));
   document.getElementById('npcs').innerHTML=npcs.map(n=>`<div class="card"><div class="name">${esc(n.icon||n.em||'')} ${esc(n.name||n.label||n.kind)}</div><div class="meta">${esc(n.kind||'icon')} ${n.hp!=null?`· HP ${n.hp}/${n.maxHP||n.hp} · AC ${n.ac||'-'}`:''}</div></div>`).join('')||'<div class="meta">No NPCs or scene pieces yet.</div>';
   document.getElementById('state-cards').innerHTML=[
-    ['Characters',chars.length],['NPCs',npcs.length],['Recaps',(p.recaps||[]).length],['Saved Sessions',(p.sessions||[]).length],['Turn Items',(state.turnOrder||[]).length],['Chat Lines',(state.chatMessages||[]).length]
+    ['Characters',chars.length],['NPCs',npcs.length],['Boss Kills',p.stats?.bossKills||0],['Enemies Down',p.stats?.enemiesDefeated||0],['Gold Found',(p.stats?.goldFound||0)+' gp'],['Notable Loot',p.stats?.notableLoot||0],['Damage Dealt',p.stats?.damageDealt||0],['Healing Done',p.stats?.healingDone||0]
   ].map(([a,b])=>`<div class="card stat"><b>${b}</b>${a}</div>`).join('');
   document.getElementById('recaps').innerHTML=(p.recaps||[]).map(r=>`<div class="card"><div class="session-title"><div class="name">${esc(r.title)}</div><div class="meta">${new Date(r.createdAt).toLocaleString()}</div></div><div class="meta">${esc(r.author||'Player')}</div><p>${esc(r.body)}</p></div>`).join('')||'<div class="meta">No recaps yet.</div>';
+  document.getElementById('timeline').innerHTML=(p.timeline||[]).map(e=>`<div class="card"><div class="session-title"><div class="name">${esc(e.title)}</div><div class="meta">${new Date(e.time).toLocaleString()}</div></div><div class="meta">${esc(e.actor||'Table')} ${e.rarity?`· ${esc(e.rarity)}`:''}</div><p>${esc(e.detail||'')}</p></div>`).join('')||'<div class="meta">No campaign events logged yet.</div>';
   document.getElementById('sessions').innerHTML=(p.sessions||[]).map(s=>`<div class="card"><div class="session-title"><div class="name">${esc(s.title)}</div><div class="meta">${new Date(s.createdAt).toLocaleString()}</div></div><p>${esc(s.body||'No notes')}</p><div class="meta">${(s.chat||[]).length} chat lines saved</div></div>`).join('')||'<div class="meta">No saved sessions yet.</div>';
   document.getElementById('chat').innerHTML=(state.chatMessages||[]).slice(-25).reverse().map(m=>`<div class="card"><div class="meta">${esc(m.time||'')}</div><div><b>${esc(m.character||'Table')}</b>: ${esc(m.label||m.text||'')}</div>${m.detail?`<div class="meta">${esc(m.detail)}</div>`:''}</div>`).join('')||'<div class="meta">No chat yet.</div>';
 }
 function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
 function esc(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function warmOverviewArtCache(){
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('caches' in window) caches.open('dnd-campaign-assets-v1').then(cache=>cache.add(OVERVIEW_ART).catch(()=>{}));
+}
+warmOverviewArtCache();
 loadState();
 </script>
 </body>
