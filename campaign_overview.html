@@ -11,12 +11,29 @@ button,input,textarea,select{font:inherit}button{border:1px solid rgba(217,154,6
 header{height:58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(217,154,63,.28);background:rgba(8,7,6,.86);position:sticky;top:0;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 h1{font-family:Georgia,'Times New Roman',serif;font-size:19px;margin:0 auto 0 0;color:#ffe7b3}.badge{font-size:11px;color:#d9c59b;border:1px solid rgba(217,154,63,.32);border-radius:999px;padding:5px 9px}
 main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 58px)}section{border:1px solid rgba(217,154,63,.28);border-radius:14px;background:linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);padding:14px;min-height:0;overflow:auto}
-.portal-board{position:relative;background:
-  linear-gradient(rgba(20,16,12,.58),rgba(20,16,12,.68)),
-  url("assets/ui/campaign_overview_frame.webp") center/100% 100% no-repeat,
-  linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));padding:38px 42px}
-.portal-board:before{content:"";position:absolute;inset:14px;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 75px rgba(0,0,0,.35)}
-.portal-board>*{position:relative}
+.portal-board{position:relative;padding:54px 58px 46px;border:0;border-radius:22px;background:
+  linear-gradient(rgba(91,58,21,.1),rgba(48,30,13,.22)),
+  url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat,
+  linear-gradient(135deg,#f2d7a3,#c99755);box-shadow:0 30px 90px rgba(0,0,0,.66);color:#23180d;
+  -webkit-mask-image:url("assets/ui/torn_paper_mask.png");mask-image:url("assets/ui/torn_paper_mask.png");
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+@supports not ((mask-image:url("")) or (-webkit-mask-image:url(""))){
+  .portal-board{border:1px solid rgba(217,154,63,.35);border-radius:18px;background:linear-gradient(180deg,#d5a86d,#b17a3e)}
+}
+.portal-board:before{content:"";position:absolute;inset:34px;pointer-events:none;border-radius:18px;box-shadow:inset 0 0 80px rgba(83,44,12,.25)}
+.portal-board:after{content:"";position:absolute;right:54px;top:42px;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#df6957,#8d1c18 62%,#4b0d0c);box-shadow:0 8px 14px rgba(66,24,8,.32),inset 0 0 0 3px rgba(255,225,160,.12);opacity:.82;transform:rotate(-9deg)}
+.portal-board>*{position:relative;z-index:1}
+.portal-board h2{color:#3b210f;text-shadow:0 1px 0 rgba(255,238,190,.45)}
+.portal-board .tabs{transform:rotate(-.35deg);transform-origin:left center}
+.portal-board .tabs button{background:rgba(255,231,184,.58);color:#2b1a0e;border-color:rgba(101,61,22,.35);box-shadow:0 3px 0 rgba(89,53,20,.18)}
+.portal-board .tabs button.active{background:#f4dfb0;color:#321d0d;border-color:#8e5a22}
+.portal-board textarea,.portal-board input{background:rgba(255,244,215,.78);color:#2a1a0d;border-color:rgba(92,57,25,.34);box-shadow:inset 0 1px 8px rgba(91,58,21,.1)}
+.portal-board textarea::placeholder,.portal-board input::placeholder{color:rgba(62,40,19,.58)}
+.portal-board .primary{background:linear-gradient(180deg,#b97425,#7b4315);color:#fff3d1;border-color:#9e672a}
+.portal-board .card{position:relative;background:rgba(255,239,197,.78);color:#2b1a0e;border-color:rgba(100,62,24,.25);box-shadow:0 12px 24px rgba(76,43,13,.22)}
+.portal-board .card:nth-child(odd){transform:rotate(-.45deg)}.portal-board .card:nth-child(even){transform:rotate(.38deg)}
+.portal-board .card:before{content:"";position:absolute;left:38%;top:-9px;width:62px;height:18px;background:rgba(232,207,154,.72);box-shadow:0 2px 5px rgba(67,39,12,.16);transform:rotate(-4deg)}
+.portal-board .meta,.portal-board p{color:#5b3d20}
 h2{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin:0 0 10px;color:#ffe7b3}.card{border:1px solid rgba(217,154,63,.2);border-radius:10px;background:rgba(9,10,12,.5);padding:10px;margin-bottom:9px}.name{font-weight:800}.meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:15px}
 textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9px;background:#0c0f13;color:var(--text);padding:10px}textarea{min-height:130px;resize:vertical;line-height:1.45}.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>*{flex:1}.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{font-size:12px}.tabs button.active{border-color:#d99a3f;color:#ffe7b3}.hidden{display:none}.list{max-height:360px;overflow:auto}.session-title{display:flex;justify-content:space-between;gap:8px}.toast{position:fixed;right:18px;bottom:18px;display:none;border:1px solid rgba(111,196,138,.7);background:#132118;color:#eaffef;border-radius:9px;padding:10px 12px;font-size:12px}.toast.show{display:block}
 @media(max-width:1050px){main{grid-template-columns:1fr}section{max-height:none}}
@@ -91,7 +108,8 @@ const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
 const CLOUD_CAMPAIGN_ID=new URLSearchParams(location.search).get('campaign')||localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'default-campaign';
 localStorage.setItem(CLOUD_CAMPAIGN_KEY,CLOUD_CAMPAIGN_ID);
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
-const OVERVIEW_ART='assets/ui/campaign_overview_frame.webp';
+const OVERVIEW_ART='assets/ui/torn_paper_texture.webp';
+const OVERVIEW_MASK='assets/ui/torn_paper_mask.png';
 let state={};
 let role=localStorage.getItem(roleKey())||'player';
 let tab='public';
@@ -168,7 +186,7 @@ function toast(message){const el=document.getElementById('toast');el.textContent
 function esc(value){return String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function warmOverviewArtCache(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-  if('caches' in window) caches.open('dnd-campaign-assets-v1').then(cache=>cache.add(OVERVIEW_ART).catch(()=>{}));
+  if('caches' in window) caches.open('dnd-campaign-assets-v1').then(cache=>cache.addAll([OVERVIEW_ART,OVERVIEW_MASK]).catch(()=>{}));
 }
 warmOverviewArtCache();
 loadState();
