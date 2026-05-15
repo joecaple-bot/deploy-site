@@ -45,9 +45,14 @@ main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;mi
 .note-board .board-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid rgba(217,154,63,.4);border-radius:999px;background:rgba(15,12,8,.72);color:#ffe7b3;padding:9px 13px;font-size:12px;opacity:0;transition:opacity .15s ease;pointer-events:none}
 .note-board.placing .board-hint{opacity:.95}
 .sticky-note{position:absolute;width:230px;min-height:172px;padding:18px 18px 16px;background:linear-gradient(rgba(255,238,190,.72),rgba(234,196,125,.84)),url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat;color:#2a1a0d;box-shadow:0 18px 38px rgba(0,0,0,.38),0 2px 8px rgba(84,45,12,.24);border-radius:12px;cursor:default;-webkit-mask-image:url("assets/ui/torn_paper_mask.png");mask-image:url("assets/ui/torn_paper_mask.png");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.sticky-note{transition:filter .18s ease,box-shadow .18s ease}
+.sticky-note:hover{filter:drop-shadow(0 0 22px rgba(255,188,76,.42));box-shadow:0 24px 52px rgba(0,0,0,.42),0 0 46px rgba(255,174,74,.2),0 2px 8px rgba(84,45,12,.24)}
+.sticky-note:hover:after{opacity:.95}
+.sticky-note.dragging{animation:noteSway .58s ease-in-out infinite alternate;z-index:20;filter:drop-shadow(0 0 28px rgba(255,196,90,.55))}
 .sticky-note:before{content:"";position:absolute;left:50%;top:3px;width:70px;height:18px;background:rgba(238,215,167,.8);box-shadow:0 2px 7px rgba(67,39,12,.18);transform:translate(-50%,-50%) rotate(-4deg);z-index:2}
 .sticky-note input,.sticky-note textarea{background:rgba(255,250,229,.5);border-color:rgba(92,57,25,.22);color:#2a1a0d}.sticky-note input{font-weight:800;margin-bottom:7px}.sticky-note textarea{min-height:92px;resize:vertical}.sticky-note button{position:absolute;right:13px;bottom:10px;font-size:10px;padding:4px 7px;background:rgba(71,38,15,.78)}
 .note-drag{position:absolute;right:13px;top:13px;z-index:3;border:1px solid rgba(92,57,25,.34);border-radius:999px;background:rgba(255,244,215,.74);color:#3b210f;font-size:10px;padding:4px 7px;cursor:grab;user-select:none}.note-drag:active{cursor:grabbing}
+@keyframes noteSway{from{rotate:-1.8deg;scale:1.015}to{rotate:1.8deg;scale:1.025}}
 @supports not ((mask-image:url("")) or (-webkit-mask-image:url(""))){
   .sticky-note{border:1px solid rgba(115,72,28,.28);border-radius:12px}
 }
@@ -225,6 +230,7 @@ function deleteBoardNote(id){
 function startNoteDrag(event,id){
   event.stopPropagation();
   draggedNoteId=id;
+  document.querySelector(`[data-note-id="${CSS.escape(id)}"]`)?.classList.add('dragging');
   document.addEventListener('pointermove',dragBoardNote);
   document.addEventListener('pointerup',stopNoteDrag,{once:true});
 }
@@ -240,6 +246,7 @@ function dragBoardNote(event){
   if(noteEl){noteEl.style.left=x+'%';noteEl.style.top=y+'%';}
 }
 function stopNoteDrag(){
+  if(draggedNoteId) document.querySelector(`[data-note-id="${CSS.escape(draggedNoteId)}"]`)?.classList.remove('dragging');
   if(draggedNoteId) schedulePortalSave();
   draggedNoteId='';
   document.removeEventListener('pointermove',dragBoardNote);
