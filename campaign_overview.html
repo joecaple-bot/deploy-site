@@ -11,7 +11,7 @@ button,input,textarea,select{font:inherit}button{border:1px solid rgba(217,154,6
 header{height:58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(217,154,63,.28);background:rgba(8,7,6,.86);position:sticky;top:0;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 h1{font-family:Georgia,'Times New Roman',serif;font-size:19px;margin:0 auto 0 0;color:#ffe7b3}.badge{font-size:11px;color:#d9c59b;border:1px solid rgba(217,154,63,.32);border-radius:999px;padding:5px 9px}
 main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 58px)}section{border:1px solid rgba(217,154,63,.28);border-radius:14px;background:linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);padding:14px;min-height:0;overflow:auto}
-.portal-board{position:relative;padding:38px 42px;border-radius:14px;background:
+.portal-board{position:relative;padding:38px 42px;border-radius:14px;display:flex;flex-direction:column;background:
   linear-gradient(rgba(20,16,12,.58),rgba(20,16,12,.68)),
   url("assets/ui/campaign_overview_frame.webp") center/100% 100% no-repeat,
   linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);color:var(--text)}
@@ -39,12 +39,13 @@ main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;mi
 .portal-board .primary{background:linear-gradient(180deg,#b97425,#7b4315);color:#fff3d1;border-color:#9e672a}
 .portal-board .card{position:relative;background:rgba(255,239,197,.78);color:#2b1a0e;border-color:rgba(100,62,24,.25)}
 .portal-board .meta,.portal-board p{color:#5b3d20}
-.note-board{position:relative;min-height:650px;border:1px solid rgba(217,154,63,.22);border-radius:12px;background:radial-gradient(circle at 40% 28%,rgba(88,57,22,.2),transparent 42%),rgba(8,7,6,.16);overflow:hidden;cursor:copy}
+.note-board{position:relative;min-height:calc(100vh - 190px);flex:1;border:1px solid rgba(217,154,63,.22);border-radius:12px;background:radial-gradient(circle at 40% 28%,rgba(88,57,22,.2),transparent 42%),rgba(8,7,6,.16);overflow:hidden;cursor:copy}
 .note-board .board-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px solid rgba(217,154,63,.4);border-radius:999px;background:rgba(15,12,8,.72);color:#ffe7b3;padding:9px 13px;font-size:12px;opacity:0;transition:opacity .15s ease;pointer-events:none}
 .note-board:hover .board-hint{opacity:.95}
 .sticky-note{position:absolute;width:230px;min-height:172px;padding:18px 18px 16px;background:linear-gradient(rgba(255,238,190,.72),rgba(234,196,125,.84)),url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat;color:#2a1a0d;box-shadow:0 18px 38px rgba(0,0,0,.38),0 2px 8px rgba(84,45,12,.24);border-radius:12px;cursor:default;-webkit-mask-image:url("assets/ui/torn_paper_mask.png");mask-image:url("assets/ui/torn_paper_mask.png");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 .sticky-note:before{content:"";position:absolute;left:50%;top:3px;width:70px;height:18px;background:rgba(238,215,167,.8);box-shadow:0 2px 7px rgba(67,39,12,.18);transform:translate(-50%,-50%) rotate(-4deg);z-index:2}
 .sticky-note input,.sticky-note textarea{background:rgba(255,250,229,.5);border-color:rgba(92,57,25,.22);color:#2a1a0d}.sticky-note input{font-weight:800;margin-bottom:7px}.sticky-note textarea{min-height:92px;resize:vertical}.sticky-note button{position:absolute;right:13px;bottom:10px;font-size:10px;padding:4px 7px;background:rgba(71,38,15,.78)}
+.note-drag{position:absolute;right:13px;top:13px;z-index:3;border:1px solid rgba(92,57,25,.34);border-radius:999px;background:rgba(255,244,215,.74);color:#3b210f;font-size:10px;padding:4px 7px;cursor:grab;user-select:none}.note-drag:active{cursor:grabbing}
 @supports not ((mask-image:url("")) or (-webkit-mask-image:url(""))){
   .sticky-note{border:1px solid rgba(115,72,28,.28);border-radius:12px}
 }
@@ -133,6 +134,7 @@ const OVERVIEW_MASK='assets/ui/torn_paper_mask.png';
 let state={};
 let role=localStorage.getItem(roleKey())||'player';
 let tab='public';
+let draggedNoteId='';
 function storageKey(){return `${STORAGE_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
 function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
 function unlockKey(){return `${CAMPAIGN_UNLOCK_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
@@ -201,6 +203,28 @@ function deleteBoardNote(id){
   renderScrapbookNotes(p);
   schedulePortalSave();
 }
+function startNoteDrag(event,id){
+  event.stopPropagation();
+  draggedNoteId=id;
+  document.addEventListener('pointermove',dragBoardNote);
+  document.addEventListener('pointerup',stopNoteDrag,{once:true});
+}
+function dragBoardNote(event){
+  if(!draggedNoteId) return;
+  const board=document.getElementById('note-board');
+  const rect=board.getBoundingClientRect();
+  const x=Math.max(1,Math.min(84,((event.clientX-rect.left)/rect.width)*100));
+  const y=Math.max(1,Math.min(78,((event.clientY-rect.top)/rect.height)*100));
+  const p=portal();
+  p.notes=(p.notes||[]).map(note=>note.id===draggedNoteId?{...note,x,y}:note);
+  const noteEl=document.querySelector(`[data-note-id="${CSS.escape(draggedNoteId)}"]`);
+  if(noteEl){noteEl.style.left=x+'%';noteEl.style.top=y+'%';}
+}
+function stopNoteDrag(){
+  if(draggedNoteId) schedulePortalSave();
+  draggedNoteId='';
+  document.removeEventListener('pointermove',dragBoardNote);
+}
 function addRecap(){
   const title=document.getElementById('recap-title').value.trim()||`Recap ${new Date().toLocaleDateString()}`;
   const body=document.getElementById('recap-body').value.trim();
@@ -240,7 +264,8 @@ function renderScrapbookNotes(p=portal()){
   const el=document.getElementById('board-notes');
   if(!el) return;
   el.innerHTML=(p.notes||[]).map(note=>`
-    <div class="sticky-note" style="left:${Number(note.x)||10}%;top:${Number(note.y)||10}%;transform:rotate(${Number(note.rot)||0}deg)" onclick="event.stopPropagation()">
+    <div class="sticky-note" data-note-id="${esc(note.id)}" style="left:${Number(note.x)||10}%;top:${Number(note.y)||10}%;transform:rotate(${Number(note.rot)||0}deg)" onclick="event.stopPropagation()">
+      <span class="note-drag" onpointerdown="startNoteDrag(event,'${note.id}')">Move</span>
       <input value="${esc(note.title||'')}" placeholder="Title" oninput="updateBoardNote('${note.id}','title',this.value)">
       <textarea placeholder="Body" oninput="updateBoardNote('${note.id}','body',this.value)">${esc(note.body||'')}</textarea>
       <button onclick="event.stopPropagation();deleteBoardNote('${note.id}')">Remove</button>
