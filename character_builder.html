@@ -456,6 +456,11 @@ localStorage.setItem(CLOUD_CAMPAIGN_KEY,CLOUD_CAMPAIGN_ID);
 const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
 function storageKey(){return `${STORAGE_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
 function campaignUnlockKey(){return `${CAMPAIGN_UNLOCK_PREFIX}:${CLOUD_CAMPAIGN_ID}`}
+function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
+const BUILDER_QUERY=new URLSearchParams(location.search);
+const REQUESTED_CHARACTER_ID=BUILDER_QUERY.get('character')||'';
+const REQUESTED_DM_EDIT=BUILDER_QUERY.get('dmEdit')==='1';
+function builderIsDM(){return localStorage.getItem(roleKey())==='dm'}
 function playerIdKey(){return `${STORAGE_PREFIX}:playerId`}
 function stablePlayerId(){let id=localStorage.getItem(playerIdKey());if(!id){id='p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem(playerIdKey(),id)}return id}
 const BUILDER_PLAYER_ID=stablePlayerId();
@@ -773,17 +778,32 @@ function readStorage(){
   }catch(e){}
   state.myCharacters=(state.myCharacters||[]).map(hydrateCharacter);
   if(!state.myCharacters.length) state.myCharacters=[hydrateCharacter({})];
-  selectedId=state.activeCharacterId||state.myCharacters[0].id;
+  ensureRequestedCharacterAvailable();
+  selectedId=(REQUESTED_CHARACTER_ID&&state.myCharacters.some(ch=>ch.id===REQUESTED_CHARACTER_ID)?REQUESTED_CHARACTER_ID:null)||state.activeCharacterId||state.myCharacters[0].id;
   state.activeCharacterId=selectedId;
   state.campaign=campaignInfo||state.campaign||null;
+}
+function ensureRequestedCharacterAvailable(){
+  if(!REQUESTED_CHARACTER_ID || state.myCharacters.some(ch=>ch.id===REQUESTED_CHARACTER_ID)) return;
+  const party=(state.partyCharacters||[]).map(hydrateCharacter);
+  const requested=party.find(ch=>ch.id===REQUESTED_CHARACTER_ID);
+  if(!requested) return;
+  if(builderIsDM()&&REQUESTED_DM_EDIT){
+    state.myCharacters.push(hydrateCharacter(requested));
+    toast(`DM editing ${requested.name}`);
+  } else if((requested.owner||state.myId)===BUILDER_PLAYER_ID){
+    state.myCharacters.push(hydrateCharacter({...requested,owner:BUILDER_PLAYER_ID}));
+  }
 }
 function writeStorage(message='Saved'){
   if(!applyingCloudState&&document.getElementById('name')&&selectedId) commitForm();
   state.myCharacters=state.myCharacters.map(hydrateCharacter);
   state.myId=BUILDER_PLAYER_ID;
+  const editedCharacters=state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
+  const editedIds=new Set(editedCharacters.map(ch=>ch.id));
   state.partyCharacters=[
-    ...state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:BUILDER_PLAYER_ID})),
-    ...(state.partyCharacters||[]).filter(ch=>(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
+    ...editedCharacters,
+    ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
   ];
   state.activeCharacterId=selectedId;
   if(!state.turnOrder?.length) state.turnOrder=state.myCharacters.map(c=>c.id);
@@ -1552,9 +1572,11 @@ function persistBeforeLeaving(){
     commitForm();
     state.myCharacters=state.myCharacters.map(hydrateCharacter);
     state.myId=BUILDER_PLAYER_ID;
+    const editedCharacters=state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
+    const editedIds=new Set(editedCharacters.map(ch=>ch.id));
     state.partyCharacters=[
-      ...state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:BUILDER_PLAYER_ID})),
-      ...(state.partyCharacters||[]).filter(ch=>(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
+      ...editedCharacters,
+      ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
     ];
     state.activeCharacterId=selectedId;
     try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
@@ -1598,9 +1620,10 @@ function applyCloudState(nextState){
   if(incomingOwner===BUILDER_PLAYER_ID && Array.isArray(nextState.myCharacters)){
     state.myCharacters=nextState.myCharacters;
   }
-  state.myCharacters=(state.myCharacters||[]).map(ch=>hydrateCharacter({...ch,owner:BUILDER_PLAYER_ID}));
+  state.myCharacters=(state.myCharacters||[]).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
   if(!state.myCharacters.length) state.myCharacters=[hydrateCharacter({})];
-  selectedId=(incomingOwner===BUILDER_PLAYER_ID?state.activeCharacterId:selectedId)||state.myCharacters[0].id;
+  ensureRequestedCharacterAvailable();
+  selectedId=(REQUESTED_CHARACTER_ID&&state.myCharacters.some(ch=>ch.id===REQUESTED_CHARACTER_ID)?REQUESTED_CHARACTER_ID:null)||(incomingOwner===BUILDER_PLAYER_ID?state.activeCharacterId:selectedId)||state.myCharacters[0].id;
   state.activeCharacterId=selectedId;
   try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
   renderAll();

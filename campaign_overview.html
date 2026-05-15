@@ -105,6 +105,9 @@ function setTab(next){tab=next;if(next==='dm'&&!isDM()) tab='public';render()}
 function campaignQuery(){return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID)}
 function goMap(){location.href='map.html'+campaignQuery()}
 function goBuilder(){location.href='character_builder.html'+campaignQuery()}
+function openCharacterSheet(id){
+  location.href='character_builder.html'+campaignQuery()+'&character='+encodeURIComponent(id)+(isDM()?'&dmEdit=1':'');
+}
 function goManager(){location.href='campaign_manager.html'+campaignQuery()}
 async function loadState(){
   try{const raw=localStorage.getItem(storageKey());if(raw) state=JSON.parse(raw)}catch(e){}
@@ -150,7 +153,7 @@ function render(){
   document.getElementById('public-notes').value=p.publicNotes||'';
   document.getElementById('dm-notes').value=p.dmNotes||'';
   const chars=(state.partyCharacters||state.myCharacters||[]).filter(Boolean);
-  document.getElementById('characters').innerHTML=chars.map(ch=>`<div class="card"><div class="name">${esc(ch.icon||'') } ${esc(ch.name||'Character')}</div><div class="meta">L${ch.level||1} ${esc(ch.race||'')} ${esc(ch.class||'')} · HP ${ch.currentHP??ch.derived?.HP??'-'}/${ch.derived?.HP??'-'} · AC ${ch.derived?.AC??'-'} · ${esc(ch.owner?'Player':'Local')}</div></div>`).join('')||'<div class="meta">No characters yet.</div>';
+  document.getElementById('characters').innerHTML=chars.map(ch=>`<button class="card" style="display:block;width:100%;text-align:left" onclick="openCharacterSheet('${esc(ch.id)}')"><div class="name">${esc(ch.icon||'') } ${esc(ch.name||'Character')}</div><div class="meta">L${ch.level||1} ${esc(ch.race||'')} ${esc(ch.class||'')} · HP ${ch.currentHP??ch.derived?.HP??'-'}/${ch.derived?.HP??'-'} · AC ${ch.derived?.AC??'-'} · ${isDM()?'Open/edit sheet':(ch.owner?'Open sheet':'Local sheet')}</div></button>`).join('')||'<div class="meta">No characters yet.</div>';
   const npcs=(state.placedIcons||[]).filter(x=>['enemy','trader','chest'].includes(x.kind));
   document.getElementById('npcs').innerHTML=npcs.map(n=>`<div class="card"><div class="name">${esc(n.icon||n.em||'')} ${esc(n.name||n.label||n.kind)}</div><div class="meta">${esc(n.kind||'icon')} ${n.hp!=null?`· HP ${n.hp}/${n.maxHP||n.hp} · AC ${n.ac||'-'}`:''}</div></div>`).join('')||'<div class="meta">No NPCs or scene pieces yet.</div>';
   document.getElementById('state-cards').innerHTML=[
