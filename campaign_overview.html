@@ -11,28 +11,33 @@ button,input,textarea,select{font:inherit}button{border:1px solid rgba(217,154,6
 header{height:58px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(217,154,63,.28);background:rgba(8,7,6,.86);position:sticky;top:0;z-index:2;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 h1{font-family:Georgia,'Times New Roman',serif;font-size:19px;margin:0 auto 0 0;color:#ffe7b3}.badge{font-size:11px;color:#d9c59b;border:1px solid rgba(217,154,63,.32);border-radius:999px;padding:5px 9px}
 main{display:grid;grid-template-columns:330px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 58px)}section{border:1px solid rgba(217,154,63,.28);border-radius:14px;background:linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);padding:14px;min-height:0;overflow:auto}
-.portal-board{position:relative;padding:54px 58px 46px;border:0;border-radius:22px;background:
-  linear-gradient(rgba(91,58,21,.1),rgba(48,30,13,.22)),
-  url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat,
-  linear-gradient(135deg,#f2d7a3,#c99755);box-shadow:0 30px 90px rgba(0,0,0,.66);color:#23180d;
+.portal-board{position:relative;padding:38px 42px;border-radius:14px;background:
+  linear-gradient(rgba(20,16,12,.58),rgba(20,16,12,.68)),
+  url("assets/ui/campaign_overview_frame.webp") center/100% 100% no-repeat,
+  linear-gradient(180deg,rgba(31,25,18,.92),rgba(13,12,11,.96));box-shadow:var(--shadow);color:var(--text)}
+.portal-board:before{content:"";position:absolute;inset:14px;border-radius:10px;pointer-events:none;box-shadow:inset 0 0 75px rgba(0,0,0,.35)}
+.portal-board>*{position:relative;z-index:1}
+.portal-board h2{color:#ffe7b3;text-shadow:0 1px 0 rgba(0,0,0,.55)}
+.portal-board .tabs{transform:rotate(-.35deg);transform-origin:left center}
+.portal-board .tabs button{background:rgba(20,15,10,.78);color:#d9c59b;border-color:rgba(202,151,74,.35);box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.portal-board .tabs button.active{background:rgba(105,57,18,.58);color:#fff1cd;border-color:#d99a3f}
+.scrap-editor,.scrap-note{position:relative;background:
+  linear-gradient(rgba(255,238,190,.68),rgba(234,196,125,.78)),
+  url("assets/ui/torn_paper_texture.webp") center/100% 100% no-repeat;
+  color:#2a1a0d;box-shadow:0 18px 38px rgba(0,0,0,.36),0 2px 8px rgba(84,45,12,.24);padding:20px 22px;margin:14px 0 18px;border-radius:14px;
   -webkit-mask-image:url("assets/ui/torn_paper_mask.png");mask-image:url("assets/ui/torn_paper_mask.png");
   -webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
 @supports not ((mask-image:url("")) or (-webkit-mask-image:url(""))){
-  .portal-board{border:1px solid rgba(217,154,63,.35);border-radius:18px;background:linear-gradient(180deg,#d5a86d,#b17a3e)}
+  .scrap-editor,.scrap-note{border:1px solid rgba(115,72,28,.28);border-radius:12px}
 }
-.portal-board:before{content:"";position:absolute;inset:34px;pointer-events:none;border-radius:18px;box-shadow:inset 0 0 80px rgba(83,44,12,.25)}
-.portal-board:after{content:"";position:absolute;right:54px;top:42px;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#df6957,#8d1c18 62%,#4b0d0c);box-shadow:0 8px 14px rgba(66,24,8,.32),inset 0 0 0 3px rgba(255,225,160,.12);opacity:.82;transform:rotate(-9deg)}
-.portal-board>*{position:relative;z-index:1}
-.portal-board h2{color:#3b210f;text-shadow:0 1px 0 rgba(255,238,190,.45)}
-.portal-board .tabs{transform:rotate(-.35deg);transform-origin:left center}
-.portal-board .tabs button{background:rgba(255,231,184,.58);color:#2b1a0e;border-color:rgba(101,61,22,.35);box-shadow:0 3px 0 rgba(89,53,20,.18)}
-.portal-board .tabs button.active{background:#f4dfb0;color:#321d0d;border-color:#8e5a22}
+.scrap-editor{transform:rotate(-.35deg);min-height:210px}.scrap-note:nth-child(odd){transform:rotate(-1.1deg)}.scrap-note:nth-child(even){transform:rotate(.85deg)}
+.scrap-editor:before,.scrap-note:before{content:"";position:absolute;left:42%;top:3px;width:76px;height:20px;background:rgba(238,215,167,.76);box-shadow:0 2px 7px rgba(67,39,12,.18);transform:translateY(-50%) rotate(-4deg);z-index:2}
+.scrap-note:after{content:"";position:absolute;right:22px;top:18px;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#df6957,#8d1c18 62%,#4b0d0c);box-shadow:0 5px 10px rgba(66,24,8,.28),inset 0 0 0 2px rgba(255,225,160,.12);opacity:.74}
 .portal-board textarea,.portal-board input{background:rgba(255,244,215,.78);color:#2a1a0d;border-color:rgba(92,57,25,.34);box-shadow:inset 0 1px 8px rgba(91,58,21,.1)}
+.scrap-editor textarea,.scrap-editor input{background:rgba(255,250,229,.42);border-color:rgba(92,57,25,.2)}
 .portal-board textarea::placeholder,.portal-board input::placeholder{color:rgba(62,40,19,.58)}
 .portal-board .primary{background:linear-gradient(180deg,#b97425,#7b4315);color:#fff3d1;border-color:#9e672a}
-.portal-board .card{position:relative;background:rgba(255,239,197,.78);color:#2b1a0e;border-color:rgba(100,62,24,.25);box-shadow:0 12px 24px rgba(76,43,13,.22)}
-.portal-board .card:nth-child(odd){transform:rotate(-.45deg)}.portal-board .card:nth-child(even){transform:rotate(.38deg)}
-.portal-board .card:before{content:"";position:absolute;left:38%;top:-9px;width:62px;height:18px;background:rgba(232,207,154,.72);box-shadow:0 2px 5px rgba(67,39,12,.16);transform:rotate(-4deg)}
+.portal-board .card{position:relative;background:rgba(255,239,197,.78);color:#2b1a0e;border-color:rgba(100,62,24,.25)}
 .portal-board .meta,.portal-board p{color:#5b3d20}
 h2{font-family:Georgia,'Times New Roman',serif;font-size:15px;margin:0 0 10px;color:#ffe7b3}.card{border:1px solid rgba(217,154,63,.2);border-radius:10px;background:rgba(9,10,12,.5);padding:10px;margin-bottom:9px}.name{font-weight:800}.meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:15px}
 textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9px;background:#0c0f13;color:var(--text);padding:10px}textarea{min-height:130px;resize:vertical;line-height:1.45}.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.row>*{flex:1}.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{font-size:12px}.tabs button.active{border-color:#d99a3f;color:#ffe7b3}.hidden{display:none}.list{max-height:360px;overflow:auto}.session-title{display:flex;justify-content:space-between;gap:8px}.toast{position:fixed;right:18px;bottom:18px;display:none;border:1px solid rgba(111,196,138,.7);background:#132118;color:#eaffef;border-radius:9px;padding:10px 12px;font-size:12px}.toast.show{display:block}
@@ -65,13 +70,17 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
     </div>
     <div id="panel-public">
       <h2>Campaign Notes</h2>
-      <textarea id="public-notes" placeholder="Shared player-facing notes, leads, places, NPC names, rumors..."></textarea>
-      <div class="row"><button class="primary" onclick="savePortal()">Save shared notes</button></div>
+      <div class="scrap-editor">
+        <textarea id="public-notes" placeholder="Shared player-facing notes, leads, places, NPC names, rumors..."></textarea>
+        <div class="row"><button class="primary" onclick="savePortal()">Save shared notes</button></div>
+      </div>
     </div>
     <div id="panel-recaps" class="hidden">
       <h2>Add Recap</h2>
-      <div class="row"><input id="recap-title" placeholder="Session title"><button class="primary" onclick="addRecap()">Add recap</button></div>
-      <textarea id="recap-body" placeholder="What happened last time?"></textarea>
+      <div class="scrap-editor">
+        <div class="row"><input id="recap-title" placeholder="Session title"><button class="primary" onclick="addRecap()">Add recap</button></div>
+        <textarea id="recap-body" placeholder="What happened last time?"></textarea>
+      </div>
       <h2>Recaps</h2><div id="recaps" class="list"></div>
     </div>
     <div id="panel-timeline" class="hidden">
@@ -84,9 +93,11 @@ textarea,input{width:100%;border:1px solid rgba(217,154,63,.25);border-radius:9p
     </div>
     <div id="panel-dm" class="hidden">
       <h2>DM Session Notes</h2>
-      <textarea id="dm-notes" placeholder="Private DM prep, secrets, encounter changes, loot plans..."></textarea>
-      <div class="row"><input id="session-title" placeholder="Session name"><button class="primary" onclick="saveSession()">Save session log</button></div>
-      <button onclick="savePortal()">Save DM notes</button>
+      <div class="scrap-editor">
+        <textarea id="dm-notes" placeholder="Private DM prep, secrets, encounter changes, loot plans..."></textarea>
+        <div class="row"><input id="session-title" placeholder="Session name"><button class="primary" onclick="saveSession()">Save session log</button></div>
+        <button onclick="savePortal()">Save DM notes</button>
+      </div>
     </div>
   </section>
   <section>
@@ -177,9 +188,9 @@ function render(){
   document.getElementById('state-cards').innerHTML=[
     ['Characters',chars.length],['NPCs',npcs.length],['Boss Kills',p.stats?.bossKills||0],['Enemies Down',p.stats?.enemiesDefeated||0],['Gold Found',(p.stats?.goldFound||0)+' gp'],['Notable Loot',p.stats?.notableLoot||0],['Damage Dealt',p.stats?.damageDealt||0],['Healing Done',p.stats?.healingDone||0]
   ].map(([a,b])=>`<div class="card stat"><b>${b}</b>${a}</div>`).join('');
-  document.getElementById('recaps').innerHTML=(p.recaps||[]).map(r=>`<div class="card"><div class="session-title"><div class="name">${esc(r.title)}</div><div class="meta">${new Date(r.createdAt).toLocaleString()}</div></div><div class="meta">${esc(r.author||'Player')}</div><p>${esc(r.body)}</p></div>`).join('')||'<div class="meta">No recaps yet.</div>';
-  document.getElementById('timeline').innerHTML=(p.timeline||[]).map(e=>`<div class="card"><div class="session-title"><div class="name">${esc(e.title)}</div><div class="meta">${new Date(e.time).toLocaleString()}</div></div><div class="meta">${esc(e.actor||'Table')} ${e.rarity?`· ${esc(e.rarity)}`:''}</div><p>${esc(e.detail||'')}</p></div>`).join('')||'<div class="meta">No campaign events logged yet.</div>';
-  document.getElementById('sessions').innerHTML=(p.sessions||[]).map(s=>`<div class="card"><div class="session-title"><div class="name">${esc(s.title)}</div><div class="meta">${new Date(s.createdAt).toLocaleString()}</div></div><p>${esc(s.body||'No notes')}</p><div class="meta">${(s.chat||[]).length} chat lines saved</div></div>`).join('')||'<div class="meta">No saved sessions yet.</div>';
+  document.getElementById('recaps').innerHTML=(p.recaps||[]).map(r=>`<div class="scrap-note"><div class="session-title"><div class="name">${esc(r.title)}</div><div class="meta">${new Date(r.createdAt).toLocaleString()}</div></div><div class="meta">${esc(r.author||'Player')}</div><p>${esc(r.body)}</p></div>`).join('')||'<div class="meta">No recaps yet.</div>';
+  document.getElementById('timeline').innerHTML=(p.timeline||[]).map(e=>`<div class="scrap-note"><div class="session-title"><div class="name">${esc(e.title)}</div><div class="meta">${new Date(e.time).toLocaleString()}</div></div><div class="meta">${esc(e.actor||'Table')} ${e.rarity?`· ${esc(e.rarity)}`:''}</div><p>${esc(e.detail||'')}</p></div>`).join('')||'<div class="meta">No campaign events logged yet.</div>';
+  document.getElementById('sessions').innerHTML=(p.sessions||[]).map(s=>`<div class="scrap-note"><div class="session-title"><div class="name">${esc(s.title)}</div><div class="meta">${new Date(s.createdAt).toLocaleString()}</div></div><p>${esc(s.body||'No notes')}</p><div class="meta">${(s.chat||[]).length} chat lines saved</div></div>`).join('')||'<div class="meta">No saved sessions yet.</div>';
   document.getElementById('chat').innerHTML=(state.chatMessages||[]).slice(-25).reverse().map(m=>`<div class="card"><div class="meta">${esc(m.time||'')}</div><div><b>${esc(m.character||'Table')}</b>: ${esc(m.label||m.text||'')}</div>${m.detail?`<div class="meta">${esc(m.detail)}</div>`:''}</div>`).join('')||'<div class="meta">No chat yet.</div>';
 }
 function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
