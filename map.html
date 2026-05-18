@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -46,6 +46,22 @@ body:not(.dm-mode) .dm-only{display:none!important}
 #dot.on{background:var(--accent)}
 #main{display:flex;flex:1;min-height:0}
 #canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair;background:#0f1117;touch-action:none;min-height:240px}
+body.rp-mode #canvas-wrap{cursor:default}
+body.rp-mode #map3d-layer{display:none!important}
+.rp-mode-badge{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:62;pointer-events:none;border:1px solid rgba(255,190,84,.5);background:rgba(12,8,5,.62);box-shadow:0 0 26px rgba(255,123,34,.18);border-radius:999px;padding:7px 14px;color:#ffe7b0;font:800 12px Georgia,'Times New Roman',serif;letter-spacing:.05em;text-transform:uppercase}
+body:not(.rp-mode) .rp-mode-badge{display:none}
+.rp-command-dock{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:64;width:min(780px,calc(100% - 34px));pointer-events:auto;text-align:center}
+body.rp-mode .rp-command-dock{display:block}
+.rp-character-bar{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;padding:9px 14px;border:1px solid rgba(255,203,113,.4);border-radius:999px;background:rgba(9,6,4,.62);box-shadow:0 0 24px rgba(255,132,40,.16),0 1px 0 rgba(255,235,170,.12) inset}
+.rp-character-bar select{width:220px;height:34px;font-size:12px}
+.rp-character-bar b{font-family:Georgia,'Times New Roman',serif;color:#ffe9b6;white-space:nowrap}
+.rp-actions{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.rp-action{width:92px;height:92px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(232,174,84,.72);background:radial-gradient(circle at 50% 32%,rgba(96,64,30,.92),rgba(15,10,7,.95) 68%);box-shadow:0 0 0 5px rgba(0,0,0,.24),0 0 24px rgba(255,128,31,.18),0 2px 0 rgba(255,236,176,.14) inset;color:#ffe9ba;text-shadow:0 1px 3px #000}
+.rp-action:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 0 5px rgba(0,0,0,.22),0 0 30px rgba(255,160,56,.28),0 2px 0 rgba(255,236,176,.18) inset}
+.rp-action .rp-icon{font-size:25px;line-height:1}
+.rp-action span:last-child{font:800 11px Georgia,'Times New Roman',serif;letter-spacing:.04em;text-transform:uppercase}
+.rp-action.primary{width:116px;height:116px;border-color:rgba(255,218,128,.95);background:radial-gradient(circle at 50% 28%,rgba(134,81,31,.96),rgba(20,12,8,.98) 68%)}
+.rp-hint{margin-top:14px;font-size:12px;color:#dcc69c;text-shadow:0 1px 4px #000}
 canvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none}
 #sidebar{width:286px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:260px}
 #sidebar-scroll{flex:1;overflow-y:auto;padding:12px}
@@ -231,6 +247,12 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #sheet-popup{display:none;position:absolute;z-index:80;width:254px;background:rgba(24,27,32,.98);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px;pointer-events:auto}
 #sheet-popup.show{display:block}
 #sheet-popup.enemy{border-color:rgba(224,107,98,.7);box-shadow:0 22px 80px rgba(80,0,0,.45)}
+#sheet-popup.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
+#sheet-popup.resizable{resize:both;overflow:auto;min-width:250px;min-height:220px;max-width:calc(100% - 24px);max-height:calc(100% - 24px)}
+.sheet-top{cursor:grab;user-select:none}
+.sheet-top:active{cursor:grabbing}
+.sheet-window-tools{display:flex;gap:4px;margin-left:auto}
+.sheet-window-tools button{font-size:11px;padding:4px 7px}
 #radial-menu{display:none;position:absolute;z-index:86;width:202px;height:202px;pointer-events:none}
 #radial-menu.show{display:block}
 #radial-menu.skill-wheel{width:328px;height:auto;pointer-events:auto}
@@ -544,6 +566,93 @@ h3{
 #sheet-popup,#radial-menu,#floating-end-turn,#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay{
   z-index:150;
 }
+#map3d-layer{
+  position:absolute;
+  inset:0;
+  display:none;
+  z-index:130;
+  background:transparent;
+}
+#map3d-layer.show{display:block}
+#map3d-layer.editing{pointer-events:auto}
+#map3d-layer:not(.editing){pointer-events:none}
+#map3d-stage{position:absolute;inset:0;cursor:default}
+#map3d-layer.editing #map3d-stage{cursor:crosshair;pointer-events:auto}
+#map3d-tools{
+  position:absolute;
+  top:14px;
+  right:14px;
+  width:236px;
+  max-height:calc(100% - 28px);
+  overflow:auto;
+  padding:12px;
+  border:1px solid rgba(255,190,96,.35);
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(28,22,18,.92), rgba(10,11,14,.92));
+  box-shadow:0 16px 42px rgba(0,0,0,.55), inset 0 0 24px rgba(255,151,44,.05);
+  backdrop-filter:blur(7px);
+}
+#map3d-layer:not(.editing) #map3d-tools{display:none}
+#map3d-tools h3{
+  margin:0 0 8px;
+  color:#ffe1a1;
+  font-family:Georgia,serif;
+  letter-spacing:.03em;
+}
+.map3d-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.map3d-folder{
+  margin-top:8px;
+  border:1px solid rgba(255,190,96,.2);
+  border-radius:9px;
+  background:rgba(0,0,0,.18);
+  overflow:hidden;
+}
+.map3d-folder summary{
+  cursor:pointer;
+  padding:8px 9px;
+  color:#ffe1a1;
+  font-size:12px;
+  font-weight:800;
+  list-style:none;
+}
+.map3d-folder summary::-webkit-details-marker{display:none}
+.map3d-folder .map3d-grid{padding:0 8px 8px}
+.map3d-plop{
+  min-height:38px;
+  border-color:rgba(255,190,96,.28);
+  background:rgba(255,190,96,.08);
+}
+.map3d-plop.active{
+  color:#fff2c5;
+  border-color:#ffbd5f;
+  box-shadow:0 0 18px rgba(255,164,68,.25);
+}
+#map3d-selected{
+  margin-top:10px;
+  padding:9px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:9px;
+  background:rgba(0,0,0,.25);
+  color:#d8c6a5;
+  font-size:12px;
+  line-height:1.4;
+}
+#map3d-model-status{
+  margin-top:8px;
+  color:#cdbb9c;
+  font-size:11px;
+  line-height:1.35;
+}
+.map3d-control-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.map3d-control-row input[type="color"]{
+  width:100%;
+  min-height:32px;
+  padding:2px;
+  border-radius:8px;
+  border:1px solid rgba(255,190,96,.28);
+  background:rgba(255,190,96,.08);
+}
+#map3d-hint{margin-top:10px;color:#9f927f;font-size:11px;line-height:1.35}
 @media(max-width:860px){
   #main{flex-direction:column}
   #toolbar{align-items:flex-start;max-height:128px}
@@ -565,12 +674,20 @@ h3{
     <button onclick="goToCharacters()">Characters</button>
     <button onclick="goToOverview()">Overview</button>
     <button onclick="openCampaignNotes()">Notes</button>
+    <button id="btn-rp-mode" class="dm-only" onclick="toggleRPMode()" title="Swap the battle map for roleplay table mode">RP mode: Off</button>
     <span id="campaign-badge" class="campaign-badge"></span>
     <div class="sep"></div>
     <button id="btn-move" class="active" onclick="setMode('move')">Move</button>
     <button id="btn-drag" class="dm-only" onclick="setMode('drag')">Drag icon</button>
     <button id="btn-place" class="dm-only" onclick="setMode('place')">Place icon</button>
+    <button id="btn-ping" onclick="setMode('ping')" title="Click the map to send a live ping">Ping</button>
+    <button id="btn-measure" onclick="setMode('measure')" title="Drag to measure distance">Measure</button>
+    <button id="btn-line" onclick="setMode('line')" title="Drag a live line spell template">Line</button>
+    <button id="btn-cone" onclick="setMode('cone')" title="Drag a live cone spell template">Cone</button>
+    <button onclick="openReactionPrompt()" title="Call a reaction such as Shield or Counterspell">React</button>
     <button id="btn-token-lock" onclick="toggleTokenLock()" title="Only interact with your selected character token">Token lock: Off</button>
+    <button id="btn-3d-mode" onclick="toggle3DMapMode()" title="Show or hide the 3D prop overlay">3D Props: On</button>
+    <button id="btn-3d-edit" onclick="toggle3DEditMode()" title="Edit 3D props and move 3D token markers">3D Edit: Off</button>
     <button id="btn-role" onclick="toggleRole()" title="DM mode enables map, enemy, hazard, fog, and reset tools">Role: Player</button>
     <div class="sep"></div>
     <button onclick="rollD20()">Roll d20</button>
@@ -585,6 +702,14 @@ h3{
     <button onclick="zoomBy(1.2)">+</button>
     <button onclick="zoomBy(1/1.2)">-</button>
     <button onclick="resetView()">Reset view</button>
+    <select id="scene-preset-select" onchange="setScenePreset(this.value)" title="DM scene mood" style="width:auto;height:30px;font-size:12px;padding:0 7px">
+      <option value="neutral">Scene: Neutral</option>
+      <option value="cave">Dark cave</option>
+      <option value="forest">Forest night</option>
+      <option value="lava">Lava room</option>
+      <option value="temple">Holy temple</option>
+      <option value="eldritch">Eldritch</option>
+    </select>
     <span id="zoom-label" class="campaign-badge">100%</span>
     <div class="sep"></div>
     <label style="width:132px;margin:0">Radius: <strong id="reveal-val">30</strong>px</label>
@@ -595,6 +720,8 @@ h3{
   <div id="main">
     <div id="canvas-wrap">
       <canvas id="c"></canvas>
+      <div class="rp-mode-badge">RP Mode</div>
+      <div id="rp-command-dock" class="rp-command-dock"></div>
       <div id="crit-overlay"><div class="crit-burst"><b id="crit-title">Nat 20</b><span id="crit-text">Critical success</span></div></div>
       <div id="initiative-prompt">
         <div class="initiative-card">
@@ -633,6 +760,68 @@ h3{
         <b>Your turn is ready to end</b>
         <span id="floating-end-turn-text">You have acted this turn. End turn when you are done moving, speaking, and using bonus actions.</span>
         <button class="primary" onclick="endPlayerTurn()">End turn</button>
+      </div>
+
+      <div id="map3d-layer" aria-label="3D tabletop mode">
+        <div id="map3d-stage"></div>
+        <aside id="map3d-tools">
+          <h3>3D Ploppables</h3>
+          <details class="map3d-folder" open>
+            <summary>Procedural Props</summary>
+            <div class="map3d-grid">
+            <button class="map3d-plop" draggable="true" data-map3d-type="crate">Crate</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="barrel">Barrel</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="chest">Chest</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="tree">Tree</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="bush">Bush</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="rock">Rock</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="pillar">Pillar</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="wall">Low wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="woodWall">Wood wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="stoneWall">Stone wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="slateWall">Slate wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="obsidianWall">Obsidian</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="brickWall">Brick wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="boneWall">Bone wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="hedgeWall">Hedge wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="iceWall">Ice wall</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="torch">Torch</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="campfire">Campfire</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="lightWarm">Warm light</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="lightCool">Cool light</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="lightGreen">Green light</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="lightPurple">Purple light</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="door">Door</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="stairs">Stairs</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="statue">Statue</button>
+            <button class="map3d-plop" draggable="true" data-map3d-type="crystal">Crystal</button>
+            </div>
+          </details>
+          <div id="map3d-asset-folders"></div>
+          <div id="map3d-selected">No 3D object selected.</div>
+          <div id="map3d-model-status"></div>
+          <div class="map3d-control-row">
+            <button onclick="rotate3DSelected(-15)">Rotate -15</button>
+            <button onclick="rotate3DSelected(15)">Rotate +15</button>
+            <button onclick="scale3DSelected(-0.1)">Scale -</button>
+            <button onclick="scale3DSelected(0.1)">Scale +</button>
+          </div>
+          <div class="map3d-control-row">
+            <button onclick="resize3DSelected('width',-0.25)">Width -</button>
+            <button onclick="resize3DSelected('width',0.25)">Width +</button>
+            <button onclick="resize3DSelected('height',-0.25)">Height -</button>
+            <button onclick="resize3DSelected('height',0.25)">Height +</button>
+          </div>
+          <div class="map3d-control-row">
+            <button onclick="toggle3DSelectedLight()">Light: Toggle</button>
+            <input id="map3d-light-color" type="color" value="#ff9c2f" title="Light color" onchange="set3DSelectedLightColor(this.value)">
+            <button onclick="adjust3DSelectedLight(-0.25)">Light -</button>
+            <button onclick="adjust3DSelectedLight(0.25)">Light +</button>
+          </div>
+          <button style="width:100%;margin-top:8px" onclick="toggle3DTilt()">2.5D Tilt: On</button>
+          <button class="danger" style="width:100%;margin-top:8px" onclick="delete3DSelected()">Delete selected</button>
+          <div id="map3d-hint">Drag an object onto the board, or click a button then click the grid. Selected objects can be dragged, rotated, scaled, or deleted.</div>
+        </aside>
       </div>
 
       <div id="enemy-modal-overlay" class="enemy-modal">
@@ -849,8 +1038,11 @@ h3{
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vendor/three.min.js?v=124-models"></script>
+<script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
 <script src="assets_manifest.js"></script>
+<script src="assets_3d_manifest.js?v=glb-gltf"></script>
 <script>
 /* ===== Existing map/icon data, expanded for the character creator ===== */
 const PLAYER_ICONS = ['\u{1F9D9}','\u{1F9DD}','\u{1F9DF}','\u{1F9DB}','\u{1F9DC}','\u{1F9B8}','\u{1F93A}','\u{1F977}','\u{1F9D1}\u200D\u{1F680}','\u{1F478}','\u{1F934}','\u{1F9DE}','\u{1F409}','\u{1F98A}','\u{1F43A}','\u{1F6E1}\uFE0F'];
@@ -1490,6 +1682,14 @@ let mapImg = null;
 let mapImageData = '';
 let mapUrl = '';
 let mapRevision = 0;
+let mapWorldWidth = 1280;
+let mapWorldHeight = 720;
+let mapWorldLocked = false;
+const RP_MODE_BACKGROUND = 'assets/rp/rp_table.png';
+let rpMode = false;
+let rpModeBg = new Image();
+rpModeBg.src = RP_MODE_BACKGROUND;
+rpModeBg.onload = ()=>{ if(rpMode) draw(); };
 let mode = 'move';
 let selectedMapIcon = MAP_ICONS[6];
 let revealRadius = 30;
@@ -1503,6 +1703,9 @@ let pendingEnemyActions = {weapons:[],spells:[]};
 let selectedEffect = 'poison';
 let effectRadius = 60;
 let areaEffects = [];
+let map3DObjects = [];
+let map3DMode = true;
+let map3DEditMode = false;
 let myCharacters = [];
 let activeCharacterId = null;
 let players = {};
@@ -1528,6 +1731,10 @@ let isPanning = false, panStartX = 0, panStartY = 0, panCameraX = 0, panCameraY 
 let tokenLock = false;
 let hoveredTokenId = null, hoverSheetTimer = null;
 let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
+let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
+let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
+let sheetPinned = false;
+let sheetDrag = null;
 let dmUndoStack = [];
 let autosaveTimer = null;
 let cloudClient = null;
@@ -1636,6 +1843,8 @@ function pushDMUndo(label='DM action'){
     mapImageData,
     mapUrl,
     mapRevision,
+    mapWorldWidth,
+    mapWorldHeight,
     fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : '',
     placedIcons:placedIcons.map(ic=>({...ic,position:ic.position?{...ic.position}:undefined})),
     areaEffects:areaEffects.map(fx=>({...fx})),
@@ -1655,6 +1864,7 @@ function undoLastDMAction(){
   mapImageData=snap.mapImageData||'';
   mapUrl=snap.mapUrl||'';
   mapRevision=Number(snap.mapRevision)||0;
+  if(Number(snap.mapWorldWidth) && Number(snap.mapWorldHeight)) setMapWorldSize(snap.mapWorldWidth,snap.mapWorldHeight,false);
   fogRevision=Number(snap.fogRevision)||0;
   areaEffects=snap.areaEffects.map(hydrateAreaEffect);
   myCharacters=snap.myCharacters.map(hydrateCharacter);
@@ -1671,14 +1881,45 @@ function undoLastDMAction(){
   addChatMessage({kind:'system',character:'DM',label:`Undid: ${snap.label}`});
   scheduleSave();
 }
+function mapWorldSize(){
+  return {
+    width:Math.max(1,Math.round(Number(mapWorldWidth)||canvas.width||1280)),
+    height:Math.max(1,Math.round(Number(mapWorldHeight)||canvas.height||720))
+  };
+}
+function setMapWorldSize(width,height,preserveFog=false){
+  const nextW=Math.max(1,Math.round(Number(width)||canvas.width||1280));
+  const nextH=Math.max(1,Math.round(Number(height)||canvas.height||720));
+  const changed=nextW!==mapWorldWidth || nextH!==mapWorldHeight || fogCanvas.width!==nextW || fogCanvas.height!==nextH || revealCanvas.width!==nextW || revealCanvas.height!==nextH;
+  const oldReveal=preserveFog && revealCanvas.width ? revealCanvas.toDataURL('image/png') : '';
+  mapWorldWidth=nextW;
+  mapWorldHeight=nextH;
+  mapWorldLocked=true;
+  if(changed){
+    fogCanvas.width=nextW; fogCanvas.height=nextH;
+    revealCanvas.width=nextW; revealCanvas.height=nextH;
+    initFog();
+    if(oldReveal) loadRevealFromDataUrl(oldReveal);
+    else revealAllCharacters();
+    mark3DMapTextureDirty();
+  }
+}
+function ensureMapWorldSize(){
+  if(!mapWorldLocked){
+    setMapWorldSize(canvas.width || wrap.getBoundingClientRect().width || 1280, canvas.height || wrap.getBoundingClientRect().height || 720, false);
+  } else if(fogCanvas.width!==mapWorldWidth || fogCanvas.height!==mapWorldHeight || revealCanvas.width!==mapWorldWidth || revealCanvas.height!==mapWorldHeight){
+    setMapWorldSize(mapWorldWidth,mapWorldHeight,true);
+  }
+}
 function screenToWorld(x,y){ return {x:(x-camera.x)/camera.scale,y:(y-camera.y)/camera.scale}; }
 function worldToScreen(x,y){ return {x:x*camera.scale+camera.x,y:y*camera.scale+camera.y}; }
 function clampCamera(){
   camera.scale=Math.max(.45,Math.min(4,camera.scale));
-  if(camera.scale<=1){
-    camera.x=Math.min(0,Math.max(canvas.width*(1-camera.scale),camera.x));
-    camera.y=Math.min(0,Math.max(canvas.height*(1-camera.scale),camera.y));
-  }
+  const world=mapWorldSize();
+  const scaledW=world.width*camera.scale;
+  const scaledH=world.height*camera.scale;
+  camera.x=scaledW<=canvas.width ? (canvas.width-scaledW)/2 : Math.min(0,Math.max(canvas.width-scaledW,camera.x));
+  camera.y=scaledH<=canvas.height ? (canvas.height-scaledH)/2 : Math.min(0,Math.max(canvas.height-scaledH,camera.y));
   updateZoomLabel();
 }
 function updateZoomLabel(){
@@ -1712,17 +1953,1041 @@ function endPan(){
   canvas.style.cursor=mode==='drag'?'grab':'crosshair';
 }
 
+const MAP3D_TYPES = {
+  crate:{label:'Crate',color:0x8b5a2b},
+  barrel:{label:'Barrel',color:0x7a4b24},
+  chest:{label:'Chest',color:0x8a5528},
+  tree:{label:'Tree',color:0x2f7d46},
+  bush:{label:'Bush',color:0x3d8a44},
+  rock:{label:'Rock',color:0x7e8188},
+  pillar:{label:'Pillar',color:0x8e877b},
+  wall:{label:'Low wall',color:0x69635d},
+  woodWall:{label:'Wood wall',color:0x7b4b24},
+  stoneWall:{label:'Stone wall',color:0x77746c},
+  slateWall:{label:'Slate wall',color:0x3f4650},
+  obsidianWall:{label:'Obsidian wall',color:0x17121d},
+  brickWall:{label:'Brick wall',color:0x9b4f38},
+  boneWall:{label:'Bone wall',color:0xd5c49a},
+  hedgeWall:{label:'Hedge wall',color:0x2f6f3a},
+  iceWall:{label:'Ice wall',color:0x9fdcff},
+  torch:{label:'Torch',color:0xffa13a},
+  campfire:{label:'Campfire',color:0xff7a2b},
+  lightWarm:{label:'Warm light',color:0xffb35c},
+  lightCool:{label:'Cool light',color:0x67cfff},
+  lightGreen:{label:'Green light',color:0x70ff9a},
+  lightPurple:{label:'Purple light',color:0xb57cff},
+  door:{label:'Door',color:0x684020},
+  stairs:{label:'Stairs',color:0x6e6258},
+  statue:{label:'Statue',color:0x7f7b72},
+  crystal:{label:'Crystal',color:0x8fdcff},
+  enemy:{label:'Enemy marker',color:0xb84236},
+  player:{label:'Player marker',color:0x3f8ed8}
+};
+const map3D = {
+  ready:false,
+  scene:null,
+  renderer:null,
+  camera:null,
+  raycaster:null,
+  pointer:null,
+  ground:null,
+  mapTextureCanvas:null,
+  mapTextureCtx:null,
+  mapTexture:null,
+  mapTextureDirty:true,
+  fogCanvas:null,
+  fogCtx:null,
+  fogTexture:null,
+  fogMesh:null,
+  meshes:new Map(),
+  tokenMeshes:new Map(),
+  modelCache:new Map(),
+  modelLoader:null,
+  effects:[],
+  selectedId:null,
+  selectedKind:'prop',
+  plopType:null,
+  dragging:false,
+  dragOffset:{x:0,z:0},
+  selectionBox:null,
+  frame:null,
+  torchClock:0,
+  tilt:true
+};
+function normalize3DObject(raw={}){
+  const isModel=String(raw.type||'').startsWith('model:') || raw.modelUrl;
+  const type=isModel ? 'model' : (MAP3D_TYPES[raw.type] ? raw.type : 'crate');
+  const lightDefaults={torch:'#ff9c2f',campfire:'#ff7a2b',crystal:'#67cfff',lightWarm:'#ffb35c',lightCool:'#67cfff',lightGreen:'#70ff9a',lightPurple:'#b57cff'};
+  const litByDefault=!!lightDefaults[type];
+  const defaultLightColor=lightDefaults[type] || '#ff9c2f';
+  const modelUrl=raw.modelUrl || (String(raw.type||'').startsWith('model:') ? String(raw.type).slice(6) : '');
+  return {
+    id:raw.id || 'obj3d_'+Date.now()+Math.random().toString(36).slice(2,7),
+    type,
+    modelUrl,
+    modelLabel:raw.modelLabel || raw.label || (modelUrl ? modelUrl.split('/').pop().replace(/\.(glb|gltf)$/i,'') : ''),
+    x:Number.isFinite(Number(raw.x)) ? Number(raw.x) : 0,
+    y:Number.isFinite(Number(raw.y)) ? Number(raw.y) : 0,
+    z:Number.isFinite(Number(raw.z)) ? Number(raw.z) : 0,
+    rotation:Number(raw.rotation)||0,
+    scale:Math.max(0.35,Math.min(3,Number(raw.scale)||1)),
+    width:Math.max(0.4,Math.min(8,Number(raw.width)|| (type==='model'?1.5:2.1))),
+    height:Math.max(0.3,Math.min(5,Number(raw.height)|| (type==='model'?1.5:0.8))),
+    lightEnabled:raw.lightEnabled==null ? litByDefault : raw.lightEnabled===true,
+    lightColor:/^#[0-9a-f]{6}$/i.test(raw.lightColor||'') ? raw.lightColor : defaultLightColor,
+    lightIntensity:Math.max(0,Math.min(5,Number(raw.lightIntensity)|| (litByDefault ? 1.4 : 1)))
+  };
+}
+function mapTo3DPosition(x,y){
+  return {x:Number(x)||0,z:Number(y)||0};
+}
+function position3DToMap(x,z){
+  const world=mapWorldSize();
+  return {
+    x:Math.max(0,Math.min(world.width,Number(x)||0)),
+    y:Math.max(0,Math.min(world.height,Number(z)||0))
+  };
+}
+function snap3DPoint(point){
+  const grid=25;
+  return {x:Math.round(point.x/grid)*grid,z:Math.round(point.z/grid)*grid};
+}
+function mark3DMapTextureDirty(){
+  map3D.mapTextureDirty=true;
+}
+function set3DModeButton(){
+  const btn=document.getElementById('btn-3d-mode');
+  if(btn){
+    btn.textContent=`3D Props: ${map3DMode?'On':'Off'}`;
+    btn.classList.toggle('active',map3DMode);
+  }
+  const editBtn=document.getElementById('btn-3d-edit');
+  if(editBtn){
+    editBtn.textContent=`3D Edit: ${map3DEditMode?'On':'Off'}`;
+    editBtn.classList.toggle('active',map3DEditMode);
+  }
+  const layer=document.getElementById('map3d-layer');
+  if(layer){
+    layer.classList.toggle('show',map3DMode);
+    layer.classList.toggle('editing',map3DMode && map3DEditMode);
+  }
+}
+function toggle3DMapMode(){
+  map3DMode=!map3DMode;
+  if(map3DMode){
+    set3DModeButton();
+    init3DMap();
+    resize3DRenderer();
+    rebuild3DSceneObjects();
+    render3DLoop();
+  } else if(map3D.frame){
+    cancelAnimationFrame(map3D.frame);
+    map3D.frame=null;
+    map3DEditMode=false;
+    select3DObject(null);
+    set3DModeButton();
+  }
+}
+function toggle3DEditMode(){
+  if(!map3DMode) map3DMode=true;
+  map3DEditMode=!map3DEditMode;
+  if(!map3DEditMode){
+    map3D.dragging=false;
+    map3D.plopType=null;
+    select3DObject(null);
+  }
+  set3DModeButton();
+  if(map3DMode){
+    init3DMap();
+    resize3DRenderer();
+    rebuild3DSceneObjects();
+    render3DLoop();
+  }
+}
+function init3DMap(){
+  if(map3D.ready) return;
+  const stage=document.getElementById('map3d-stage');
+  if(!stage || !window.THREE){
+    const selected=document.getElementById('map3d-selected');
+    if(selected) selected.textContent='Three.js did not load, so 3D mode cannot start.';
+    return;
+  }
+  map3D.scene=new THREE.Scene();
+  map3D.scene.background=null;
+  map3D.renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+  map3D.renderer.setClearColor(0x000000,0);
+  map3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+  map3D.renderer.shadowMap.enabled=false;
+  stage.appendChild(map3D.renderer.domElement);
+  map3D.camera=new THREE.OrthographicCamera(0,1,1,0,0.1,4000);
+  map3D.camera.up.set(0,0,-1);
+  map3D.camera.position.set(0,1000,0);
+  map3D.camera.lookAt(0,0,0);
+  map3D.raycaster=new THREE.Raycaster();
+  map3D.pointer=new THREE.Vector2();
+
+  const ambient=new THREE.HemisphereLight(0xffdfaa,0x121827,1.35);
+  map3D.scene.add(ambient);
+  const moon=new THREE.DirectionalLight(0xb9d6ff,.9);
+  moon.position.set(-240,700,-160);
+  map3D.scene.add(moon);
+  const fire=new THREE.PointLight(0xff8b32,1.1,340);
+  fire.position.set(260,80,120);
+  map3D.scene.add(fire);
+
+  const groundGeo=new THREE.PlaneGeometry(12000,12000);
+  const groundMat=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
+  map3D.ground=new THREE.Mesh(groundGeo,groundMat);
+  map3D.ground.rotation.x=-Math.PI/2;
+  map3D.ground.userData.ground=true;
+  map3D.scene.add(map3D.ground);
+
+  stage.addEventListener('dragover',e=>e.preventDefault());
+  stage.addEventListener('drop',drop3DPloppable);
+  stage.addEventListener('pointerdown',start3DPointer);
+  stage.addEventListener('pointermove',move3DPointer);
+  stage.addEventListener('pointerup',end3DPointer);
+  stage.addEventListener('pointerleave',end3DPointer);
+  document.querySelectorAll('[data-map3d-type]').forEach(btn=>{
+    btn.addEventListener('click',()=>set3DPlopType(btn.dataset.map3dType));
+    btn.addEventListener('dragstart',e=>e.dataTransfer.setData('text/map3d-type',btn.dataset.map3dType));
+  });
+  render3DAssetFolders();
+  map3D.ready=true;
+}
+function resize3DRenderer(){
+  if(!map3D.ready) return;
+  const stage=document.getElementById('map3d-stage');
+  const rect=stage.getBoundingClientRect();
+  if(!rect.width || !rect.height) return;
+  map3D.renderer.setSize(rect.width,rect.height);
+  sync3DCameraTo2D();
+}
+function sync3DCameraTo2D(){
+  if(!map3D.ready) return;
+  const left=(0-camera.x)/camera.scale;
+  const right=(canvas.width-camera.x)/camera.scale;
+  const top=(0-camera.y)/camera.scale;
+  const bottom=(canvas.height-camera.y)/camera.scale;
+  const cx=(left+right)/2;
+  const cz=(top+bottom)/2;
+  // Keep the 3D overlay camera locked to the 2D map projection. A tilted camera
+  // looks cool, but it creates parallax so props slide while zooming.
+  map3D.camera.up.set(0,0,-1);
+  map3D.camera.left=left-cx;
+  map3D.camera.right=right-cx;
+  map3D.camera.top=cz-top;
+  map3D.camera.bottom=cz-bottom;
+  map3D.camera.position.set(cx,1000,cz);
+  map3D.camera.lookAt(cx,0,cz);
+  map3D.camera.updateProjectionMatrix();
+}
+function render3DLoop(){
+  if(!map3DMode || !map3D.ready) return;
+  sync3DCameraTo2D();
+  sync3DLiveTokens();
+  map3D.torchClock+=0.035;
+  map3D.meshes.forEach(group=>{
+    if(group.userData.light){
+      const flame=group.userData.flame;
+      if(flame) flame.scale.setScalar(1+Math.sin(map3D.torchClock+group.position.x)*0.08);
+      const light=group.userData.light;
+      if(light) light.intensity=Math.max(0,(group.userData.baseLightIntensity||1)+Math.sin(map3D.torchClock*1.4+group.position.z)*0.12);
+    }
+  });
+  update3DActionEffects();
+  if(map3D.selectionBox) map3D.selectionBox.update();
+  map3D.renderer.render(map3D.scene,map3D.camera);
+  map3D.frame=requestAnimationFrame(render3DLoop);
+}
+function dispose3DNode(node){
+  if(!node) return;
+  node.traverse?.(child=>{
+    child.geometry?.dispose?.();
+    if(Array.isArray(child.material)) child.material.forEach(mat=>mat?.dispose?.());
+    else child.material?.dispose?.();
+  });
+}
+function color3DForAction(type='spell',details={}){
+  if(details.visualStyle) return stylePalette(details.visualStyle).hex;
+  const kind=details.kind || '';
+  const inferred=visualStyleFromText(`${details.text||''} ${details.title||''}`,type);
+  if(inferred && inferred!=='arcane') return stylePalette(inferred).hex;
+  const actionType=details.actionType || type;
+  if(kind==='aoe') return 0xff6938;
+  if(actionType==='healing' || kind==='heal') return 0x65f0a2;
+  if(actionType==='buff' || kind==='buff' || kind==='enemyBuff') return 0xd9a6ff;
+  if(actionType==='utility' || kind==='utility') return 0x83d8ff;
+  return type==='spell' ? 0x6fd9ff : 0xffb84f;
+}
+function make3DEffectMaterial(color,opacity=.9){
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent:true,
+    opacity,
+    depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+}
+function trigger3DActionEffect(type='spell',fx={},details={}){
+  if(!map3D.ready || !window.THREE || !map3DMode) return;
+  const isSpell=type==='spell' || details.kind==='aoe' || ['heal','buff','utility','enemyBuff'].includes(details.kind);
+  const color=color3DForAction(type,details);
+  const duration=details.kind==='aoe' ? 1050 : isSpell ? 920 : 650;
+  const from={x:Number(fx.x)||0,z:Number(fx.y)||0};
+  const to={
+    x:Number.isFinite(Number(fx.tx)) ? Number(fx.tx) : from.x,
+    z:Number.isFinite(Number(fx.ty)) ? Number(fx.ty) : from.z
+  };
+  const group=new THREE.Group();
+  group.userData.map3DEffect=true;
+  const casterRing=new THREE.Mesh(new THREE.RingGeometry(7,12,40),make3DEffectMaterial(color,.72));
+  casterRing.rotation.x=-Math.PI/2;
+  casterRing.position.set(from.x,.28,from.z);
+  group.add(casterRing);
+  const impactRing=new THREE.Mesh(new THREE.RingGeometry(8,11,48),make3DEffectMaterial(color,.9));
+  impactRing.rotation.x=-Math.PI/2;
+  impactRing.position.set(to.x,.36,to.z);
+  impactRing.scale.setScalar(.08);
+  group.add(impactRing);
+  let projectile=null;
+  if(isSpell && (from.x!==to.x || from.z!==to.z)){
+    projectile=new THREE.Mesh(new THREE.SphereGeometry(6,18,12),make3DEffectMaterial(color,.95));
+    projectile.position.set(from.x,.7,from.z);
+    group.add(projectile);
+  }
+  const particleMat=make3DEffectMaterial(color,.92);
+  const particles=[];
+  const count=details.kind==='aoe' ? 42 : isSpell ? 28 : 18;
+  for(let i=0;i<count;i++){
+    const spark=new THREE.Mesh(new THREE.SphereGeometry(isSpell?2.4:1.8,10,8),particleMat.clone());
+    spark.position.set(to.x,.55,to.z);
+    const seed=(fx.seed||Math.floor(Math.random()*10000))+i*53;
+    const angle=i*2.399+seed*.017;
+    const speed=(details.kind==='aoe'?48:34)*(0.45+((Math.sin(seed)+1)/2)*0.65);
+    particles.push({mesh:spark,angle,speed,lift:4+((Math.cos(seed)+1)/2)*16,delay:isSpell?0.28:0.12});
+    group.add(spark);
+  }
+  const light=new THREE.PointLight(color,isSpell?1.8:1.1,details.kind==='aoe'?230:150,2.2);
+  light.position.set(to.x,52,to.z);
+  group.add(light);
+  map3D.scene.add(group);
+  map3D.effects.push({group,started:performance.now(),duration,type,details,from,to,color,casterRing,impactRing,projectile,particles,light});
+}
+function update3DActionEffects(){
+  if(!map3D.effects.length || !window.THREE) return;
+  const now=performance.now();
+  map3D.effects=map3D.effects.filter(effect=>{
+    const t=Math.max(0,Math.min(1,(now-effect.started)/effect.duration));
+    const fade=Math.sin(Math.PI*t);
+    const impactT=Math.max(0,Math.min(1,(t-.26)/.74));
+    effect.casterRing.scale.setScalar(1+t*2.4);
+    effect.casterRing.material.opacity=.55*(1-t);
+    effect.impactRing.scale.setScalar(.35+impactT*(effect.details.kind==='aoe'?8.5:4.2));
+    effect.impactRing.material.opacity=.82*(1-impactT);
+    if(effect.projectile){
+      const travelT=Math.min(1,t/.42);
+      effect.projectile.position.set(
+        effect.from.x+(effect.to.x-effect.from.x)*travelT,
+        .9+Math.sin(Math.PI*travelT)*18,
+        effect.from.z+(effect.to.z-effect.from.z)*travelT
+      );
+      effect.projectile.material.opacity=travelT>=1 ? 0 : .95;
+      effect.projectile.scale.setScalar(1+Math.sin(Math.PI*travelT)*.65);
+    }
+    effect.particles.forEach(p=>{
+      const pt=Math.max(0,Math.min(1,(t-p.delay)/(1-p.delay)));
+      const swirl=p.angle+pt*2.2;
+      const radius=p.speed*pt*(effect.details.kind==='aoe'?2.2:1.35);
+      p.mesh.position.set(
+        effect.to.x+Math.cos(swirl)*radius,
+        .7+p.lift*Math.sin(Math.PI*pt),
+        effect.to.z+Math.sin(swirl)*radius
+      );
+      p.mesh.material.opacity=.86*(1-pt);
+      p.mesh.scale.setScalar(.75+1.6*(1-pt));
+    });
+    if(effect.light) effect.light.intensity=Math.max(0,(effect.details.kind==='aoe'?2.4:1.6)*fade);
+    if(t>=1){
+      map3D.scene.remove(effect.group);
+      dispose3DNode(effect.group);
+      return false;
+    }
+    return true;
+  });
+}
+function sync3DTools(){
+  document.querySelectorAll('[data-map3d-type]').forEach(btn=>btn.classList.toggle('active',btn.dataset.map3dType===map3D.plopType));
+  const selected=document.getElementById('map3d-selected');
+  const obj=map3D.selectedKind==='prop' ? map3DObjects.find(o=>o.id===map3D.selectedId) : null;
+  const token=map3D.selectedKind==='character'
+    ? characterById(map3D.selectedId)
+    : map3D.selectedKind==='enemy' ? enemyByUid(map3D.selectedId) : null;
+  if(selected && obj) {
+    selected.innerHTML=`<b>${escapeHtml(obj.type==='model'?(obj.modelLabel||'3D model'):(MAP3D_TYPES[obj.type]?.label||obj.type))}</b><br>Map ${Math.round(obj.x)}, ${Math.round(obj.z)}<br>Rotation ${Math.round(obj.rotation)}deg • Scale ${obj.scale.toFixed(1)}<br>Width ${obj.width.toFixed(1)} • Height ${obj.height.toFixed(1)}<br>Light ${obj.lightEnabled?'On':'Off'} • ${obj.lightIntensity.toFixed(2)}`;
+    const color=document.getElementById('map3d-light-color');
+    if(color) color.value=obj.lightColor || '#ff9c2f';
+  }
+  else if(selected && token) selected.innerHTML=`<b>${escapeHtml(token.name||'Token')}</b><br>${map3D.selectedKind==='enemy'?'Enemy':'Player'} token<br>Drag to move on the real map state.`;
+  else if(selected) selected.textContent='No 3D object selected.';
+}
+function set3DPlopType(type){
+  if(!map3DEditMode) return;
+  map3D.plopType=(MAP3D_TYPES[type] || String(type||'').startsWith('model:')) ? type : null;
+  sync3DTools();
+}
+function render3DAssetFolders(){
+  const root=document.getElementById('map3d-asset-folders');
+  if(!root || root.dataset.ready==='true') return;
+  const manifest=window.ASSETS_3D_MANIFEST || {};
+  Object.entries(manifest).forEach(([group,items])=>{
+    const details=document.createElement('details');
+    details.className='map3d-folder';
+    const summary=document.createElement('summary');
+    summary.textContent=`${group} (${items.length})`;
+    const grid=document.createElement('div');
+    grid.className='map3d-grid';
+    items.forEach(item=>{
+      const btn=document.createElement('button');
+      btn.className='map3d-plop';
+      btn.draggable=true;
+      btn.dataset.map3dType=item.id;
+      btn.dataset.modelUrl=item.url;
+      btn.dataset.modelLabel=item.label;
+      btn.title=item.url;
+      btn.textContent=item.label.length>22 ? item.label.slice(0,21)+'...' : item.label;
+      btn.addEventListener('click',()=>set3DPlopType(item.id));
+      btn.addEventListener('dragstart',e=>e.dataTransfer.setData('text/map3d-type',item.id));
+      grid.appendChild(btn);
+    });
+    details.append(summary,grid);
+    root.appendChild(details);
+  });
+  root.dataset.ready='true';
+}
+function set3DModelStatus(text,type='info'){
+  const el=document.getElementById('map3d-model-status');
+  if(!el) return;
+  el.textContent=text||'';
+  el.style.color=type==='error'?'#ff9f8f':type==='ok'?'#a8e7b0':'#cdbb9c';
+}
+function toggle3DTilt(){
+  map3D.tilt=!map3D.tilt;
+  const btn=[...document.querySelectorAll('#map3d-tools button')].find(b=>b.textContent.startsWith('2.5D Tilt'));
+  if(btn) btn.textContent=`2.5D Tilt: ${map3D.tilt?'On':'Off'}`;
+  sync3DCameraTo2D();
+}
+function set3DPointer(event){
+  const rect=map3D.renderer.domElement.getBoundingClientRect();
+  map3D.pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
+  map3D.pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
+  map3D.raycaster.setFromCamera(map3D.pointer,map3D.camera);
+}
+function get3DGroundPoint(event){
+  if(!map3D.ready) return null;
+  const bounds=mapWorldSize();
+  set3DPointer(event);
+  const hits=map3D.raycaster.intersectObject(map3D.ground,false);
+  if(!hits.length){
+    const rect=map3D.renderer.domElement.getBoundingClientRect();
+    const sx=event.clientX-rect.left;
+    const sy=event.clientY-rect.top;
+    const world=screenToWorld(sx,sy);
+    return {
+      x:Math.max(0,Math.min(bounds.width,Math.round(world.x))),
+      z:Math.max(0,Math.min(bounds.height,Math.round(world.y)))
+    };
+  }
+  const p=hits[0].point;
+  return {
+    x:Math.max(0,Math.min(bounds.width,Math.round(p.x))),
+    z:Math.max(0,Math.min(bounds.height,Math.round(p.z)))
+  };
+}
+function get3DObjectHit(event){
+  set3DPointer(event);
+  const roots=[...map3D.meshes.values(),...map3D.tokenMeshes.values()];
+  const hits=map3D.raycaster.intersectObjects(roots,true);
+  for(const hit of hits){
+    let node=hit.object;
+    while(node && !node.userData.map3DRoot) node=node.parent;
+    if(node?.userData.map3DRoot) return node;
+  }
+  return null;
+}
+function drop3DPloppable(event){
+  if(!map3DEditMode) return;
+  event.preventDefault();
+  const type=event.dataTransfer.getData('text/map3d-type') || map3D.plopType;
+  const point=get3DGroundPoint(event);
+  if(type && point) add3DObject(type,point.x,point.z);
+}
+function start3DPointer(event){
+  if(!map3DEditMode || !map3D.ready || event.button!==0) return;
+  event.preventDefault();
+  const point=get3DGroundPoint(event);
+  const hit=map3D.plopType ? null : get3DObjectHit(event);
+  if(hit){
+    select3DObject(hit.userData.id,hit.userData.kind || 'prop');
+    map3D.dragging=true;
+    map3D.dragOffset={x:hit.position.x-(point?.x||0),z:hit.position.z-(point?.z||0)};
+    set3DPlopType(null);
+  } else if(map3D.plopType && point){
+    add3DObject(map3D.plopType,point.x,point.z);
+    set3DPlopType(null);
+  } else {
+    select3DObject(null);
+  }
+}
+function move3DPointer(event){
+  if(!map3DEditMode || !map3D.dragging || !map3D.selectedId) return;
+  const point=get3DGroundPoint(event);
+  if(!point) return;
+  const snapped=snap3DPoint({x:point.x+map3D.dragOffset.x,z:point.z+map3D.dragOffset.z});
+  if(map3D.selectedKind==='prop'){
+    const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+    const mesh=obj ? map3D.meshes.get(map3D.selectedId) : null;
+    if(!obj || !mesh) return;
+    obj.x=snapped.x;
+    obj.z=snapped.z;
+    mesh.position.set(obj.x,obj.y,obj.z);
+  } else if(map3D.selectedKind==='character'){
+    const ch=characterById(map3D.selectedId);
+    const mesh=map3D.tokenMeshes.get(map3D.selectedId);
+    if(!ch || !mesh) return;
+    const mapPos=position3DToMap(snapped.x,snapped.z);
+    setCharacterPosition(ch,mapPos.x,mapPos.y);
+    mesh.position.set(snapped.x,0,snapped.z);
+    revealAllCharacters();
+    draw();
+  } else if(map3D.selectedKind==='enemy'){
+    const enemy=enemyByUid(map3D.selectedId);
+    const mesh=map3D.tokenMeshes.get(map3D.selectedId);
+    if(!enemy || !mesh) return;
+    const mapPos=position3DToMap(snapped.x,snapped.z);
+    enemy.x=mapPos.x;
+    enemy.y=mapPos.y;
+    mesh.position.set(snapped.x,0,snapped.z);
+    draw();
+  }
+  sync3DTools();
+}
+function end3DPointer(){
+  if(map3D.dragging){
+    if(map3D.selectedKind==='character'){
+      const ch=characterById(map3D.selectedId);
+      if(ch && myCharacters.some(local=>local.id===ch.id)) syncCharacter(ch);
+    }
+    saveState();
+  }
+  map3D.dragging=false;
+}
+function add3DObject(type,x,z){
+  if(!MAP3D_TYPES[type] && !String(type||'').startsWith('model:')) return;
+  const modelItem=String(type||'').startsWith('model:') ? find3DModelById(type) : null;
+  const obj=normalize3DObject({type,x,z,modelUrl:modelItem?.url,modelLabel:modelItem?.label});
+  map3DObjects.push(obj);
+  add3DMesh(obj);
+  select3DObject(obj.id,'prop');
+  saveState();
+}
+function find3DModelById(id){
+  const manifest=window.ASSETS_3D_MANIFEST || {};
+  for(const items of Object.values(manifest)){
+    const found=(items||[]).find(item=>item.id===id);
+    if(found) return found;
+  }
+  return null;
+}
+function isWall3DType(type){
+  return ['wall','woodWall','stoneWall','slateWall','obsidianWall','brickWall','boneWall','hedgeWall','iceWall'].includes(type);
+}
+function add3DWallPieces(group,obj,add,mat){
+  const width=Math.max(.4,Number(obj.width)||2.1);
+  const height=Math.max(.3,Number(obj.height)||.8);
+  const depth=obj.type==='hedgeWall' ? .58 : (obj.type==='woodWall' ? .28 : .38);
+  const mainColor=MAP3D_TYPES[obj.type]?.color || 0x69635d;
+  const darkMat=mat(obj.type==='iceWall'?0x4f9dbd:obj.type==='obsidianWall'?0x07050b:0x2c2925);
+  const mainMat=obj.type==='iceWall'
+    ? new THREE.MeshStandardMaterial({color:mainColor,roughness:.22,metalness:.02,transparent:true,opacity:.78,emissive:0x174a5c,emissiveIntensity:.22})
+    : obj.type==='obsidianWall'
+      ? new THREE.MeshStandardMaterial({color:mainColor,roughness:.18,metalness:.18,emissive:0x12041d,emissiveIntensity:.18})
+      : mat(mainColor);
+  if(obj.type==='woodWall'){
+    const count=Math.max(2,Math.round(width/.42));
+    for(let i=0;i<count;i++){
+      const x=(i-(count-1)/2)*(width/count);
+      add(new THREE.Mesh(new THREE.BoxGeometry(width/count*.82,height,depth),mainMat),x,height/2,0);
+    }
+    add(new THREE.Mesh(new THREE.BoxGeometry(width,.12,depth+.06),darkMat),0,height*.28,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(width,.12,depth+.06),darkMat),0,height*.72,0);
+  } else if(obj.type==='brickWall' || obj.type==='stoneWall' || obj.type==='slateWall'){
+    const rows=Math.max(1,Math.round(height/.32));
+    for(let r=0;r<rows;r++){
+      const cols=Math.max(2,Math.round(width/(obj.type==='slateWall' ? .72 : .48)));
+      for(let c=0;c<cols;c++){
+        const bw=width/cols*.9;
+        const bh=height/rows*.82;
+        const x=(c-(cols-1)/2)*(width/cols)+(r%2?bw*.25:0);
+        const y=(r+.5)*(height/rows);
+        const shade=(r+c)%3===0 ? .88 : (r+c)%3===1 ? 1 : 1.12;
+        const color=new THREE.Color(mainColor).multiplyScalar(shade);
+        add(new THREE.Mesh(new THREE.BoxGeometry(bw,bh,depth),mat(color.getHex())),x,y,0);
+      }
+    }
+  } else if(obj.type==='boneWall'){
+    const count=Math.max(3,Math.round(width/.38));
+    for(let i=0;i<count;i++){
+      const x=(i-(count-1)/2)*(width/count);
+      const bone=add(new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,height,8),mainMat),x,height/2,0);
+      bone.rotation.z=(i%2?-.08:.08);
+      add(new THREE.Mesh(new THREE.SphereGeometry(.12,8,6),mainMat),x,height+.08,0);
+    }
+    add(new THREE.Mesh(new THREE.BoxGeometry(width,.1,.12),darkMat),0,height*.42,0);
+  } else if(obj.type==='hedgeWall'){
+    const count=Math.max(2,Math.round(width/.55));
+    for(let i=0;i<count;i++){
+      const x=(i-(count-1)/2)*(width/count);
+      add(new THREE.Mesh(new THREE.DodecahedronGeometry(.42,1),mainMat),x,height*.52,(i%2?-.08:.08)).scale.set(width/count*.9,height*.8,depth);
+    }
+  } else {
+    add(new THREE.Mesh(new THREE.BoxGeometry(width,height,depth),mainMat),0,height/2,0);
+    if(obj.type==='wall'){
+      const capCount=Math.max(2,Math.round(width/.7));
+      for(let i=0;i<capCount;i++){
+        const x=(i-(capCount-1)/2)*(width/capCount);
+        add(new THREE.Mesh(new THREE.BoxGeometry(width/capCount*.55,.18,depth+.04),mat(0x827b73)),x,height+.09,0);
+      }
+    } else if(obj.type==='obsidianWall'){
+      add(new THREE.Mesh(new THREE.BoxGeometry(width*.95,.08,depth+.05),new THREE.MeshBasicMaterial({color:0x7d4cff,transparent:true,opacity:.35})),0,height*.82,0);
+    } else if(obj.type==='iceWall'){
+      add(new THREE.Mesh(new THREE.BoxGeometry(width*.9,.08,depth+.04),new THREE.MeshBasicMaterial({color:0xbdf4ff,transparent:true,opacity:.45})),0,height*.72,0);
+    }
+  }
+}
+function add3DModelObject(group,obj,add,mat){
+  const base=add(new THREE.Mesh(new THREE.CircleGeometry(.72,28),new THREE.MeshBasicMaterial({color:0xffd36a,transparent:true,opacity:.16,depthWrite:false})),0,.025,0);
+  base.rotation.x=-Math.PI/2;
+  const placeholder=add(new THREE.Mesh(new THREE.BoxGeometry(.8,.8,.8),mat(0x6688aa,.65)),0,.42,0);
+  placeholder.userData.modelPlaceholder=true;
+  const url=obj.modelUrl;
+  if(!url){
+    set3DModelStatus('Model has no URL saved.', 'error');
+    return;
+  }
+  if(!window.THREE?.GLTFLoader){
+    placeholder.material.color.set(0xaa5544);
+    set3DModelStatus('GLTFLoader is not available. Reload the page once.', 'error');
+    return;
+  }
+  try{
+    if(!map3D.modelLoader) map3D.modelLoader=new THREE.GLTFLoader();
+  }catch(e){
+    placeholder.material.color.set(0xaa5544);
+    return;
+  }
+  const applyModel=(source)=>{
+    const model=source.clone(true);
+    model.traverse(child=>{
+      if(child.isMesh){
+        child.castShadow=false;
+        child.receiveShadow=false;
+        if(child.material) child.material.side=THREE.FrontSide;
+      }
+    });
+    const box=new THREE.Box3().setFromObject(model);
+    const size=new THREE.Vector3();
+    const center=new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const max=Math.max(size.x,size.y,size.z) || 1;
+    const target=Math.max(.4,Number(obj.width)||1.5);
+    const s=target/max;
+    model.position.sub(center.multiplyScalar(s));
+    model.scale.setScalar(s);
+    model.userData.map3DRoot=false;
+    const old=group.children.find(child=>child.userData?.modelPlaceholder);
+    if(old) group.remove(old);
+    group.add(model);
+  };
+  if(map3D.modelCache.has(url)){
+    applyModel(map3D.modelCache.get(url));
+    set3DModelStatus(`Loaded ${obj.modelLabel||'model'} from cache`,'ok');
+    return;
+  }
+  set3DModelStatus(`Loading ${obj.modelLabel||url.split('/').pop()}...`);
+  try{
+    map3D.modelLoader.load(encodeURI(url),gltf=>{
+      map3D.modelCache.set(url,gltf.scene);
+      applyModel(gltf.scene);
+      set3DModelStatus(`Loaded ${obj.modelLabel||'model'}`,'ok');
+    },undefined,()=>{
+      placeholder.material.color.set(0xaa5544);
+      set3DModelStatus(`Could not load model. GLTF files need their linked BIN/textures beside them; GLB is safest.`,'error');
+    });
+  }catch(e){
+    placeholder.material.color.set(0xaa5544);
+    set3DModelStatus(`Model loader error: ${e.message||'unknown error'}`,'error');
+  }
+}
+function create3DObjectGroup(obj){
+  const group=new THREE.Group();
+  group.userData={map3DRoot:true,kind:'prop',id:obj.id,type:obj.type};
+  const mat=(color,rough=.82,metal=.02)=>new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
+  const add=(mesh,x=0,y=0,z=0)=>{
+    mesh.position.set(x,y,z);
+    mesh.userData.map3DRoot=false;
+    group.add(mesh);
+    return mesh;
+  };
+  const shadow=add(new THREE.Mesh(new THREE.CircleGeometry(.82,32),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.22,depthWrite:false})),0,.018,0);
+  shadow.rotation.x=-Math.PI/2;
+  if(obj.type==='model'){
+    add3DModelObject(group,obj,add,mat);
+  } else if(obj.type==='crate'){
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.1,1.1,1.1),mat(0x8b5a2b,.72)),0,.55,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.2,.08,.08),mat(0x3a2618,.7)),0,.28,-.58);
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.2,.08,.08),mat(0x3a2618,.7)),0,.82,-.58);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.08,1.18,.08),mat(0x2c1d14,.7)),-.58,.55,-.58);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.08,1.18,.08),mat(0x2c1d14,.7)),.58,.55,-.58);
+  } else if(obj.type==='barrel'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.45,.5,1.05,20),mat(0x7a4b24)),0,.52,0);
+    add(new THREE.Mesh(new THREE.TorusGeometry(.47,.035,8,24),mat(0x2b2119)),0,.22,0).rotation.x=Math.PI/2;
+    add(new THREE.Mesh(new THREE.TorusGeometry(.47,.035,8,24),mat(0x2b2119)),0,.82,0).rotation.x=Math.PI/2;
+    add(new THREE.Mesh(new THREE.TorusGeometry(.42,.025,8,24),mat(0xc08a49,.55,.18)),0,1.06,0).rotation.x=Math.PI/2;
+  } else if(obj.type==='chest'){
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.25,.65,.82),mat(0x8a5528)),0,.32,0);
+    const lid=add(new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,1.25,16,1,false,0,Math.PI),mat(0x6b3b19)),0,.66,0);
+    lid.rotation.z=Math.PI/2;
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.34,.08,.08),mat(0x302016,.6)),0,.52,-.44);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.14,.22,.12),mat(0xd2a24c,.45,.25)),0,.54,-.46);
+  } else if(obj.type==='tree'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,1.25,8),mat(0x6b4428)),0,.62,0);
+    add(new THREE.Mesh(new THREE.ConeGeometry(.85,1.7,10),mat(0x2f7d46)),0,1.7,0);
+    add(new THREE.Mesh(new THREE.ConeGeometry(.62,1.2,10),mat(0x3d9250)),0,2.15,-.05);
+  } else if(obj.type==='bush'){
+    add(new THREE.Mesh(new THREE.DodecahedronGeometry(.62,1),mat(0x3d8a44)),0,.52,0);
+    add(new THREE.Mesh(new THREE.DodecahedronGeometry(.45,1),mat(0x2f7138)),.36,.44,.1);
+    add(new THREE.Mesh(new THREE.DodecahedronGeometry(.42,1),mat(0x4a9b52)),-.32,.42,-.12);
+  } else if(obj.type==='rock'){
+    const rock=add(new THREE.Mesh(new THREE.DodecahedronGeometry(.72,0),mat(0x7e8188)),0,.55,0);
+    rock.scale.set(1.25,.72,.95);
+    add(new THREE.Mesh(new THREE.DodecahedronGeometry(.34,0),mat(0x5f6369)),.48,.28,.3);
+  } else if(obj.type==='pillar'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,1.85,18),mat(0x8e877b)),0,.96,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.92,.22,.92),mat(0x77716a)),0,.11,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.82,.18,.82),mat(0xa09a8e)),0,1.9,0);
+    add(new THREE.Mesh(new THREE.TorusGeometry(.36,.035,8,22),mat(0x5f5a54)),0,.42,0).rotation.x=Math.PI/2;
+    add(new THREE.Mesh(new THREE.TorusGeometry(.36,.035,8,22),mat(0x5f5a54)),0,1.5,0).rotation.x=Math.PI/2;
+  } else if(isWall3DType(obj.type)){
+    add3DWallPieces(group,obj,add,mat);
+  } else if(obj.type==='torch'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,1.45,8),mat(0x5c3218)),0,.72,0);
+    const flame=add(new THREE.Mesh(new THREE.ConeGeometry(.24,.55,12),mat(0xff9c2f,.45)),0,1.55,0);
+    group.userData.flame=flame;
+  } else if(obj.type==='campfire'){
+    for(let i=0;i<5;i++){
+      const log=add(new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.95,8),mat(0x5c3218)),0,.16,0);
+      log.rotation.z=Math.PI/2;
+      log.rotation.y=i*Math.PI/5;
+    }
+    const flame=add(new THREE.Mesh(new THREE.ConeGeometry(.42,.85,16),mat(0xff7a2b,.45)),0,.68,0);
+    group.userData.flame=flame;
+  } else if(['lightWarm','lightCool','lightGreen','lightPurple'].includes(obj.type)){
+    const color=obj.lightColor || '#ff9c2f';
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,.18,18),mat(0x2b241e,.56,.18)),0,.09,0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.045,.055,.92,10),mat(0x3a332b,.62,.12)),0,.52,0);
+    const orb=add(new THREE.Mesh(new THREE.SphereGeometry(.25,18,12),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.9})),0,1.05,0);
+    group.userData.flame=orb;
+    const halo=add(new THREE.Mesh(new THREE.SphereGeometry(.52,18,12),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.18,depthWrite:false})),0,1.05,0);
+    halo.userData.decorativeGlow=true;
+  } else if(obj.type==='door'){
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.4,2,.18),mat(0x684020)),0,1,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.08,1.86,.22),mat(0x2b1b12)),0,1,-.11);
+    add(new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),mat(0xd3a349,.4,.2)),.42,.96,-.15);
+  } else if(obj.type==='stairs'){
+    for(let i=0;i<4;i++){
+      add(new THREE.Mesh(new THREE.BoxGeometry(1.55,.22,.34),mat(0x6e6258)),0,.11+i*.22,-.48+i*.28);
+    }
+  } else if(obj.type==='statue'){
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.42,.52,.24,18),mat(0x77736b)),0,.12,0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.24,.32,1.1,14),mat(0x8b867d)),0,.78,0);
+    add(new THREE.Mesh(new THREE.SphereGeometry(.28,18,12),mat(0x9b968c)),0,1.48,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.9,.16,.18),mat(0x8b867d)),0,1.1,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.34,.52,.16),mat(0x6e6961)),-.4,.9,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.34,.52,.16),mat(0x6e6961)),.4,.9,0);
+  } else if(obj.type==='crystal'){
+    const crystal=add(new THREE.Mesh(new THREE.OctahedronGeometry(.62,1),new THREE.MeshStandardMaterial({color:0x8fdcff,roughness:.25,metalness:.05,emissive:0x255f88,emissiveIntensity:.35})),0,.74,0);
+    crystal.scale.set(.72,1.35,.72);
+  } else if(obj.type==='enemy' || obj.type==='player'){
+    const color=obj.type==='enemy'?0xb84236:0x3f8ed8;
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.18,24),mat(0x171717)),0,.09,0);
+    add(new THREE.Mesh(new THREE.ConeGeometry(.48,1.15,20),mat(color,.65)),0,.76,0);
+  }
+  if(obj.lightEnabled){
+    const color=obj.lightColor || '#ff9c2f';
+    const intensity=Math.max(0,Number(obj.lightIntensity)||1);
+    const glowMat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:Math.min(.38,.12+intensity*.05),depthWrite:false});
+    const glow=add(new THREE.Mesh(new THREE.SphereGeometry(.42+intensity*.08,16,10),glowMat),0,1.1,0);
+    group.userData.flame=group.userData.flame || glow;
+    const light=new THREE.PointLight(color,intensity,7+intensity*5);
+    light.position.set(0,1.35,0);
+    group.add(light);
+    group.userData.light=light;
+    group.userData.baseLightIntensity=intensity;
+  }
+  group.position.set(obj.x,obj.y,obj.z);
+  group.rotation.y=THREE.MathUtils.degToRad(obj.rotation);
+  group.scale.setScalar(obj.scale*26);
+  return group;
+}
+function add3DMesh(obj){
+  if(!map3D.ready) return;
+  const old=map3D.meshes.get(obj.id);
+  if(old) map3D.scene.remove(old);
+  const group=create3DObjectGroup(obj);
+  map3D.meshes.set(obj.id,group);
+  map3D.scene.add(group);
+}
+function rebuild3DMeshForObject(obj){
+  if(!obj || !map3D.ready) return;
+  const wasSelected=map3D.selectedId===obj.id && map3D.selectedKind==='prop';
+  add3DMesh(obj);
+  if(wasSelected) select3DObject(obj.id,'prop');
+}
+function update3DMapTexture(force=false){
+  if(!map3D.ready || (!map3D.mapTextureDirty && !force)) return;
+  const size=1024;
+  if(!map3D.mapTextureCanvas){
+    map3D.mapTextureCanvas=document.createElement('canvas');
+    map3D.mapTextureCanvas.width=size;
+    map3D.mapTextureCanvas.height=size;
+    map3D.mapTextureCtx=map3D.mapTextureCanvas.getContext('2d');
+    map3D.mapTexture=new THREE.CanvasTexture(map3D.mapTextureCanvas);
+    map3D.mapTexture.colorSpace=THREE.SRGBColorSpace || map3D.mapTexture.colorSpace;
+    map3D.ground.material.map=map3D.mapTexture;
+    map3D.ground.material.color.set(0xffffff);
+    map3D.ground.material.needsUpdate=true;
+  }
+  const tctx=map3D.mapTextureCtx;
+  tctx.clearRect(0,0,size,size);
+  if(mapImg){
+    tctx.drawImage(mapImg,0,0,size,size);
+  } else {
+    tctx.fillStyle='#171311';
+    tctx.fillRect(0,0,size,size);
+    tctx.strokeStyle='rgba(203,151,74,.24)';
+    tctx.lineWidth=1;
+    for(let i=0;i<=size;i+=40){
+      tctx.beginPath(); tctx.moveTo(i,0); tctx.lineTo(i,size); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(0,i); tctx.lineTo(size,i); tctx.stroke();
+    }
+    tctx.fillStyle='rgba(255,196,94,.16)';
+    tctx.font='700 42px Georgia';
+    tctx.textAlign='center';
+    tctx.fillText('No map loaded',size/2,size/2);
+  }
+  map3D.mapTexture.needsUpdate=true;
+  map3D.mapTextureDirty=false;
+}
+function create3DTokenGroup(token,kind){
+  const group=new THREE.Group();
+  const isEnemy=kind==='enemy';
+  group.userData={map3DRoot:true,kind,id:isEnemy?token.uid:token.id,type:kind};
+  const baseMat=new THREE.MeshStandardMaterial({color:isEnemy?0x5a1212:0x102c4c,roughness:.72});
+  const color=new THREE.Color(token.color || (isEnemy?'#d65b4d':'#66a7d8'));
+  const bodyMat=new THREE.MeshStandardMaterial({color,roughness:.58,emissive:color.clone().multiplyScalar(.14)});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.74,.74,.18,28),baseMat);
+  base.position.y=.09;
+  group.add(base);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.42,.55,1.05,18),bodyMat);
+  body.position.y=.72;
+  group.add(body);
+  const halo=new THREE.Mesh(new THREE.TorusGeometry(.8,.035,8,36),new THREE.MeshBasicMaterial({color:isEnemy?0xff4c3b:0x7fc7ff,transparent:true,opacity:.85}));
+  halo.rotation.x=Math.PI/2;
+  halo.position.y=.22;
+  group.add(halo);
+  return group;
+}
+function sync3DLiveTokens(){
+  if(!map3D.ready) return;
+  map3D.tokenMeshes.forEach(mesh=>map3D.scene.remove(mesh));
+  map3D.tokenMeshes.clear();
+  return;
+  const live=new Set();
+  Object.values(allCharactersById()).forEach(ch=>{
+    const x=characterX(ch), y=characterY(ch);
+    if(x==null || y==null) return;
+    live.add(ch.id);
+    const pos=mapTo3DPosition(x,y);
+    let mesh=map3D.tokenMeshes.get(ch.id);
+    if(!mesh){
+      mesh=create3DTokenGroup(ch,'character');
+      map3D.tokenMeshes.set(ch.id,mesh);
+      map3D.scene.add(mesh);
+    }
+    mesh.position.set(pos.x,0,pos.z);
+    mesh.scale.setScalar(22);
+  });
+  placedIcons.filter(ic=>ic.kind==='enemy').forEach(enemy=>{
+    live.add(enemy.uid);
+    const pos=mapTo3DPosition(enemy.x,enemy.y);
+    let mesh=map3D.tokenMeshes.get(enemy.uid);
+    if(!mesh){
+      mesh=create3DTokenGroup(enemy,'enemy');
+      map3D.tokenMeshes.set(enemy.uid,mesh);
+      map3D.scene.add(mesh);
+    }
+    mesh.position.set(pos.x,0,pos.z);
+    const scale=enemy.boss ? 32 : 22;
+    mesh.scale.setScalar(scale);
+  });
+  map3D.tokenMeshes.forEach((mesh,id)=>{
+    if(!live.has(id)){
+      map3D.scene.remove(mesh);
+      map3D.tokenMeshes.delete(id);
+    }
+  });
+}
+function update3DFogOverlay(){
+  if(!map3D.ready || !revealCanvas.width) return;
+  if(map3D.fogMesh) map3D.fogMesh.visible=false;
+  return;
+  if(!map3D.fogCanvas){
+    map3D.fogCanvas=document.createElement('canvas');
+    map3D.fogCanvas.width=256;
+    map3D.fogCanvas.height=256;
+    map3D.fogCtx=map3D.fogCanvas.getContext('2d');
+    map3D.fogTexture=new THREE.CanvasTexture(map3D.fogCanvas);
+    const mat=new THREE.MeshBasicMaterial({map:map3D.fogTexture,transparent:true,depthWrite:false});
+    map3D.fogMesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);
+    map3D.fogMesh.rotation.x=-Math.PI/2;
+    map3D.scene.add(map3D.fogMesh);
+    sync3DBoardGeometry();
+  }
+  map3D.fogMesh.visible=true;
+  const fc=map3D.fogCtx;
+  fc.clearRect(0,0,256,256);
+  fc.fillStyle='rgba(3,4,8,.86)';
+  fc.fillRect(0,0,256,256);
+  fc.globalCompositeOperation='destination-out';
+  fc.drawImage(revealCanvas,0,0,256,256);
+  fc.globalCompositeOperation='source-over';
+  map3D.fogTexture.needsUpdate=true;
+}
+function rebuild3DSceneObjects(){
+  if(!map3D.ready) return;
+  map3D.meshes.forEach(mesh=>map3D.scene.remove(mesh));
+  map3D.meshes.clear();
+  map3DObjects=map3DObjects.map(normalize3DObject);
+  map3DObjects.forEach(add3DMesh);
+  sync3DLiveTokens();
+  update3DFogOverlay();
+  if(map3D.selectedKind==='prop' && map3D.selectedId && !map3DObjects.some(o=>o.id===map3D.selectedId)) map3D.selectedId=null;
+  select3DObject(map3D.selectedId,map3D.selectedKind);
+}
+function select3DObject(id,kind='prop'){
+  map3D.selectedId=id || null;
+  map3D.selectedKind=id ? kind : 'prop';
+  if(map3D.selectionBox){
+    map3D.scene.remove(map3D.selectionBox);
+    map3D.selectionBox=null;
+  }
+  const mesh=id ? (kind==='prop' ? map3D.meshes.get(id) : map3D.tokenMeshes.get(id)) : null;
+  if(mesh && window.THREE){
+    map3D.selectionBox=new THREE.BoxHelper(mesh,0xffd36a);
+    map3D.scene.add(map3D.selectionBox);
+  }
+  sync3DTools();
+}
+function rotate3DSelected(delta){
+  if(!map3DEditMode) return;
+  if(!map3D.selectedId) return;
+  if(map3D.selectedKind!=='prop' && map3D.meshes.has(map3D.selectedId)) map3D.selectedKind='prop';
+  if(map3D.selectedKind!=='prop') return;
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  const mesh=obj ? map3D.meshes.get(obj.id) : null;
+  if(!obj || !mesh || !window.THREE) return;
+  obj.rotation=(obj.rotation+delta+360)%360;
+  mesh.rotation.y=THREE.MathUtils.degToRad(obj.rotation);
+  if(map3D.selectionBox) map3D.selectionBox.update();
+  sync3DTools();
+  saveState();
+}
+function scale3DSelected(delta){
+  if(!map3DEditMode) return;
+  if(!map3D.selectedId) return;
+  if(map3D.selectedKind!=='prop' && map3D.meshes.has(map3D.selectedId)) map3D.selectedKind='prop';
+  if(map3D.selectedKind!=='prop') return;
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  const mesh=obj ? map3D.meshes.get(obj.id) : null;
+  if(!obj || !mesh) return;
+  obj.scale=Math.max(.35,Math.min(3,Number((obj.scale+delta).toFixed(2))));
+  mesh.scale.setScalar(obj.scale*26);
+  if(map3D.selectionBox) map3D.selectionBox.update();
+  sync3DTools();
+  saveState();
+}
+function resize3DSelected(axis,delta){
+  if(!map3DEditMode || !map3D.selectedId) return;
+  if(map3D.selectedKind!=='prop' && map3D.meshes.has(map3D.selectedId)) map3D.selectedKind='prop';
+  if(map3D.selectedKind!=='prop') return;
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  if(!obj) return;
+  if(axis==='height') obj.height=Math.max(.3,Math.min(5,Number((obj.height+delta).toFixed(2))));
+  else obj.width=Math.max(.4,Math.min(8,Number((obj.width+delta).toFixed(2))));
+  rebuild3DMeshForObject(obj);
+  sync3DTools();
+  saveState();
+}
+function update3DSelectedLight(patch={}){
+  if(!map3DEditMode || !map3D.selectedId) return;
+  if(map3D.selectedKind!=='prop' && map3D.meshes.has(map3D.selectedId)) map3D.selectedKind='prop';
+  if(map3D.selectedKind!=='prop') return;
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  if(!obj) return;
+  Object.assign(obj,patch);
+  const normalized=normalize3DObject(obj);
+  Object.assign(obj,normalized);
+  rebuild3DMeshForObject(obj);
+  sync3DTools();
+  saveState();
+}
+function toggle3DSelectedLight(){
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  if(!obj) return;
+  update3DSelectedLight({lightEnabled:!obj.lightEnabled});
+}
+function set3DSelectedLightColor(color){
+  if(!/^#[0-9a-f]{6}$/i.test(color||'')) return;
+  update3DSelectedLight({lightColor:color,lightEnabled:true});
+}
+function adjust3DSelectedLight(delta){
+  const obj=map3DObjects.find(o=>o.id===map3D.selectedId);
+  if(!obj) return;
+  update3DSelectedLight({lightIntensity:Math.max(0,Math.min(5,Number((obj.lightIntensity+delta).toFixed(2)))),lightEnabled:true});
+}
+function delete3DSelected(){
+  if(!map3DEditMode) return;
+  if(!map3D.selectedId) return;
+  if(map3D.selectedKind!=='prop' && map3D.meshes.has(map3D.selectedId)) map3D.selectedKind='prop';
+  if(map3D.selectedKind!=='prop') return;
+  const mesh=map3D.meshes.get(map3D.selectedId);
+  if(mesh) map3D.scene.remove(mesh);
+  map3D.meshes.delete(map3D.selectedId);
+  map3DObjects=map3DObjects.filter(o=>o.id!==map3D.selectedId);
+  select3DObject(null);
+  saveState();
+}
+
 function resize(){
   const r = wrap.getBoundingClientRect();
-  const oldReveal = revealCanvas.width ? revealCanvas.toDataURL('image/png') : '';
   canvas.width = r.width; canvas.height = r.height;
-  fogCanvas.width=r.width; fogCanvas.height=r.height;
-  revealCanvas.width=r.width; revealCanvas.height=r.height;
-  initFog();
-  if(oldReveal) loadRevealFromDataUrl(oldReveal);
-  if(!oldReveal) revealAllCharacters();
+  ensureMapWorldSize();
+  mark3DMapTextureDirty();
   clampCamera();
   draw();
+  resize3DRenderer();
 }
 
 /* ===== Existing fog system preserved ===== */
@@ -1767,29 +3032,81 @@ function getCharacterRevealRadius(ch){
 }
 
 function draw(){
+  const world=mapWorldSize();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#12141a';
   ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(rpMode){
+    drawRPModeBackground();
+    drawLivePings();
+    drawActionAnimations();
+    return;
+  }
   ctx.save();
   ctx.setTransform(camera.scale,0,0,camera.scale,camera.x,camera.y);
   if(mapImg){
-    ctx.drawImage(mapImg,0,0,canvas.width,canvas.height);
+    ctx.drawImage(mapImg,0,0,world.width,world.height);
   } else {
     ctx.fillStyle='#1d2430';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillRect(0,0,world.width,world.height);
     ctx.fillStyle='#d8c58d';
     ctx.font='600 16px Inter, Segoe UI, sans-serif';
     ctx.textAlign='center';
-    ctx.fillText('Upload a map image to begin',canvas.width/2,canvas.height/2-8);
+    ctx.fillText('Upload a map image to begin',world.width/2,world.height/2-8);
     ctx.font='12px Inter, Segoe UI, sans-serif';
     ctx.fillStyle='#8f98a8';
-    ctx.fillText('The active character reveals fog while exploring',canvas.width/2,canvas.height/2+16);
+    ctx.fillText('The active character reveals fog while exploring',world.width/2,world.height/2+16);
   }
+  drawSceneMood(world);
   ctx.drawImage(fogCanvas,0,0);
+  drawImpactDecals();
+  drawLivePings();
+  drawMeasureAndTemplates();
   drawPlacedIcons();
   drawAreaEffects();
   drawPlayers();
   drawActionAnimations();
+  ctx.restore();
+}
+function drawRPModeBackground(){
+  ctx.save();
+  const img=rpModeBg;
+  if(img.complete && img.naturalWidth){
+    const scale=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
+    const w=img.naturalWidth*scale;
+    const h=img.naturalHeight*scale;
+    ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+  } else {
+    const g=ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+    g.addColorStop(0,'#2a1609');
+    g.addColorStop(.55,'#120b07');
+    g.addColorStop(1,'#050403');
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+  ctx.fillStyle='rgba(0,0,0,.18)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+}
+function drawSceneMood(world){
+  const styles={
+    cave:'rgba(5,7,16,.22)',
+    forest:'rgba(8,38,26,.16)',
+    lava:'rgba(95,28,4,.18)',
+    temple:'rgba(255,224,150,.12)',
+    eldritch:'rgba(71,22,105,.18)'
+  };
+  const tint=styles[scenePreset];
+  if(!tint) return;
+  ctx.save();
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle=tint;
+  ctx.fillRect(0,0,world.width,world.height);
+  const glow=ctx.createRadialGradient(world.width*.5,world.height*.5,0,world.width*.5,world.height*.5,Math.max(world.width,world.height)*.72);
+  glow.addColorStop(0,'rgba(255,220,140,.035)');
+  glow.addColorStop(1,'rgba(0,0,0,.24)');
+  ctx.fillStyle=glow;
+  ctx.fillRect(0,0,world.width,world.height);
   ctx.restore();
 }
 
@@ -1945,6 +3262,160 @@ function drawSpellBurst(fx,t){
   ctx.restore();
 }
 
+function visualStyleFromText(text='',kind='spell'){
+  const s=String(text||'').toLowerCase();
+  if(/fire|flame|burn|scorch|lava|hell/.test(s)) return 'fire';
+  if(/ice|frost|cold|snow|sleet/.test(s)) return 'frost';
+  if(/lightning|thunder|shock|storm|bolt/.test(s)) return 'lightning';
+  if(/heal|cure|bless|guidance|radiant|holy|divine|light/.test(s)) return 'radiant';
+  if(/poison|acid|venom|toxin/.test(s)) return 'poison';
+  if(/necrotic|death|shadow|curse|wither/.test(s)) return 'necrotic';
+  if(kind==='weapon') return 'weapon';
+  return 'arcane';
+}
+function stylePalette(style='arcane'){
+  return {
+    fire:{css:'rgba(255,104,38,.95)',hex:0xff642c,decal:'rgba(70,18,5,.34)',label:'Scorch'},
+    frost:{css:'rgba(135,218,255,.95)',hex:0x8adfff,decal:'rgba(134,221,255,.22)',label:'Frost'},
+    lightning:{css:'rgba(178,220,255,.98)',hex:0xb8e2ff,decal:'rgba(210,235,255,.2)',label:'Static'},
+    radiant:{css:'rgba(255,232,142,.95)',hex:0xffdf7d,decal:'rgba(255,224,128,.2)',label:'Glyph'},
+    poison:{css:'rgba(103,236,103,.92)',hex:0x67ec67,decal:'rgba(38,120,38,.22)',label:'Residue'},
+    necrotic:{css:'rgba(176,94,224,.92)',hex:0xb05ee0,decal:'rgba(64,20,88,.28)',label:'Hex'},
+    weapon:{css:'rgba(255,190,80,.95)',hex:0xffb84f,decal:'rgba(120,42,14,.18)',label:'Slash'},
+    arcane:{css:'rgba(120,210,255,.95)',hex:0x78d2ff,decal:'rgba(42,92,140,.2)',label:'Rune'}
+  }[style] || stylePalette('arcane');
+}
+function addImpactDecal(x,y,style='arcane',radius=42){
+  if(!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return;
+  impactDecals.push({x:Number(x),y:Number(y),style,radius:Number(radius)||42,started:performance.now(),duration:style==='weapon'?2100:4200,seed:Math.random()*1000});
+  impactDecals=impactDecals.slice(-28);
+}
+function drawImpactDecals(){
+  if(!impactDecals.length) return;
+  const now=performance.now();
+  impactDecals=impactDecals.filter(d=>now-d.started<d.duration);
+  ctx.save();
+  for(const d of impactDecals){
+    const t=(now-d.started)/d.duration;
+    const pal=stylePalette(d.style);
+    ctx.globalAlpha=(1-t)*.9;
+    ctx.fillStyle=pal.decal;
+    ctx.strokeStyle=pal.css;
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    if(d.style==='weapon'){
+      ctx.ellipse(d.x,d.y,d.radius*.75,d.radius*.12,d.seed,0,Math.PI*2);
+    } else {
+      ctx.arc(d.x,d.y,d.radius*(.75+.2*Math.sin(t*Math.PI)),0,Math.PI*2);
+    }
+    ctx.fill();
+    ctx.globalAlpha=(1-t)*.34;
+    ctx.setLineDash(d.style==='lightning'?[3,8]:d.style==='radiant'?[9,5]:[]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+function drawStatusAuras(entity,x,y,radius=30){
+  const statuses=normalizeStatuses(entity?.statuses||[]);
+  if(!statuses.length) return;
+  const colors={
+    Poisoned:'rgba(93,230,86,.62)',
+    Stunned:'rgba(255,217,88,.62)',
+    Blessed:'rgba(255,233,126,.72)',
+    Guidance:'rgba(112,218,255,.68)',
+    'Bardic Inspiration':'rgba(198,139,255,.72)',
+    Concentrating:'rgba(134,178,255,.6)',
+    Invisible:'rgba(200,230,255,.36)',
+    Grappled:'rgba(255,120,80,.55)'
+  };
+  const now=performance.now();
+  ctx.save();
+  statuses.slice(0,3).forEach((s,i)=>{
+    const color=colors[s.name]||'rgba(255,255,255,.38)';
+    const pulse=(Math.sin(now/420+i*1.7)+1)/2;
+    ctx.globalAlpha=.55+.25*pulse;
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.setLineDash(i%2?[5,5]:[]);
+    ctx.beginPath();
+    ctx.arc(x,y,radius+i*5+pulse*3,0,Math.PI*2);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+function addLivePing(x,y,label='Ping',style='arcane'){
+  livePings.push({x,y,label,style,started:performance.now(),duration:1350});
+  livePings=livePings.slice(-16);
+  startActionAnimationLoop();
+}
+function drawLivePings(){
+  if(!livePings.length) return;
+  const now=performance.now();
+  livePings=livePings.filter(p=>now-p.started<p.duration);
+  ctx.save();
+  for(const p of livePings){
+    const t=(now-p.started)/p.duration;
+    const pal=stylePalette(p.style);
+    ctx.globalAlpha=1-t;
+    ctx.strokeStyle=pal.css;
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,12+70*t,0,Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,5,0,Math.PI*2);
+    ctx.fillStyle=pal.css;
+    ctx.fill();
+    ctx.font='800 12px Inter, Segoe UI, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillStyle='#fff4cf';
+    ctx.fillText(p.label,p.x,p.y-18-18*t);
+  }
+  ctx.restore();
+}
+function drawMeasureAndTemplates(){
+  const draft=templateDraft || measureDraft;
+  if(!draft) return;
+  ctx.save();
+  ctx.globalAlpha=.9;
+  ctx.strokeStyle=draft.kind==='cone'?'rgba(255,166,76,.95)':draft.kind==='line'?'rgba(132,214,255,.95)':'rgba(255,235,170,.95)';
+  ctx.fillStyle=draft.kind==='cone'?'rgba(255,126,46,.16)':draft.kind==='line'?'rgba(80,190,255,.12)':'rgba(255,235,170,.08)';
+  ctx.lineWidth=2;
+  const dx=draft.x2-draft.x1, dy=draft.y2-draft.y1;
+  const dist=Math.hypot(dx,dy);
+  if(draft.kind==='cone'){
+    const angle=Math.atan2(dy,dx);
+    const spread=Math.PI/5;
+    ctx.beginPath();
+    ctx.moveTo(draft.x1,draft.y1);
+    ctx.arc(draft.x1,draft.y1,dist,angle-spread,angle+spread);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  } else if(draft.kind==='line'){
+    const angle=Math.atan2(dy,dx);
+    const nx=Math.cos(angle+Math.PI/2)*16, ny=Math.sin(angle+Math.PI/2)*16;
+    ctx.beginPath();
+    ctx.moveTo(draft.x1+nx,draft.y1+ny);
+    ctx.lineTo(draft.x2+nx,draft.y2+ny);
+    ctx.lineTo(draft.x2-nx,draft.y2-ny);
+    ctx.lineTo(draft.x1-nx,draft.y1-ny);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(draft.x1,draft.y1);
+    ctx.lineTo(draft.x2,draft.y2);
+    ctx.stroke();
+  }
+  ctx.fillStyle='#fff4cf';
+  ctx.font='800 12px Inter, Segoe UI, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(`${Math.round(dist)} px / ${Math.round(dist/5)} ft`,(draft.x1+draft.x2)/2,(draft.y1+draft.y2)/2-8);
+  ctx.restore();
+}
+
 function drawDamageBurst(fx,t){
   const maxHP=Math.max(1,Number(fx.maxHP)||1);
   const hpPct=Math.max(0,Math.min(1,Number(fx.hpAfter)/maxHP));
@@ -1988,9 +3459,9 @@ function drawPlacedIcons(){
     const labelY=ic.y+iconSize/2+(isBoss?5:2);
     const barY=labelY+(isBoss?17:13);
     ctx.font=Math.round(tokenDrawSize(ic,isBoss?34:22))+'px serif';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    if(isBoss){
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  if(isBoss){
       const pulse=.72+.18*Math.sin(performance.now()/320);
       ctx.save();
       ctx.globalAlpha=pulse;
@@ -2003,6 +3474,7 @@ function drawPlacedIcons(){
       ctx.stroke();
       ctx.restore();
     }
+    drawStatusAuras(ic,ic.x,ic.y,Math.max(22,iconSize/2+6));
     drawTokenArt(ic,ic.x,ic.y,iconSize,ic.em||ic.icon);
     if(ic.kind==='enemy'){
       if(ic.uid===activeEnemyUid){
@@ -2218,6 +3690,7 @@ function drawPlayers(){
       ctx.setLineDash([]);
     }
     if(x==null||y==null){ ctx.restore(); continue; }
+    drawStatusAuras(p,x,y,24);
     const rollBuffs=activeRollBuffs(p);
     if(rollBuffs.length){
       const now=performance.now()/1000;
@@ -2269,9 +3742,11 @@ function setMode(m){
   if(['place','effect'].includes(m) && !isDM()) return requireDM();
   if(m==='drag' && !isDM()) return requireDM();
   mode=m;
-  ['btn-move','btn-drag','btn-place','btn-effect'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  ['btn-move','btn-drag','btn-place','btn-effect','btn-ping','btn-measure','btn-line','btn-cone'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById('btn-'+m)?.classList.add('active');
   canvas.style.cursor = m==='drag' ? 'grab' : 'crosshair';
+  measureDraft=null;
+  templateDraft=null;
   hideSheet();
   hideRadialMenu();
 }
@@ -2294,13 +3769,145 @@ function toggleRole(){
 }
 function updateRoleUI(){
   document.body.classList.toggle('dm-mode',isDM());
+  document.body.classList.toggle('rp-mode',rpMode);
   const btn=document.getElementById('btn-role');
   if(btn){
     btn.textContent=isDM()?'Role: DM':'Role: Player';
     btn.classList.toggle('active',isDM());
   }
+  const rpBtn=document.getElementById('btn-rp-mode');
+  if(rpBtn){
+    rpBtn.textContent=rpMode?'RP mode: On':'RP mode: Off';
+    rpBtn.classList.toggle('active',rpMode);
+  }
   ['btn-place','btn-effect'].forEach(id=>document.getElementById(id)?.toggleAttribute('disabled',!isDM()));
 }
+function toggleRPMode(){
+  if(!isDM()) return requireDM();
+  rpMode=!rpMode;
+  if(rpMode){
+    mode='move';
+    hideSheet();
+    hideRadialMenu();
+    if(map3DEditMode) toggle3DEditMode();
+  }
+  updateAllPanels();
+  draw();
+  saveState();
+  broadcast({type:'rpMode',rpMode});
+}
+function rpDockPoint(){
+  return {x:Math.max(120,wrap.clientWidth/2),y:Math.max(120,wrap.clientHeight/2)};
+}
+function updateRPDock(){
+  const dock=document.getElementById('rp-command-dock');
+  if(!dock) return;
+  if(!rpMode){ dock.innerHTML=''; return; }
+  const ch=getActiveCharacter() || myCharacters[0] || Object.values(remoteCharacters)[0];
+  const options=myCharacters.map(c=>`<option value="${c.id}" ${c.id===activeCharacterId?'selected':''}>${escapeHtml(c.name)} L${c.level||1}</option>`).join('');
+  dock.innerHTML=`
+    <div class="rp-character-bar">
+      <b>${escapeHtml(ch?.name||'No character selected')}</b>
+      <select onchange="setRPCharacter(this.value)">${options || '<option>No local characters</option>'}</select>
+    </div>
+    <div class="rp-actions">
+      <button class="rp-action" onclick="openRPSheet()"><span class="rp-icon">§</span><span>Sheet</span></button>
+      <button class="rp-action" onclick="openRPSaveWheel()"><span class="rp-icon">?</span><span>Saves</span></button>
+      <button class="rp-action primary" onclick="openRPDiceWheel()"><span class="rp-icon">?</span><span>Roll</span></button>
+      <button class="rp-action" onclick="openRPSkillWheel()"><span class="rp-icon">?</span><span>Skills</span></button>
+      <button class="rp-action" onclick="openCampaignNotes(isDM()?'dm':'public')"><span class="rp-icon">?</span><span>Notes</span></button>
+    </div>
+    <div class="rp-hint">RP mode keeps rolls, chat, notes, and character tools live while the battle map rests.</div>`;
+}
+function setRPCharacter(id){
+  const ch=myCharacters.find(c=>c.id===id);
+  if(!ch) return;
+  activeCharacterId=id;
+  updateAllPanels();
+  scheduleSave();
+}
+function openRPSheet(){
+  const ch=getActiveCharacter();
+  if(!ch) return showCritOverlay('No character selected','roll','RP');
+  showSheet({...ch,isMe:true},wrap.clientWidth/2,wrap.clientHeight/2+120);
+}
+function openRPSaveWheel(){
+  const ch=getActiveCharacter();
+  if(!ch) return showCritOverlay('No character selected','roll','RP');
+  const p=rpDockPoint();
+  openSaveWheel(ch.id,p.x,p.y);
+}
+function openRPSkillWheel(){
+  const ch=getActiveCharacter();
+  if(!ch) return showCritOverlay('No character selected','roll','RP');
+  const p=rpDockPoint();
+  openSkillWheel(ch.id,p.x,p.y);
+}
+function openRPDiceWheel(){
+  const ch=getActiveCharacter();
+  const menu=document.getElementById('radial-menu');
+  if(!menu) return;
+  hideSheet();
+  menu.classList.remove('skill-wheel');
+  const dice=[4,6,8,10,12,20];
+  menu.innerHTML=`<div class="radial-center">ROLL</div>${dice.map(sides=>`<button class="radial-btn" onclick="hideRadialMenu();rollSimpleDie(${sides})">d${sides}</button>`).join('')}<button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch?.id||activeCharacterId||''}')">Check</button>`;
+  const p=rpDockPoint();
+  const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
+  menu.style.left=Math.max(6,Math.min(maxX,p.x-101))+'px';
+  menu.style.top=Math.max(6,Math.min(maxY,p.y-101))+'px';
+  menu.classList.add('show');
+}
+function sheetToolsHtml(){
+  return `<div class="sheet-window-tools"><button title="Pin sheet" onclick="event.stopPropagation();toggleSheetPin()">${sheetPinned?'Pinned':'Pin'}</button><button class="sheet-close" onclick="closeSheet()">&times;</button></div>`;
+}
+function prepareSheetWindow(pop,x,y,{keepPosition=false}={}){
+  pop.classList.add('show','resizable');
+  pop.classList.toggle('pinned',sheetPinned);
+  if(keepPosition || sheetPinned) return;
+  const maxX=wrap.clientWidth-pop.offsetWidth-12;
+  const maxY=wrap.clientHeight-pop.offsetHeight-12;
+  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
+  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+}
+function closeSheet(){
+  const pop=document.getElementById('sheet-popup');
+  if(!pop) return;
+  pop.classList.remove('show','pinned');
+  sheetPinned=false;
+}
+function hideSheet(){
+  if(sheetPinned) return;
+  closeSheet();
+  hideRadialMenu();
+}
+function toggleSheetPin(){
+  sheetPinned=!sheetPinned;
+  const pop=document.getElementById('sheet-popup');
+  if(pop) pop.classList.toggle('pinned',sheetPinned);
+  const pin=pop?.querySelector('.sheet-window-tools button');
+  if(pin) pin.textContent=sheetPinned?'Pinned':'Pin';
+}
+function beginSheetDrag(e){
+  const top=e.target.closest?.('.sheet-top');
+  const pop=document.getElementById('sheet-popup');
+  if(!top || !pop?.classList.contains('show') || e.target.closest('button')) return;
+  const rect=pop.getBoundingClientRect();
+  const wrapRect=wrap.getBoundingClientRect();
+  sheetDrag={offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,wrapLeft:wrapRect.left,wrapTop:wrapRect.top};
+  sheetPinned=true;
+  pop.classList.add('pinned');
+  e.preventDefault();
+}
+function moveSheetDrag(e){
+  if(!sheetDrag) return;
+  const pop=document.getElementById('sheet-popup');
+  if(!pop) return;
+  const maxX=wrap.clientWidth-pop.offsetWidth-8;
+  const maxY=wrap.clientHeight-pop.offsetHeight-8;
+  pop.style.left=Math.max(8,Math.min(maxX,e.clientX-sheetDrag.wrapLeft-sheetDrag.offsetX))+'px';
+  pop.style.top=Math.max(8,Math.min(maxY,e.clientY-sheetDrag.wrapTop-sheetDrag.offsetY))+'px';
+}
+function endSheetDrag(){ sheetDrag=null; }
 function toggleTokenLock(){
   tokenLock=!tokenLock;
   const btn=document.getElementById('btn-token-lock');
@@ -2328,6 +3935,24 @@ function setEffectRadius(value){
   effectRadius=value;
   document.getElementById('effect-radius-val').textContent=value;
   scheduleSave();
+}
+function setScenePreset(value='neutral'){
+  scenePreset=['neutral','cave','forest','lava','temple','eldritch'].includes(value) ? value : 'neutral';
+  localStorage.setItem('dndScenePreset',scenePreset);
+  const select=document.getElementById('scene-preset-select');
+  if(select) select.value=scenePreset;
+  draw();
+}
+function openReactionPrompt(){
+  const ch=getActiveCharacter();
+  const name=ch?.name || (isDM()&&activeEnemyUid ? enemyByUid(activeEnemyUid)?.name : 'Player') || 'Player';
+  const options=['Shield','Counterspell','Opportunity Attack','Absorb Elements','Cutting Words','Silvery Barbs'];
+  const picked=prompt(`Reaction for ${name}:\\n${options.join(', ')}`,'Shield');
+  if(!picked) return;
+  const effect={kind:'reaction',campaignId:CLOUD_CAMPAIGN_ID,text:`${name}: ${picked}`,overlayType:'roll',title:'Reaction',character:name};
+  addChatMessage({kind:'reaction',character:name,label:`Reaction: ${picked}`});
+  showCritOverlay(effect.text,'roll','Reaction');
+  emitLiveEffect(effect);
 }
 
 function clearFog(){
@@ -2368,9 +3993,14 @@ function doHardReset(){
   mapImageData='';
   mapUrl='';
   mapRevision=Date.now();
+  rpMode=false;
   fogRevision=Date.now();
+  mapWorldLocked=false;
+  setMapWorldSize(canvas.width || 1280, canvas.height || 720, false);
   placedIcons=[];
   areaEffects=[];
+  map3DObjects=[];
+  rebuild3DSceneObjects();
   enemyTemplates=[];
   selectedEnemyId=null;
   selectedTargetUid=null;
@@ -2437,6 +4067,26 @@ function canMoveCharacterNow(ch){
   return turnOrder[activeTurnIndex]===ch?.id;
 }
 function handleCanvasTap(x,y,screenX=x,screenY=y){
+  if(rpMode){
+    if(mode==='ping'){
+      const ch=getActiveCharacter();
+      const label=ch?.name ? `${ch.name} ping` : 'Ping';
+      const effect={kind:'ping',campaignId:CLOUD_CAMPAIGN_ID,text:label,overlayType:'roll',title:'Ping',x:screenX,y:screenY,style:'radiant',screenSpace:true};
+      addLivePing(screenX,screenY,label,'radiant');
+      emitLiveEffect(effect);
+    } else {
+      openCampaignNotes(isDM()?'dm':'public');
+    }
+    return;
+  }
+  if(mode==='ping'){
+    const ch=getActiveCharacter();
+    const label=ch?.name ? `${ch.name} ping` : 'Ping';
+    const effect={kind:'ping',campaignId:CLOUD_CAMPAIGN_ID,text:label,overlayType:'roll',title:'Ping',x,y,style:'radiant'};
+    addLivePing(x,y,label,'radiant');
+    emitLiveEffect(effect);
+    return;
+  }
   const hit=playerAt(x,y);
   const enemy=enemyAt(x,y);
   const effect=tokenLock?null:effectAt(x,y);
@@ -2521,6 +4171,17 @@ canvas.addEventListener('mousedown',e=>{
   const r=canvas.getBoundingClientRect();
   const sx=e.clientX-r.left, sy=e.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
+  if(rpMode) return;
+  if(['measure','line','cone'].includes(mode)){
+    const start=mode==='measure' ? {x1:x,y1:y} : (entityPoint(getActiveCharacter()).x!=null ? {x1:entityPoint(getActiveCharacter()).x,y1:entityPoint(getActiveCharacter()).y} : {x1:x,y1:y});
+    const draft={kind:mode,...start,x2:x,y2:y};
+    if(mode==='measure') measureDraft=draft;
+    else templateDraft=draft;
+    isDragging=true;
+    dragTarget='template';
+    draw();
+    return;
+  }
   if(mode==='drag'){
     if(tokenLock){
       const hit=activeCharacterAt(x,y);
@@ -2564,7 +4225,13 @@ canvas.addEventListener('mousemove',e=>{
   const r=canvas.getBoundingClientRect();
   const sx=e.clientX-r.left, sy=e.clientY-r.top;
   if(isPanning){ movePan(sx,sy); return; }
+  if(rpMode) return;
   const {x,y}=screenToWorld(sx,sy);
+  if(isDragging && dragTarget==='template'){
+    const draft=templateDraft || measureDraft;
+    if(draft){ draft.x2=x; draft.y2=y; draw(); }
+    return;
+  }
   if(!isDragging){
     const hit=tokenLock?activeCharacterAt(x,y):playerAt(x,y);
     canvas.style.cursor=hit?'pointer':(mode==='drag'?'grab':'crosshair');
@@ -2598,6 +4265,18 @@ canvas.addEventListener('mousemove',e=>{
 
 canvas.addEventListener('mouseup',()=>{
   if(isPanning){ endPan(); return; }
+  if(isDragging && dragTarget==='template'){
+    const draft=templateDraft || measureDraft;
+    if(draft && draft.kind!=='measure'){
+      emitLiveEffect({kind:'template',campaignId:CLOUD_CAMPAIGN_ID,text:`${draft.kind==='cone'?'Cone':'Line'} template`,overlayType:'roll',title:'Template',template:draft});
+      addChatMessage({kind:'template',character:'Table',label:`${draft.kind==='cone'?'Cone':'Line'} template`,detail:`${Math.round(Math.hypot(draft.x2-draft.x1,draft.y2-draft.y1))}px`});
+    }
+    isDragging=false;
+    dragTarget=null;
+    setTimeout(()=>{ measureDraft=null; templateDraft=null; draw(); },draft?.kind==='measure'?1200:2200);
+    updateAllPanels();
+    return;
+  }
   if(isDragging){
     isDragging=false;
     dragTarget=null;
@@ -2636,6 +4315,18 @@ canvas.addEventListener('touchstart',e=>{
   const r=canvas.getBoundingClientRect();
   const sx=t.clientX-r.left, sy=t.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
+  if(rpMode) return;
+  if(['measure','line','cone'].includes(mode)){
+    const p=entityPoint(getActiveCharacter());
+    const start=mode==='measure' ? {x1:x,y1:y} : (p.x!=null ? {x1:p.x,y1:p.y} : {x1:x,y1:y});
+    const draft={kind:mode,...start,x2:x,y2:y};
+    if(mode==='measure') measureDraft=draft;
+    else templateDraft=draft;
+    isDragging=true;
+    dragTarget='template';
+    draw();
+    return;
+  }
   if(mode==='drag'){
     if(tokenLock){
       const hit=activeCharacterAt(x,y);
@@ -2656,6 +4347,12 @@ canvas.addEventListener('touchmove',e=>{
   const r=canvas.getBoundingClientRect();
   const sx=t.clientX-r.left, sy=t.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
+  if(rpMode) return;
+  if(dragTarget==='template'){
+    const draft=templateDraft || measureDraft;
+    if(draft){ draft.x2=x; draft.y2=y; draw(); }
+    return;
+  }
   if(dragTarget==='player'){
     const active=getActiveCharacter();
     if(!active) return;
@@ -2673,6 +4370,15 @@ canvas.addEventListener('touchmove',e=>{
 },{passive:false});
 canvas.addEventListener('touchend',e=>{
   e.preventDefault();
+  if(isDragging && dragTarget==='template'){
+    const draft=templateDraft || measureDraft;
+    if(draft && draft.kind!=='measure') emitLiveEffect({kind:'template',campaignId:CLOUD_CAMPAIGN_ID,text:`${draft.kind==='cone'?'Cone':'Line'} template`,overlayType:'roll',title:'Template',template:draft});
+    isDragging=false;
+    dragTarget=null;
+    touchMoved=false;
+    setTimeout(()=>{ measureDraft=null; templateDraft=null; draw(); },draft?.kind==='measure'?1200:2200);
+    return;
+  }
   if(!isDragging&&!touchMoved&&e.changedTouches?.[0]){
     const t=e.changedTouches[0];
     const r=canvas.getBoundingClientRect();
@@ -2702,7 +4408,7 @@ document.getElementById('img-input').addEventListener('change',async e=>{
       draw();
       saveState();
       saveCloudAssets(true);
-    });
+    },true);
   }catch(err){
     const reader=new FileReader();
     reader.onload=()=>{
@@ -2715,7 +4421,7 @@ document.getElementById('img-input').addEventListener('change',async e=>{
         draw();
         saveState();
         saveCloudAssets(true);
-      });
+      },true);
     };
     reader.readAsDataURL(f);
   }
@@ -2735,7 +4441,7 @@ function useHostedMapFromPrompt(){
     draw();
     saveState();
     saveCloudAssets(true);
-  });
+  },true);
 }
 
 function compressMapFile(file){
@@ -2984,6 +4690,8 @@ function sfxForEffect(effect={}){
 
 function updateAllPanels(){
   updateRoleUI();
+  set3DModeButton();
+  updateRPDock();
   updateCombatModeUI();
   updateEndTurnButton();
   updateFloatingEndTurn();
@@ -3523,7 +5231,7 @@ function showSheet(ch,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(ch,ch.icon)}</div>
       <div><div class="sheet-name">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     <div class="mini-stat-row">
       <div class="mini-stat"><b>${ch.currentHP ?? d.HP}/${d.HP}</b><span>HP</span></div>
@@ -3546,11 +5254,7 @@ function showSheet(ch,x,y){
     ${deathControls}
     ${restControls}
     <div class="sheet-actions">${ownerActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
 function showEnemySheet(enemy,x,y){
   const pop=document.getElementById('sheet-popup');
@@ -3560,7 +5264,7 @@ function showEnemySheet(enemy,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(enemy,enemy.icon||enemy.em)}</div>
       <div><div class="sheet-name">${escapeHtml(enemy.name)}</div><div class="sheet-sub">Enemy &middot; AC ${enemy.ac}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     <div class="mini-stat-row" style="${dm?'':'grid-template-columns:repeat(2,1fr)'}">
       <div class="mini-stat"><b>${enemy.hp}/${enemy.maxHP}</b><span>HP</span></div>
@@ -3589,11 +5293,7 @@ function showEnemySheet(enemy,x,y){
       <button onclick="adjustEnemyHP('${enemy.uid}',5)">+5 HP</button>
       <button class="danger" onclick="killEnemy('${enemy.uid}')">Kill</button>
     </div>`:''}`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
 function showIconSheet(icon,x,y){
   if(icon.kind==='chest') return showChestSheet(icon,x,y);
@@ -3604,18 +5304,14 @@ function showIconSheet(icon,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${cleanEmoji(icon.icon||icon.em,'\u{1F4CD}')}</div>
       <div><div class="sheet-name">${escapeHtml(icon.name||icon.label||'Map icon')}</div><div class="sheet-sub">${icon.hidden?'Hidden':'Visible'} icon</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     ${icon.note?`<div class="sheet-detail"><h4>Note</h4><div class="hint">${escapeHtml(icon.note)}</div></div>`:''}
     <div class="sheet-actions">
       <button onclick="renameMapIcon('${icon.uid}')">Rename</button>
       <button class="danger" onclick="deleteMapIcon('${icon.uid}')">Remove</button>
     </div>`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
 function showChestSheet(chest,x,y){
   chest=hydratePlacedIcon(chest);
@@ -3627,7 +5323,7 @@ function showChestSheet(chest,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${chest.opened?'\u{1F9F0}':cleanEmoji(chest.icon||chest.em,'\u{1F4E6}')}</div>
       <div><div class="sheet-name">${escapeHtml(chest.name||`Level ${chest.chestLevel} Chest`)}</div><div class="sheet-sub">Level ${chest.chestLevel} loot chest &middot; ${chest.opened?'Opened':'Closed'}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     ${!chest.opened?`<div class="sheet-detail"><h4>Chest</h4><div class="hint">A level ${chest.chestLevel} chest. Open it to roll loot from the chest pool.</div></div>`:''}
     ${chest.opened?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${loot.map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeChestLoot('${chest.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Empty</span><span></span></div>'}</div></div>`:''}
@@ -3635,11 +5331,7 @@ function showChestSheet(chest,x,y){
       ${!chest.opened?`<button class="primary" onclick="openChest('${chest.uid}')">Open chest</button>`:''}
       ${dm?`<button onclick="setChestLevel('${chest.uid}',1)">Lv1</button><button onclick="setChestLevel('${chest.uid}',2)">Lv2</button><button onclick="setChestLevel('${chest.uid}',3)">Lv3</button><button onclick="resetChestLoot('${chest.uid}')">Reroll</button><button class="danger" onclick="deleteMapIcon('${chest.uid}')">Remove</button>`:''}
     </div>`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
 function traderStockCount(trader){
   const level=Math.max(1,Math.min(3,Number(trader?.traderLevel)||1));
@@ -3804,7 +5496,7 @@ function showTraderSheet(trader,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${cleanEmoji(trader.icon||trader.em,'\u{1F4B0}')}</div>
       <div><div class="sheet-name">${escapeHtml(trader.name||'Trader')}</div><div class="sheet-sub">${escapeHtml(trader.traderType||'General')} trader &middot; Level ${trader.traderLevel||1}</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     ${(trader.description||p)?`<div class="sheet-detail"><h4>Context</h4><div class="hint">${escapeHtml(trader.description||'No description')}</div>${p?`<div class="hint" style="margin-top:6px"><b>${escapeHtml(p.greeting||'')}</b><br>${escapeHtml(p.buyLine||'')}<br>${escapeHtml(p.sellLine||'')}</div>`:''}</div>`:''}
     <div class="sheet-detail"><h4>Dialogue</h4><div class="hint">${escapeHtml(contextLine)}</div></div>
@@ -3816,15 +5508,8 @@ function showTraderSheet(trader,x,y){
     <div class="sheet-actions">
       ${dm?`<button onclick="setTraderLevel('${trader.uid}',1)">Lv1</button><button onclick="setTraderLevel('${trader.uid}',2)">Lv2</button><button onclick="setTraderLevel('${trader.uid}',3)">Lv3</button><button onclick="cycleTraderType('${trader.uid}')">Type</button><button onclick="editTraderDescription('${trader.uid}')">Description</button><button onclick="generateTraderPersonality('${trader.uid}')">AI flavour</button><button onclick="rerollTraderStock('${trader.uid}')">Restock</button><button class="danger" onclick="deleteMapIcon('${trader.uid}')">Remove</button>`:''}
     </div>`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
-function hideSheet(){ document.getElementById('sheet-popup').classList.remove('show'); }
-const oldHideSheet=hideSheet;
-hideSheet=function(){ oldHideSheet(); hideRadialMenu(); };
 function enemyByUid(uid){ return placedIcons.find(ic=>ic.uid===uid&&ic.kind==='enemy'); }
 function mapIconByUid(uid){ return placedIcons.find(ic=>ic.uid===uid); }
 function setActiveEnemy(uid,force=false){
@@ -4217,7 +5902,7 @@ function showEffectSheet(fx,x,y){
     <div class="sheet-top">
       <div class="sheet-icon">${fx.type==='poison'?'\u2620\uFE0F':fx.type==='fire'?'\u{1F525}':'\u{1F4A7}'}</div>
       <div><div class="sheet-name">${name} area</div><div class="sheet-sub">${fx.radius}px radius</div></div>
-      <button class="sheet-close" onclick="hideSheet()">&times;</button>
+      ${sheetToolsHtml()}
     </div>
     <label class="small">Radius: <strong id="fx-radius-val">${fx.radius}</strong>px</label>
     <input type="range" min="20" max="220" step="5" value="${fx.radius}" oninput="resizeAreaEffect('${fx.id}',+this.value)">
@@ -4226,11 +5911,7 @@ function showEffectSheet(fx,x,y){
       <button onclick="resizeAreaEffect('${fx.id}',${Math.min(220,fx.radius+10)})">Larger</button>
       <button class="danger" onclick="removeAreaEffect('${fx.id}')">Remove</button>
     </div>`;
-  pop.classList.add('show');
-  const maxX=wrap.clientWidth-pop.offsetWidth-12;
-  const maxY=wrap.clientHeight-pop.offsetHeight-12;
-  pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
-  pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  prepareSheetWindow(pop,x,y);
 }
 function areaEffectById(id){ return areaEffects.find(fx=>fx.id===id); }
 function resizeAreaEffect(id,radius){
@@ -4848,6 +6529,21 @@ function handleLiveEffect(effect){
   if(!effect || effect.campaignId!==CLOUD_CAMPAIGN_ID) return;
   if(effect.roll) lastRoll=effect.roll;
   playSfx(Number(effect.hpAfter)<=0 && Number(effect.damage)>0 ? 'enemyDown' : sfxForEffect(effect));
+  if(effect.kind==='ping'){
+    addLivePing(Number(effect.x)||0,Number(effect.y)||0,effect.text||'Ping',effect.style||'radiant');
+  }
+  if(effect.kind==='template' && effect.template){
+    templateDraft={...effect.template};
+    draw();
+    setTimeout(()=>{ if(templateDraft?.x1===effect.template.x1 && templateDraft?.x2===effect.template.x2) templateDraft=null; draw(); },2200);
+  }
+  if(effect.kind==='reaction'){
+    addChatMessage({kind:'reaction',character:effect.character||'Player',label:effect.text||'Reaction'});
+  }
+  if(['ping','template'].includes(effect.kind)){
+    updateActiveSummary();
+    return;
+  }
   if(effect.kind==='concentrationCleanup'){
     (effect.cleanup||[]).forEach(update=>{
       if(update?.id) applyCharacterPatch(update.id,{currentHP:update.currentHP,statuses:update.statuses});
@@ -4893,8 +6589,11 @@ function handleLiveEffect(effect){
   updateActiveSummary();
 }
 function playActionAnimation(ch,type='weapon',details={}){
-  const x=characterX(ch) ?? canvas.width/2;
-  const y=characterY(ch) ?? canvas.height/2;
+  const world=mapWorldSize();
+  const x=characterX(ch) ?? world.width/2;
+  const y=characterY(ch) ?? world.height/2;
+  const visualStyle=details.visualStyle || visualStyleFromText(`${details.text||''} ${details.title||''}`,type);
+  const palette=stylePalette(visualStyle);
   const fx={
     type:type==='spell'?'spell':'weapon',
     x,
@@ -4904,10 +6603,15 @@ function playActionAnimation(ch,type='weapon',details={}){
     started:performance.now(),
     duration:type==='spell'?880:620,
     angle:-Math.PI/4+(Math.random()-.5)*.8,
-    color:type==='spell'?'rgba(120,210,255,.95)':'rgba(255,190,80,.95)',
+    color:palette.css,
+    visualStyle,
     seed:Math.floor(Math.random()*10000)
   };
   actionAnimations.push(fx);
+  trigger3DActionEffect(type,fx,{...details,visualStyle});
+  if(Number.isFinite(Number(fx.tx))&&Number.isFinite(Number(fx.ty))){
+    addImpactDecal(Number(fx.tx),Number(fx.ty),visualStyle,details.kind==='aoe'?(Number(details.aoeRadius)||70):42);
+  }
   if(details.kind==='aoe' && Number.isFinite(Number(details.tx))&&Number.isFinite(Number(details.ty))){
     actionAnimations.push({...fx,type:'aoe',x:Number(details.tx),y:Number(details.ty),radius:Number(details.aoeRadius)||40,duration:920,color:'rgba(120,210,255,.75)'});
     (details.aoeResults||[]).forEach(result=>{
@@ -4943,7 +6647,7 @@ function startActionAnimationLoop(){
   if(actionAnimationFrame) return;
   const tick=()=>{
     draw();
-    if(actionAnimations.length || damageBursts.length) actionAnimationFrame=requestAnimationFrame(tick);
+    if(actionAnimations.length || damageBursts.length || livePings.length || impactDecals.length || templateDraft || measureDraft) actionAnimationFrame=requestAnimationFrame(tick);
     else actionAnimationFrame=null;
   };
   actionAnimationFrame=requestAnimationFrame(tick);
@@ -5283,14 +6987,18 @@ function buildPersistedState(){
   return {
     version:1,
     myId,
+    rpMode,
     mapImageData,
     mapUrl,
     mapRevision,
+    mapWorldWidth,
+    mapWorldHeight,
     fogRevision,
     campaign:campaignInfo,
     campaignPortal,
     placedIcons:placedIcons.map(hydratePlacedIcon),
     areaEffects:areaEffects.map(hydrateAreaEffect),
+    map3DObjects:map3DObjects.map(normalize3DObject),
     selectedEffect,
     effectRadius,
     enemyTemplates,
@@ -5331,12 +7039,15 @@ function loadState(){
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
     campaignPortal=normalizeCampaignPortal(state.campaignPortal);
+    rpMode=state.rpMode===true;
     mapImageData=state.mapImageData || '';
     mapUrl=state.mapUrl || '';
     mapRevision=Number(state.mapRevision)||0;
+    if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,false);
     fogRevision=Number(state.fogRevision)||0;
     placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
     areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
+    map3DObjects=Array.isArray(state.map3DObjects) ? state.map3DObjects.map(normalize3DObject) : [];
     selectedEffect=state.selectedEffect || 'poison';
     effectRadius=Number(state.effectRadius)||60;
     enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
@@ -5387,8 +7098,10 @@ function applyPersistedState(state){
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
   campaignPortal=normalizeCampaignPortal(state.campaignPortal);
+  rpMode=state.rpMode===true;
   const incomingMapRevision=Number(state.mapRevision)||0;
   const incomingFogRevision=Number(state.fogRevision)||0;
+  if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,true);
   const incomingMapUrl=state.mapUrl || '';
   const needsAssetMap=!incomingMapUrl && !state.mapImageData && incomingMapRevision && incomingMapRevision!==mapRevision;
   if(incomingMapUrl){
@@ -5406,6 +7119,8 @@ function applyPersistedState(state){
   fogRevision=Math.max(fogRevision,incomingFogRevision);
   placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
   areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
+  map3DObjects=Array.isArray(state.map3DObjects) ? state.map3DObjects.map(normalize3DObject) : [];
+  rebuild3DSceneObjects();
   selectedEffect=state.selectedEffect || 'poison';
   effectRadius=Number(state.effectRadius)||60;
   enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
@@ -5445,9 +7160,14 @@ function hasCampaignAccess(state){
 function redirectToCampaignManager(){
   window.location.href='campaign_manager.html?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID);
 }
-function loadMapFromDataUrl(dataUrl,done){
+function loadMapFromDataUrl(dataUrl,done,useImageWorld=false){
   const img=new Image();
-  img.onload=()=>{ mapImg=img; done?.(); };
+  img.onload=()=>{
+    mapImg=img;
+    if(useImageWorld && img.naturalWidth && img.naturalHeight) setMapWorldSize(img.naturalWidth,img.naturalHeight,false);
+    mark3DMapTextureDirty();
+    done?.();
+  };
   img.src=dataUrl;
 }
 function resolveHostedMapUrl(url){
@@ -5456,11 +7176,16 @@ function resolveHostedMapUrl(url){
   if(/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return trimmed;
   return new URL(trimmed.replace(/^\/+/,''), window.location.href).href;
 }
-function loadMapFromUrl(url,done){
+function loadMapFromUrl(url,done,useImageWorld=false){
   const img=new Image();
   const resolved=resolveHostedMapUrl(url);
   if(/^https?:\/\//i.test(resolved)) img.crossOrigin='anonymous';
-  img.onload=()=>{ mapImg=img; done?.(); };
+  img.onload=()=>{
+    mapImg=img;
+    if(useImageWorld && img.naturalWidth && img.naturalHeight) setMapWorldSize(img.naturalWidth,img.naturalHeight,false);
+    mark3DMapTextureDirty();
+    done?.();
+  };
   img.onerror=()=>showCritOverlay('Hosted map failed to load','roll','Map');
   img.src=resolved;
 }
@@ -5767,6 +7492,11 @@ function connectWS(){
           updateAllPanels();
           draw();
           scheduleSave();
+        } else if(msg.type==='rpMode'){
+          rpMode=msg.rpMode===true;
+          updateAllPanels();
+          draw();
+          scheduleSave();
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) remoteCharacters[msg.characterId]=hydrateCharacter({...msg.character,owner:msg.from});
@@ -5793,7 +7523,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); placedIcons=[]; areaEffects=[]; enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
@@ -5949,6 +7679,9 @@ window.addEventListener('beforeunload',()=>{
   if(cloudClient && cloudChannel) cloudClient.removeChannel(cloudChannel);
 });
 window.addEventListener('resize',resize);
+document.getElementById('sheet-popup')?.addEventListener('pointerdown',beginSheetDrag);
+window.addEventListener('pointermove',moveSheetDrag);
+window.addEventListener('pointerup',endSheetDrag);
 window.addEventListener('focus',()=>{ noteUserActivity(); pollCloudState(); });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden) resetCloudIdleTimer();
@@ -5962,6 +7695,7 @@ populateBuilderOptions();
 buildIconGrid();
 updateCampaignBadge();
 initAudioControls();
+setScenePreset(scenePreset);
 updateRoleUI();
 loadState();
 ensureDefaultCharacter();
@@ -5971,6 +7705,13 @@ updateAllPanels();
 initSupabaseCloud();
 connectWS();
 setInterval(()=>{ if(areaEffects.length || placedIcons.some(ic=>ic.kind==='enemy'&&ic.boss)) draw(); },120);
+if(map3DMode){
+  init3DMap();
+  set3DModeButton();
+  resize3DRenderer();
+  rebuild3DSceneObjects();
+  render3DLoop();
+}
 </script>
 </body>
 </html>

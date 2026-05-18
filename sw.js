@@ -1,8 +1,9 @@
-const CACHE_NAME='dnd-campaign-assets-v1';
+const CACHE_NAME='dnd-campaign-assets-v2';
 const CACHE_ASSETS=[
   'assets/ui/campaign_overview_frame.webp',
   'assets/ui/torn_paper_texture.webp',
-  'assets/ui/torn_paper_mask.png'
+  'assets/ui/torn_paper_mask.png',
+  'assets/rp/rp_table.png'
 ];
 
 self.addEventListener('install',event=>{
