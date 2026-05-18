@@ -998,6 +998,17 @@ h3{
         <input class="dm-only" type="range" id="effect-radius-slider" min="20" max="220" value="60" step="5" oninput="setEffectRadius(+this.value)">
         <button class="full-btn danger dm-only" onclick="clearAreaEffects()">Clear all effects</button>
 
+        <div class="hdiv dm-only"></div>
+        <div class="panel-head dm-only">
+          <h3>Sound zones</h3>
+          <button onclick="setMode('sound')" id="btn-sound" style="font-size:11px;padding:5px 8px">Paint</button>
+        </div>
+        <label class="small dm-only">Loop type</label>
+        <select id="sound-zone-type" class="dm-only" onchange="selectSoundZoneType(this.value)"></select>
+        <label class="small dm-only">Sound radius: <strong id="sound-radius-val">150</strong>px</label>
+        <input class="dm-only" type="range" id="sound-radius-slider" min="40" max="420" value="150" step="10" oninput="setSoundZoneRadius(+this.value)">
+        <button class="full-btn danger dm-only" onclick="clearSoundZones()">Clear sound zones</button>
+
         <div class="hdiv"></div>
         <div class="panel-head">
           <h3>Turn order</h3>
@@ -1082,6 +1093,22 @@ const AUDIO_PACKS = {
       turn:'audio/dice.mp3'
     }
   }
+};
+const SOUND_ZONE_TYPES = {
+  campfire:{id:'campfire',label:'Campfire',color:'rgba(255,132,48,.82)',hint:'Warm fire crackle',src:'audio/ambience/campfire_loop.wav'},
+  cave:{id:'cave',label:'Cave Drone',color:'rgba(120,150,190,.78)',hint:'Low stone-room rumble'},
+  water:{id:'water',label:'Water',color:'rgba(95,190,255,.82)',hint:'Moving water texture'},
+  wind:{id:'wind',label:'Wind',color:'rgba(190,220,255,.72)',hint:'Cold airy wash'},
+  arcane:{id:'arcane',label:'Arcane Hum',color:'rgba(190,110,255,.78)',hint:'Magical resonance'},
+  tavern:{id:'tavern',label:'Tavern Murmur',color:'rgba(255,194,96,.76)',hint:'Soft room tone'},
+  caveDroplets:{id:'caveDroplets',label:'Cave Droplets',color:'rgba(105,185,255,.82)',hint:'Water drops in a cave',src:'audio/ambience/cave_droplets.mp3'},
+  deepRuins:{id:'deepRuins',label:'Deep Ruins Echo',color:'rgba(145,132,205,.8)',hint:'Crumbling echo in ancient ruins',src:'audio/ambience/deep_ruins_echo.mp3'},
+  cavernFootsteps:{id:'cavernFootsteps',label:'Cavern Footsteps',color:'rgba(180,170,150,.78)',hint:'Large cavern footsteps with reverb',src:'audio/ambience/cavern_footsteps.wav'},
+  gentleStream:{id:'gentleStream',label:'Gentle Stream',color:'rgba(75,190,245,.82)',hint:'Small running stream',src:'audio/ambience/gentle_stream.mp3'},
+  forestFootsteps:{id:'forestFootsteps',label:'Forest Footsteps',color:'rgba(95,190,95,.78)',hint:'Walking through forest floor',src:'audio/ambience/forest_footsteps.mp3'},
+  gravelFootsteps:{id:'gravelFootsteps',label:'Gravel Footsteps',color:'rgba(190,185,170,.76)',hint:'Walking over gravel',src:'audio/ambience/gravel_footsteps.mp3'},
+  forestMeadow:{id:'forestMeadow',label:'Forest Meadow',color:'rgba(116,214,112,.78)',hint:'Open meadow forest soundscape',src:'audio/ambience/forest_meadow.mp3'},
+  monsterCave:{id:'monsterCave',label:'Monster Cave',color:'rgba(190,78,78,.82)',hint:'Threatening cave creature ambience',src:'audio/ambience/monster_cave.mp3'}
 };
 const LOOT_RARITY_WEIGHTS = {
   normal:{Common:86,Uncommon:11,Rare:2,'Very Rare':1,Legendary:0},
@@ -1651,6 +1678,19 @@ function hydrateAreaEffect(raw={}){
     createdAt:Number(raw.createdAt)||Date.now()
   };
 }
+function hydrateSoundZone(raw={}){
+  const type=SOUND_ZONE_TYPES[raw.type] ? raw.type : 'campfire';
+  return {
+    id:raw.id || 'snd_'+Date.now()+Math.random().toString(36).slice(2,7),
+    type,
+    x:Number(raw.x)||0,
+    y:Number(raw.y)||0,
+    radius:Math.max(30,Math.min(600,Number(raw.radius)||150)),
+    label:String(raw.label || SOUND_ZONE_TYPES[type].label || 'Sound zone').slice(0,60),
+    volume:Math.max(0.05,Math.min(1,Number(raw.volume)||0.75)),
+    createdAt:Number(raw.createdAt)||Date.now()
+  };
+}
 function randomColor(){
   const hue=Math.floor(Math.random()*360);
   const [r,g,b]=hslToRgb(hue/360,.62,.55);
@@ -1703,6 +1743,11 @@ let pendingEnemyActions = {weapons:[],spells:[]};
 let selectedEffect = 'poison';
 let effectRadius = 60;
 let areaEffects = [];
+let selectedSoundZoneType = 'campfire';
+let soundZoneRadius = 150;
+let soundZones = [];
+let lastSoundPaintPoint = null;
+let ambientState = {ctx:null,currentId:null,currentType:null,gain:null,nodes:[],noiseBuffer:null,audio:null};
 let map3DObjects = [];
 let map3DMode = true;
 let map3DEditMode = false;
@@ -1726,6 +1771,7 @@ let dragTarget = null;
 let dragOffX = 0, dragOffY = 0;
 let isDragging = false;
 let touchMoved = false;
+let suppressNextCanvasClick = false;
 let camera = {x:0,y:0,scale:1};
 let isPanning = false, panStartX = 0, panStartY = 0, panCameraX = 0, panCameraY = 0;
 let tokenLock = false;
@@ -1848,6 +1894,7 @@ function pushDMUndo(label='DM action'){
     fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : '',
     placedIcons:placedIcons.map(ic=>({...ic,position:ic.position?{...ic.position}:undefined})),
     areaEffects:areaEffects.map(fx=>({...fx})),
+    soundZones:soundZones.map(zone=>({...zone})),
     myCharacters:myCharacters.map(ch=>JSON.parse(JSON.stringify(ch))),
     selectedTargetUid,
     turnOrder:[...turnOrder],
@@ -1867,6 +1914,7 @@ function undoLastDMAction(){
   if(Number(snap.mapWorldWidth) && Number(snap.mapWorldHeight)) setMapWorldSize(snap.mapWorldWidth,snap.mapWorldHeight,false);
   fogRevision=Number(snap.fogRevision)||0;
   areaEffects=snap.areaEffects.map(hydrateAreaEffect);
+  soundZones=(snap.soundZones||[]).map(hydrateSoundZone);
   myCharacters=snap.myCharacters.map(hydrateCharacter);
   selectedTargetUid=snap.selectedTargetUid;
   turnOrder=snap.turnOrder;
@@ -3064,9 +3112,11 @@ function draw(){
   drawMeasureAndTemplates();
   drawPlacedIcons();
   drawAreaEffects();
+  drawSoundZones();
   drawPlayers();
   drawActionAnimations();
   ctx.restore();
+  updateSoundZonePlayback();
 }
 function drawRPModeBackground(){
   ctx.save();
@@ -3600,6 +3650,36 @@ function drawAreaEffects(){
   }
   ctx.restore();
 }
+function drawSoundZones(){
+  if(!isDM() && mode!=='sound') return;
+  const now=performance.now();
+  ctx.save();
+  for(const zone of soundZones){
+    const type=SOUND_ZONE_TYPES[zone.type] || SOUND_ZONE_TYPES.campfire;
+    const pulse=(Math.sin((now+zone.createdAt)/650)+1)/2;
+    const r=zone.radius+pulse*5;
+    const g=ctx.createRadialGradient(zone.x,zone.y,0,zone.x,zone.y,r);
+    g.addColorStop(0,type.color.replace(/[\d.]+\)$/,'.11)'));
+    g.addColorStop(.72,type.color.replace(/[\d.]+\)$/,'.06)'));
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.arc(zone.x,zone.y,r,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle=type.color;
+    ctx.lineWidth=1.8;
+    ctx.setLineDash([4,7]);
+    ctx.beginPath();
+    ctx.arc(zone.x,zone.y,zone.radius,0,Math.PI*2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font='800 11px Inter, Segoe UI, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillStyle=type.color;
+    ctx.fillText(zone.label||type.label,zone.x,zone.y-zone.radius-12);
+  }
+  ctx.restore();
+}
 function drawEffectParticles(fx,now,color){
   const count=fx.type==='fire'?22:fx.type==='water'?18:20;
   ctx.fillStyle=color;
@@ -3739,10 +3819,10 @@ function drawPlayers(){
 }
 
 function setMode(m){
-  if(['place','effect'].includes(m) && !isDM()) return requireDM();
+  if(['place','effect','sound'].includes(m) && !isDM()) return requireDM();
   if(m==='drag' && !isDM()) return requireDM();
   mode=m;
-  ['btn-move','btn-drag','btn-place','btn-effect','btn-ping','btn-measure','btn-line','btn-cone'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  ['btn-move','btn-drag','btn-place','btn-effect','btn-sound','btn-ping','btn-measure','btn-line','btn-cone'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById('btn-'+m)?.classList.add('active');
   canvas.style.cursor = m==='drag' ? 'grab' : 'crosshair';
   measureDraft=null;
@@ -3936,6 +4016,33 @@ function setEffectRadius(value){
   document.getElementById('effect-radius-val').textContent=value;
   scheduleSave();
 }
+function initSoundZoneControls(){
+  const select=document.getElementById('sound-zone-type');
+  if(select){
+    select.innerHTML=Object.values(SOUND_ZONE_TYPES).map(type=>`<option value="${type.id}">${type.label}</option>`).join('');
+  }
+  syncSoundZoneControls();
+}
+function syncSoundZoneControls(){
+  const select=document.getElementById('sound-zone-type');
+  if(select) select.value=selectedSoundZoneType;
+  const slider=document.getElementById('sound-radius-slider');
+  if(slider) slider.value=String(soundZoneRadius);
+  const label=document.getElementById('sound-radius-val');
+  if(label) label.textContent=String(soundZoneRadius);
+}
+function selectSoundZoneType(type){
+  if(!isDM()) return requireDM();
+  selectedSoundZoneType=SOUND_ZONE_TYPES[type] ? type : 'campfire';
+  syncSoundZoneControls();
+  setMode('sound');
+  scheduleSave();
+}
+function setSoundZoneRadius(value){
+  soundZoneRadius=Math.max(40,Math.min(420,Number(value)||150));
+  syncSoundZoneControls();
+  scheduleSave();
+}
 function setScenePreset(value='neutral'){
   scenePreset=['neutral','cave','forest','lava','temple','eldritch'].includes(value) ? value : 'neutral';
   localStorage.setItem('dndScenePreset',scenePreset);
@@ -3999,6 +4106,7 @@ function doHardReset(){
   setMapWorldSize(canvas.width || 1280, canvas.height || 720, false);
   placedIcons=[];
   areaEffects=[];
+  soundZones=[];
   map3DObjects=[];
   rebuild3DSceneObjects();
   enemyTemplates=[];
@@ -4042,6 +4150,14 @@ function effectAt(x,y){
     const fx=areaEffects[i];
     const dx=x-fx.x, dy=y-fx.y;
     if(Math.sqrt(dx*dx+dy*dy)<=fx.radius) return fx;
+  }
+  return null;
+}
+function soundZoneAt(x,y){
+  for(let i=soundZones.length-1;i>=0;i--){
+    const zone=soundZones[i];
+    const dx=x-zone.x, dy=y-zone.y;
+    if(Math.sqrt(dx*dx+dy*dy)<=zone.radius) return zone;
   }
   return null;
 }
@@ -4090,6 +4206,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
   const hit=playerAt(x,y);
   const enemy=enemyAt(x,y);
   const effect=tokenLock?null:effectAt(x,y);
+  const soundZone=(!tokenLock && isDM())?soundZoneAt(x,y):null;
   if(enemy){
     selectedTargetUid=enemy.uid;
     updateAllPanels();
@@ -4122,6 +4239,11 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
   }
   if(effect && mode!=='effect'){
     showEffectSheet(effect,screenX,screenY);
+    draw();
+    return;
+  }
+  if(soundZone && !['move','drag','sound'].includes(mode)){
+    showSoundZoneSheet(soundZone,screenX,screenY);
     draw();
     return;
   }
@@ -4159,6 +4281,10 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     addChatMessage({kind:'effect',character:'Table',label:`${fx.type==='fire'?'Hazard':fx.type} area placed (${fx.radius}px)`});
     draw();
     scheduleSave();
+  } else if(mode==='sound'){
+    if(!isDM()) return requireDM();
+    pushDMUndo('paint sound zone');
+    placeSoundZoneAt(x,y,{announce:true});
   }
 }
 
@@ -4172,6 +4298,15 @@ canvas.addEventListener('mousedown',e=>{
   const sx=e.clientX-r.left, sy=e.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
   if(rpMode) return;
+  if(mode==='sound'){
+    if(!isDM()) return requireDM();
+    pushDMUndo('paint sound zone');
+    lastSoundPaintPoint={x,y};
+    placeSoundZoneAt(x,y,{announce:true});
+    isDragging=true;
+    dragTarget='soundPaint';
+    return;
+  }
   if(['measure','line','cone'].includes(mode)){
     const start=mode==='measure' ? {x1:x,y1:y} : (entityPoint(getActiveCharacter()).x!=null ? {x1:entityPoint(getActiveCharacter()).x,y1:entityPoint(getActiveCharacter()).y} : {x1:x,y1:y});
     const draft={kind:mode,...start,x2:x,y2:y};
@@ -4227,6 +4362,15 @@ canvas.addEventListener('mousemove',e=>{
   if(isPanning){ movePan(sx,sy); return; }
   if(rpMode) return;
   const {x,y}=screenToWorld(sx,sy);
+  if(isDragging && dragTarget==='soundPaint'){
+    const last=lastSoundPaintPoint || {x,y};
+    const spacing=Math.max(36,soundZoneRadius*.62);
+    if(Math.hypot(x-last.x,y-last.y)>=spacing){
+      lastSoundPaintPoint={x,y};
+      placeSoundZoneAt(x,y);
+    }
+    return;
+  }
   if(isDragging && dragTarget==='template'){
     const draft=templateDraft || measureDraft;
     if(draft){ draft.x2=x; draft.y2=y; draw(); }
@@ -4265,6 +4409,15 @@ canvas.addEventListener('mousemove',e=>{
 
 canvas.addEventListener('mouseup',()=>{
   if(isPanning){ endPan(); return; }
+  if(isDragging && dragTarget==='soundPaint'){
+    isDragging=false;
+    dragTarget=null;
+    lastSoundPaintPoint=null;
+    suppressNextCanvasClick=true;
+    updateAllPanels();
+    scheduleSave();
+    return;
+  }
   if(isDragging && dragTarget==='template'){
     const draft=templateDraft || measureDraft;
     if(draft && draft.kind!=='measure'){
@@ -4288,11 +4441,17 @@ canvas.addEventListener('mouseup',()=>{
 
 canvas.addEventListener('mouseleave',()=>{
   if(isPanning) endPan();
+  if(isDragging && dragTarget==='soundPaint'){
+    isDragging=false;
+    dragTarget=null;
+    lastSoundPaintPoint=null;
+  }
   hoveredTokenId=null;
   clearTimeout(hoverSheetTimer);
 });
 
 canvas.addEventListener('click',e=>{
+  if(suppressNextCanvasClick){ suppressNextCanvasClick=false; return; }
   if(isDragging||e.button===1) return;
   const r=canvas.getBoundingClientRect();
   const sx=e.clientX-r.left, sy=e.clientY-r.top;
@@ -4316,6 +4475,15 @@ canvas.addEventListener('touchstart',e=>{
   const sx=t.clientX-r.left, sy=t.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
   if(rpMode) return;
+  if(mode==='sound'){
+    if(!isDM()) return requireDM();
+    pushDMUndo('paint sound zone');
+    lastSoundPaintPoint={x,y};
+    placeSoundZoneAt(x,y,{announce:true});
+    isDragging=true;
+    dragTarget='soundPaint';
+    return;
+  }
   if(['measure','line','cone'].includes(mode)){
     const p=entityPoint(getActiveCharacter());
     const start=mode==='measure' ? {x1:x,y1:y} : (p.x!=null ? {x1:p.x,y1:p.y} : {x1:x,y1:y});
@@ -4348,6 +4516,15 @@ canvas.addEventListener('touchmove',e=>{
   const sx=t.clientX-r.left, sy=t.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
   if(rpMode) return;
+  if(dragTarget==='soundPaint'){
+    const last=lastSoundPaintPoint || {x,y};
+    const spacing=Math.max(36,soundZoneRadius*.62);
+    if(Math.hypot(x-last.x,y-last.y)>=spacing){
+      lastSoundPaintPoint={x,y};
+      placeSoundZoneAt(x,y);
+    }
+    return;
+  }
   if(dragTarget==='template'){
     const draft=templateDraft || measureDraft;
     if(draft){ draft.x2=x; draft.y2=y; draw(); }
@@ -4370,6 +4547,15 @@ canvas.addEventListener('touchmove',e=>{
 },{passive:false});
 canvas.addEventListener('touchend',e=>{
   e.preventDefault();
+  if(isDragging && dragTarget==='soundPaint'){
+    isDragging=false;
+    dragTarget=null;
+    lastSoundPaintPoint=null;
+    touchMoved=false;
+    updateAllPanels();
+    scheduleSave();
+    return;
+  }
   if(isDragging && dragTarget==='template'){
     const draft=templateDraft || measureDraft;
     if(draft && draft.kind!=='measure') emitLiveEffect({kind:'template',campaignId:CLOUD_CAMPAIGN_ID,text:`${draft.kind==='cone'?'Cone':'Line'} template`,overlayType:'roll',title:'Template',template:draft});
@@ -4637,11 +4823,13 @@ function toggleAudioMute(){
   localStorage.setItem('dndAudioMuted',audioState.muted?'1':'0');
   updateAudioButton();
   if(!audioState.muted) playSfx('dice',{force:true});
+  updateSoundZonePlayback(true);
 }
 function setAudioVolume(value){
   audioState.volume=Math.max(0,Math.min(1,Number(value)||0));
   localStorage.setItem('dndAudioVolume',String(audioState.volume));
   playSfx('dice',{force:true});
+  updateSoundZonePlayback(true);
 }
 function setAudioPack(packId){
   audioState.pack=AUDIO_PACKS[packId] ? packId : 'basic';
@@ -4686,6 +4874,148 @@ function sfxForEffect(effect={}){
   if(effect.kind==='action') return Number(effect.damage)>0 ? 'hit' : 'miss';
   if(effect.kind==='roll') return sfxForRoll(effect.roll?.roll, true);
   return 'dice';
+}
+
+function getAmbientContext(){
+  if(ambientState.ctx) return ambientState.ctx;
+  const AudioContext=window.AudioContext || window.webkitAudioContext;
+  if(!AudioContext) return null;
+  ambientState.ctx=new AudioContext();
+  return ambientState.ctx;
+}
+function ambientNoiseBuffer(ctx){
+  if(ambientState.noiseBuffer) return ambientState.noiseBuffer;
+  const length=ctx.sampleRate*2;
+  const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
+  const data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++) data[i]=Math.random()*2-1;
+  ambientState.noiseBuffer=buffer;
+  return buffer;
+}
+function addAmbientNoise(ctx,type,destination,level=0.12,filterType='lowpass',frequency=700){
+  const source=ctx.createBufferSource();
+  source.buffer=ambientNoiseBuffer(ctx);
+  source.loop=true;
+  const filter=ctx.createBiquadFilter();
+  filter.type=filterType;
+  filter.frequency.value=frequency;
+  const gain=ctx.createGain();
+  gain.gain.value=level;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
+  source.start();
+  ambientState.nodes.push(source,filter,gain);
+}
+function addAmbientTone(ctx,destination,freq=90,type='sine',level=0.05){
+  const osc=ctx.createOscillator();
+  osc.type=type;
+  osc.frequency.value=freq;
+  const gain=ctx.createGain();
+  gain.gain.value=level;
+  osc.connect(gain);
+  gain.connect(destination);
+  osc.start();
+  ambientState.nodes.push(osc,gain);
+}
+function stopAmbientLoop(){
+  if(ambientState.audio){
+    try{ ambientState.audio.pause(); }catch(e){}
+    try{ ambientState.audio.src=''; ambientState.audio.load?.(); }catch(e){}
+  }
+  for(const node of ambientState.nodes){
+    try{ if(typeof node.stop==='function') node.stop(); }catch(e){}
+    try{ if(typeof node.disconnect==='function') node.disconnect(); }catch(e){}
+  }
+  try{ ambientState.gain?.disconnect(); }catch(e){}
+  ambientState.currentId=null;
+  ambientState.currentType=null;
+  ambientState.gain=null;
+  ambientState.nodes=[];
+  ambientState.audio=null;
+}
+function startAmbientLoop(zone){
+  const type=SOUND_ZONE_TYPES[zone.type] || SOUND_ZONE_TYPES.campfire;
+  if(type.src){
+    stopAmbientLoop();
+    const audio=new Audio(type.src);
+    audio.loop=true;
+    audio.preload='auto';
+    audio.volume=0;
+    ambientState.audio=audio;
+    ambientState.currentId=zone.id;
+    ambientState.currentType=zone.type;
+    audio.play().catch(()=>{});
+    return;
+  }
+  const ctx=getAmbientContext();
+  if(!ctx) return;
+  ctx.resume?.();
+  stopAmbientLoop();
+  const master=ctx.createGain();
+  master.gain.value=0;
+  master.connect(ctx.destination);
+  ambientState.gain=master;
+  ambientState.currentId=zone.id;
+  ambientState.currentType=zone.type;
+  if(zone.type==='campfire'){
+    addAmbientNoise(ctx,zone.type,master,.18,'bandpass',1200);
+    addAmbientNoise(ctx,zone.type,master,.06,'highpass',3200);
+  } else if(zone.type==='water'){
+    addAmbientNoise(ctx,zone.type,master,.18,'lowpass',950);
+    addAmbientNoise(ctx,zone.type,master,.05,'bandpass',1800);
+  } else if(zone.type==='wind'){
+    addAmbientNoise(ctx,zone.type,master,.16,'bandpass',420);
+    addAmbientNoise(ctx,zone.type,master,.05,'highpass',1800);
+  } else if(zone.type==='arcane'){
+    addAmbientTone(ctx,master,92,'sine',.055);
+    addAmbientTone(ctx,master,184,'triangle',.028);
+    addAmbientNoise(ctx,zone.type,master,.035,'bandpass',1600);
+  } else if(zone.type==='tavern'){
+    addAmbientNoise(ctx,zone.type,master,.12,'lowpass',520);
+    addAmbientTone(ctx,master,138,'sine',.025);
+    addAmbientTone(ctx,master,207,'triangle',.018);
+  } else {
+    addAmbientNoise(ctx,zone.type,master,.13,'lowpass',360);
+    addAmbientTone(ctx,master,72,'sine',.04);
+  }
+}
+function setAmbientVolume(value){
+  if(ambientState.audio){
+    ambientState.audio.volume=audioState.muted ? 0 : Math.max(0,Math.min(.65,value*1.5));
+    return;
+  }
+  if(!ambientState.gain || !ambientState.ctx) return;
+  const target=audioState.muted ? 0 : Math.max(0,Math.min(.38,value));
+  ambientState.gain.gain.cancelScheduledValues(ambientState.ctx.currentTime);
+  ambientState.gain.gain.linearRampToValueAtTime(target,ambientState.ctx.currentTime+.28);
+}
+function activeSoundZoneForCharacter(ch){
+  const x=characterX(ch), y=characterY(ch);
+  if(x==null || y==null) return null;
+  let best=null;
+  for(const zone of soundZones){
+    const dist=Math.hypot(x-zone.x,y-zone.y);
+    if(dist>zone.radius) continue;
+    const strength=1-(dist/zone.radius);
+    if(!best || strength>best.strength) best={zone,strength};
+  }
+  return best;
+}
+function updateSoundZonePlayback(force=false){
+  if(rpMode || !soundZones.length || audioState.muted){
+    if(audioState.muted || rpMode || !soundZones.length) stopAmbientLoop();
+    return;
+  }
+  const ch=getActiveCharacter();
+  const active=activeSoundZoneForCharacter(ch);
+  if(!active){
+    stopAmbientLoop();
+    return;
+  }
+  const {zone,strength}=active;
+  if(force || ambientState.currentId!==zone.id || ambientState.currentType!==zone.type) startAmbientLoop(zone);
+  setAmbientVolume((audioState.volume||0.65)*(zone.volume||.75)*(.12+strength*.26));
 }
 
 function updateAllPanels(){
@@ -5924,6 +6254,72 @@ function resizeAreaEffect(id,radius){
   draw();
   scheduleSave();
 }
+function placeSoundZoneAt(x,y,{announce=false}={}){
+  if(!isDM()) return null;
+  const type=SOUND_ZONE_TYPES[selectedSoundZoneType] ? selectedSoundZoneType : 'campfire';
+  const zone=hydrateSoundZone({type,x,y,radius:soundZoneRadius});
+  soundZones.push(zone);
+  broadcast({type:'soundZone',zone});
+  if(announce) addChatMessage({kind:'sound',character:'DM',label:`Painted ${zone.label} sound zone`,detail:`${zone.radius}px radius`});
+  draw();
+  scheduleSave();
+  return zone;
+}
+function soundZoneById(id){ return soundZones.find(zone=>zone.id===id); }
+function showSoundZoneSheet(zone,x,y){
+  const pop=document.getElementById('sheet-popup');
+  const type=SOUND_ZONE_TYPES[zone.type] || SOUND_ZONE_TYPES.campfire;
+  pop.classList.remove('enemy');
+  pop.innerHTML=`
+    <div class="sheet-top">
+      <div class="sheet-icon">♪</div>
+      <div><div class="sheet-name">${escapeHtml(zone.label||type.label)}</div><div class="sheet-sub">${escapeHtml(type.hint)} · ${zone.radius}px</div></div>
+      ${sheetToolsHtml()}
+    </div>
+    <label class="small">Radius: <strong id="sound-zone-radius-val">${zone.radius}</strong>px</label>
+    <input type="range" min="40" max="600" step="10" value="${zone.radius}" oninput="resizeSoundZone('${zone.id}',+this.value)">
+    <label class="small">Loop volume: <strong id="sound-zone-volume-val">${Math.round((zone.volume||.75)*100)}</strong>%</label>
+    <input type="range" min="0.05" max="1" step="0.05" value="${zone.volume||.75}" oninput="setSoundZoneVolume('${zone.id}',+this.value)">
+    <div class="sheet-actions">
+      <button onclick="resizeSoundZone('${zone.id}',${Math.max(40,zone.radius-20)})">Smaller</button>
+      <button onclick="resizeSoundZone('${zone.id}',${Math.min(600,zone.radius+20)})">Larger</button>
+      <button class="danger" onclick="removeSoundZone('${zone.id}')">Remove</button>
+    </div>`;
+  prepareSheetWindow(pop,x,y);
+}
+function resizeSoundZone(id,radius){
+  if(!isDM()) return requireDM();
+  const zone=soundZoneById(id);
+  if(!zone) return;
+  zone.radius=Math.max(40,Math.min(600,Number(radius)||zone.radius));
+  const label=document.getElementById('sound-zone-radius-val');
+  if(label) label.textContent=zone.radius;
+  broadcast({type:'soundZoneUpdate',zone});
+  draw();
+  scheduleSave();
+}
+function setSoundZoneVolume(id,volume){
+  if(!isDM()) return requireDM();
+  const zone=soundZoneById(id);
+  if(!zone) return;
+  zone.volume=Math.max(0.05,Math.min(1,Number(volume)||zone.volume||.75));
+  const label=document.getElementById('sound-zone-volume-val');
+  if(label) label.textContent=Math.round(zone.volume*100);
+  broadcast({type:'soundZoneUpdate',zone});
+  updateSoundZonePlayback(true);
+  scheduleSave();
+}
+function removeSoundZone(id){
+  if(!isDM()) return requireDM();
+  const zone=soundZoneById(id);
+  pushDMUndo('remove sound zone');
+  soundZones=soundZones.filter(item=>item.id!==id);
+  broadcast({type:'soundZoneDelete',id});
+  hideSheet();
+  if(zone) addChatMessage({kind:'sound',character:'DM',label:`Removed ${zone.label||'sound zone'}`});
+  draw();
+  scheduleSave();
+}
 function removeAreaEffect(id){
   if(!isDM()) return requireDM();
   const fx=areaEffectById(id);
@@ -5940,6 +6336,17 @@ function clearAreaEffects(){
   areaEffects=[];
   hideSheet();
   addChatMessage({kind:'effect',character:'Table',label:'All area effects cleared'});
+  draw();
+  scheduleSave();
+}
+function clearSoundZones(){
+  if(!isDM()) return requireDM();
+  pushDMUndo('clear sound zones');
+  soundZones=[];
+  broadcast({type:'soundZonesClear'});
+  hideSheet();
+  addChatMessage({kind:'sound',character:'DM',label:'All sound zones cleared'});
+  stopAmbientLoop();
   draw();
   scheduleSave();
 }
@@ -6998,9 +7405,12 @@ function buildPersistedState(){
     campaignPortal,
     placedIcons:placedIcons.map(hydratePlacedIcon),
     areaEffects:areaEffects.map(hydrateAreaEffect),
+    soundZones:soundZones.map(hydrateSoundZone),
     map3DObjects:map3DObjects.map(normalize3DObject),
     selectedEffect,
     effectRadius,
+    selectedSoundZoneType,
+    soundZoneRadius,
     enemyTemplates,
     selectedEnemyId,
     selectedTargetUid,
@@ -7047,9 +7457,12 @@ function loadState(){
     fogRevision=Number(state.fogRevision)||0;
     placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
     areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
+    soundZones=Array.isArray(state.soundZones) ? state.soundZones.map(hydrateSoundZone) : [];
     map3DObjects=Array.isArray(state.map3DObjects) ? state.map3DObjects.map(normalize3DObject) : [];
     selectedEffect=state.selectedEffect || 'poison';
     effectRadius=Number(state.effectRadius)||60;
+    selectedSoundZoneType=SOUND_ZONE_TYPES[state.selectedSoundZoneType] ? state.selectedSoundZoneType : 'campfire';
+    soundZoneRadius=Number(state.soundZoneRadius)||150;
     enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
     selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
     selectedTargetUid=state.selectedTargetUid || null;
@@ -7067,6 +7480,7 @@ function loadState(){
     document.getElementById('effect-radius-slider').value=effectRadius;
     document.getElementById('effect-radius-val').textContent=effectRadius;
     syncEffectControls();
+    syncSoundZoneControls();
     if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
     else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
     if(state.fogRevealData) setTimeout(()=>loadRevealFromDataUrl(state.fogRevealData),80);
@@ -7119,10 +7533,13 @@ function applyPersistedState(state){
   fogRevision=Math.max(fogRevision,incomingFogRevision);
   placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
   areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
+  soundZones=Array.isArray(state.soundZones) ? state.soundZones.map(hydrateSoundZone) : [];
   map3DObjects=Array.isArray(state.map3DObjects) ? state.map3DObjects.map(normalize3DObject) : [];
   rebuild3DSceneObjects();
   selectedEffect=state.selectedEffect || 'poison';
   effectRadius=Number(state.effectRadius)||60;
+  selectedSoundZoneType=SOUND_ZONE_TYPES[state.selectedSoundZoneType] ? state.selectedSoundZoneType : 'campfire';
+  soundZoneRadius=Number(state.soundZoneRadius)||150;
   enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
   selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
   selectedTargetUid=state.selectedTargetUid || null;
@@ -7139,6 +7556,7 @@ function applyPersistedState(state){
   document.getElementById('effect-radius-slider').value=effectRadius;
   document.getElementById('effect-radius-val').textContent=effectRadius;
   syncEffectControls();
+  syncSoundZoneControls();
   ensureDefaultCharacter();
   updateAllPanels();
   if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
@@ -7473,6 +7891,30 @@ function connectWS(){
           hideSheet();
           draw();
           scheduleSave();
+        } else if(msg.type==='soundZone'){
+          const zone=hydrateSoundZone(msg.zone);
+          if(!soundZones.some(item=>item.id===zone.id)) soundZones.push(zone);
+          draw();
+          scheduleSave();
+        } else if(msg.type==='soundZoneUpdate'){
+          const zone=hydrateSoundZone(msg.zone);
+          const i=soundZones.findIndex(item=>item.id===zone.id);
+          if(i>=0) soundZones[i]=zone;
+          else soundZones.push(zone);
+          draw();
+          scheduleSave();
+        } else if(msg.type==='soundZoneDelete'){
+          soundZones=soundZones.filter(zone=>zone.id!==msg.id);
+          if(ambientState.currentId===msg.id) stopAmbientLoop();
+          hideSheet();
+          draw();
+          scheduleSave();
+        } else if(msg.type==='soundZonesClear'){
+          soundZones=[];
+          stopAmbientLoop();
+          hideSheet();
+          draw();
+          scheduleSave();
         } else if(msg.type==='roll'){
           lastRoll=msg.roll;
           updateActiveSummary();
@@ -7695,6 +8137,7 @@ populateBuilderOptions();
 buildIconGrid();
 updateCampaignBadge();
 initAudioControls();
+initSoundZoneControls();
 setScenePreset(scenePreset);
 updateRoleUI();
 loadState();
@@ -7704,7 +8147,7 @@ resize();
 updateAllPanels();
 initSupabaseCloud();
 connectWS();
-setInterval(()=>{ if(areaEffects.length || placedIcons.some(ic=>ic.kind==='enemy'&&ic.boss)) draw(); },120);
+setInterval(()=>{ if(areaEffects.length || soundZones.length || placedIcons.some(ic=>ic.kind==='enemy'&&ic.boss)) draw(); },120);
 if(map3DMode){
   init3DMap();
   set3DModeButton();
