@@ -72,6 +72,9 @@ body.rp-mode .rp-ambience-layer{display:block}
 .rp-smoke.s1{left:-11%;top:29%;animation-delay:-2s}
 .rp-smoke.s2{left:20%;top:41%;width:66%;height:17%;animation-delay:-8s}
 .rp-smoke.s3{right:-14%;top:27%;width:54%;height:20%;animation-delay:-5s}
+.rp-ambience-layer:before{opacity:var(--rp-glow,.85);filter:blur(1px) sepia(var(--rp-warm,.12)) hue-rotate(var(--rp-hue,0deg))}
+.rp-ambience-layer:after{opacity:var(--rp-smoke-opacity,.16);filter:blur(22px) hue-rotate(var(--rp-hue,0deg))}
+.rp-smoke{opacity:calc(var(--rp-smoke-opacity,.16) * .9);filter:blur(22px) hue-rotate(var(--rp-hue,0deg))}
 @keyframes rpCandleFlicker{0%,100%{opacity:.76;transform:scale(1)}18%{opacity:.96;transform:scale(1.012)}36%{opacity:.68;transform:scale(.992)}58%{opacity:.9;transform:scale(1.018)}74%{opacity:.72;transform:scale(.998)}}
 @keyframes rpSmokeRibbon{0%,100%{transform:translateX(-3%) translateY(2%) rotate(-6deg) scale(1);opacity:.74}45%{transform:translateX(4%) translateY(-4%) rotate(-4deg) scale(1.04);opacity:.86}72%{transform:translateX(1%) translateY(3%) rotate(-7deg) scale(.99);opacity:.78}}
 @keyframes rpSmokeWisp{0%,100%{transform:translate3d(-6%,8%,0) rotate(-7deg) scale(.96);opacity:.62}35%{transform:translate3d(10%,-10%,0) rotate(4deg) scale(1.08);opacity:.86}70%{transform:translate3d(18%,-18%,0) rotate(-5deg) scale(1.02);opacity:.7}}
@@ -79,6 +82,10 @@ body.rp-mode .rp-ambience-layer{display:block}
 body:not(.rp-mode) .rp-mode-badge{display:none}
 .rp-command-dock{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:64;width:min(780px,calc(100% - 34px));pointer-events:auto;text-align:center}
 body.rp-mode .rp-command-dock{display:block}
+.rp-board-menu{display:none;position:absolute;right:14px;top:14px;z-index:65;gap:7px;align-items:center;padding:7px 9px;border:1px solid rgba(202,168,107,.42);border-radius:999px;background:rgba(11,7,4,.7);box-shadow:0 12px 34px rgba(0,0,0,.36),0 0 22px rgba(255,145,45,.12)}
+body.rp-mode.dm-mode .rp-board-menu{display:flex}
+.rp-board-menu label{margin:0;color:#ffe8b6;font:800 11px Georgia,'Times New Roman',serif;letter-spacing:.04em;text-transform:uppercase}
+.rp-board-menu select{width:170px;height:30px;font-size:12px;background:rgba(8,6,4,.9)}
 .scene-wipe{position:absolute;inset:0;z-index:92;pointer-events:none;display:none;overflow:hidden}
 .scene-wipe.show{display:block}
 .scene-wipe:before{content:"";position:absolute;top:-18%;bottom:-18%;width:64%;background:linear-gradient(90deg,rgba(8,5,3,.98),rgba(78,42,14,.98) 44%,rgba(242,168,59,1) 50%,rgba(26,12,5,.99) 56%,rgba(8,5,3,.98));box-shadow:0 0 44px rgba(255,151,45,.42),0 0 120px rgba(0,0,0,.82);transform:skewX(-10deg)}
@@ -304,6 +311,8 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #radial-menu{display:none;position:absolute;z-index:86;width:202px;height:202px;pointer-events:none}
 #radial-menu.show{display:block}
 #radial-menu.skill-wheel{width:328px;height:auto;pointer-events:auto}
+#radial-menu.rp-tool-window{width:336px;height:auto;min-width:260px;min-height:150px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);resize:both;overflow:auto;pointer-events:auto}
+#radial-menu.rp-tool-window.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
 .radial-center{position:absolute;left:72px;top:72px;width:58px;height:58px;border-radius:50%;border:1px solid rgba(102,167,216,.72);background:rgba(17,20,25,.96);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:var(--shadow)}
 .radial-btn{position:absolute;width:56px;height:56px;border-radius:50%;font-size:10px;line-height:1.1;padding:4px;text-align:center;pointer-events:auto;background:rgba(32,36,43,.97);border-color:rgba(102,167,216,.45)}
 .radial-btn:hover{border-color:rgba(202,168,107,.9);background:#272c34}
@@ -315,6 +324,14 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .radial-btn:nth-child(7){left:14px;top:34px}
 .skill-wheel-panel{border:1px solid var(--line);border-radius:10px;background:rgba(17,20,25,.98);box-shadow:var(--shadow);padding:10px;pointer-events:auto}
 .skill-wheel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.rp-tool-window .skill-wheel-head{cursor:grab;user-select:none}
+.rp-tool-window .skill-wheel-head:active{cursor:grabbing}
+.rp-tool-tools{display:flex;gap:4px;margin-left:auto}
+.rp-tool-tools button{font-size:10px;padding:4px 7px}
+.rp-floating-tool{position:absolute;z-index:87;width:336px;min-width:260px;min-height:150px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);resize:both;overflow:auto;pointer-events:auto}
+.rp-floating-tool.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
+.rp-floating-tool .skill-wheel-head{cursor:grab;user-select:none}
+.rp-floating-tool .skill-wheel-head:active{cursor:grabbing}
 .skill-wheel-head b{font-size:12px;color:#fff2d0}
 .skill-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;max-height:380px;overflow:auto}
 .skill-grid button{display:flex;justify-content:space-between;gap:6px;font-size:10px;padding:7px 8px;text-align:left}
@@ -775,6 +792,7 @@ h3{
       </div>
       <div id="scene-wipe" class="scene-wipe" data-label=""></div>
       <div class="rp-mode-badge">RP Mode</div>
+      <div id="rp-board-menu" class="rp-board-menu"><label for="rp-board-select">Board</label><select id="rp-board-select" onchange="setRPBoard(this.value,true)"></select></div>
       <div id="rp-command-dock" class="rp-command-dock"></div>
       <div id="dice-overlay">
         <div class="dice-stage">
@@ -1786,10 +1804,19 @@ let mapRevision = 0;
 let mapWorldWidth = 1280;
 let mapWorldHeight = 720;
 let mapWorldLocked = false;
-const RP_MODE_BACKGROUND = 'assets/rp/rp_table.png';
+const RP_BOARD_PRESETS = {
+  tavern:{id:'tavern',label:'Warm Tavern',src:'assets/rp/rp_table.png',mood:{rgb:[255,139,42],hue:'0deg',glow:.85,smokeOpacity:.16,warm:.18}},
+  arcane:{id:'arcane',label:'Arcane Table',src:'assets/rp/boards/arcane_table.png',mood:{rgb:[157,107,255],hue:'72deg',glow:.72,smokeOpacity:.18,warm:.08}},
+  cartographer:{id:'cartographer',label:'Cartographer',src:'assets/rp/boards/cartographer_table.png',mood:{rgb:[240,177,92],hue:'-8deg',glow:.58,smokeOpacity:.09,warm:.13}},
+  cursed:{id:'cursed',label:'Cursed Table',src:'assets/rp/boards/cursed_table.png',mood:{rgb:[102,221,138],hue:'110deg',glow:.62,smokeOpacity:.22,warm:.04}},
+  tactical:{id:'tactical',label:'Fantasy Tactical',src:'assets/rp/boards/fantasy_tactical.png',mood:{rgb:[213,155,84],hue:'-4deg',glow:.52,smokeOpacity:.1,warm:.1}},
+  necro:{id:'necro',label:'Necro Table',src:'assets/rp/boards/necro_table.png',mood:{rgb:[155,125,255],hue:'88deg',glow:.55,smokeOpacity:.24,warm:.02}},
+  slate:{id:'slate',label:'Slate Table',src:'assets/rp/boards/slate_table.png',mood:{rgb:[141,183,255],hue:'145deg',glow:.48,smokeOpacity:.12,warm:.03}}
+};
 let rpMode = false;
+let rpBoardId = localStorage.getItem('dndRPBoard') || 'tavern';
 let rpModeBg = new Image();
-rpModeBg.src = RP_MODE_BACKGROUND;
+rpModeBg.src = (RP_BOARD_PRESETS[rpBoardId] || RP_BOARD_PRESETS.tavern).src;
 rpModeBg.onload = ()=>{ if(rpMode) draw(); };
 let mode = 'move';
 let selectedMapIcon = MAP_ICONS[6];
@@ -1844,6 +1871,10 @@ let diceAnimTimers = [];
 let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null };
 let sheetPinned = false;
 let sheetDrag = null;
+let rpToolPinned = false;
+let rpToolDrag = null;
+let rpFloatingDrag = null;
+let rpFloatingZ = 90;
 let dmUndoStack = [];
 let autosaveTimer = null;
 let cloudClient = null;
@@ -3184,6 +3215,7 @@ function draw(){
 function drawRPModeBackground(){
   ctx.save();
   const img=rpModeBg;
+  const board=RP_BOARD_PRESETS[rpBoardId] || RP_BOARD_PRESETS.tavern;
   if(img.complete && img.naturalWidth){
     const scale=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
     const w=img.naturalWidth*scale;
@@ -3198,6 +3230,14 @@ function drawRPModeBackground(){
     ctx.fillRect(0,0,canvas.width,canvas.height);
   }
   ctx.fillStyle='rgba(0,0,0,.18)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const rgb=board.mood?.rgb || [255,139,42];
+  const glow=board.mood?.glow ?? .7;
+  const vignette=ctx.createRadialGradient(canvas.width*.5,canvas.height*.32,canvas.width*.08,canvas.width*.5,canvas.height*.44,canvas.width*.78);
+  vignette.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${Math.min(.22,glow*.16)})`);
+  vignette.addColorStop(.5,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${Math.min(.09,glow*.06)})`);
+  vignette.addColorStop(1,'rgba(0,0,0,.35)');
+  ctx.fillStyle=vignette;
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.restore();
 }
@@ -3966,6 +4006,8 @@ function updateRoleUI(){
     rpBtn.classList.toggle('active',rpMode);
   }
   ['btn-place','btn-effect'].forEach(id=>document.getElementById(id)?.toggleAttribute('disabled',!isDM()));
+  updateRPBoardMenu();
+  applyRPBoardMood();
 }
 function toggleRPMode(){
   if(!isDM()) return requireDM();
@@ -3974,6 +4016,36 @@ function toggleRPMode(){
 }
 function rpDockPoint(){
   return {x:Math.max(120,wrap.clientWidth/2),y:Math.max(120,wrap.clientHeight/2)};
+}
+function updateRPBoardMenu(){
+  const select=document.getElementById('rp-board-select');
+  if(!select) return;
+  if(!select.options.length){
+    select.innerHTML=Object.values(RP_BOARD_PRESETS).map(board=>`<option value="${board.id}">${escapeHtml(board.label)}</option>`).join('');
+  }
+  select.value=RP_BOARD_PRESETS[rpBoardId] ? rpBoardId : 'tavern';
+}
+function applyRPBoardMood(){
+  const layer=document.getElementById('rp-ambience-layer');
+  const board=RP_BOARD_PRESETS[rpBoardId] || RP_BOARD_PRESETS.tavern;
+  if(!layer || !board) return;
+  const mood=board.mood || {};
+  layer.style.setProperty('--rp-glow',String(mood.glow ?? .75));
+  layer.style.setProperty('--rp-smoke-opacity',String(mood.smokeOpacity ?? .16));
+  layer.style.setProperty('--rp-warm',String(mood.warm ?? .12));
+  layer.style.setProperty('--rp-hue',mood.hue || '0deg');
+}
+function setRPBoard(id,broadcastChange=false){
+  const board=RP_BOARD_PRESETS[id] || RP_BOARD_PRESETS.tavern;
+  rpBoardId=board.id;
+  localStorage.setItem('dndRPBoard',rpBoardId);
+  rpModeBg.onload=()=>{ if(rpMode) draw(); };
+  rpModeBg.src=board.src;
+  updateRPBoardMenu();
+  applyRPBoardMood();
+  draw();
+  saveState();
+  if(broadcastChange) broadcast({type:'rpBoard',rpBoardId});
 }
 function updateRPDock(){
   const dock=document.getElementById('rp-command-dock');
@@ -4010,28 +4082,110 @@ function openRPSheet(){
 function openRPSaveWheel(){
   const ch=getActiveCharacter();
   if(!ch) return showCritOverlay('No character selected','roll','RP');
-  const p=rpDockPoint();
-  openSaveWheel(ch.id,p.x,p.y);
+  openRPSavePanel(ch);
 }
 function openRPSkillWheel(){
   const ch=getActiveCharacter();
   if(!ch) return showCritOverlay('No character selected','roll','RP');
-  const p=rpDockPoint();
-  openSkillWheel(ch.id,p.x,p.y);
+  openRPSkillPanel(ch);
 }
 function openRPDiceWheel(){
   const ch=getActiveCharacter();
-  const menu=document.getElementById('radial-menu');
-  if(!menu) return;
-  hideSheet();
-  menu.classList.remove('skill-wheel');
-  const dice=[4,6,8,10,12,20];
-  menu.innerHTML=`<div class="radial-center">ROLL</div>${dice.map(sides=>`<button class="radial-btn" onclick="hideRadialMenu();rollSimpleDie(${sides})">d${sides}</button>`).join('')}<button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch?.id||activeCharacterId||''}')">Check</button>`;
+  if(!ch) return showCritOverlay('No character selected','roll','RP');
+  openRPDicePanel(ch);
+}
+function positionRPPanel(menu,width=336,height=420){
+  if(rpToolPinned) return;
   const p=rpDockPoint();
-  const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
-  menu.style.left=Math.max(6,Math.min(maxX,p.x-101))+'px';
-  menu.style.top=Math.max(6,Math.min(maxY,p.y-101))+'px';
-  menu.classList.add('show');
+  const maxX=wrap.clientWidth-width-8;
+  const maxY=wrap.clientHeight-height-8;
+  menu.style.left=Math.max(8,Math.min(maxX,p.x-width/2))+'px';
+  menu.style.top=Math.max(8,Math.min(maxY,p.y+96))+'px';
+}
+function rpPanelToolsHtml(){
+  return `<span class="rp-tool-tools"><button onclick="event.stopPropagation();toggleRPToolPin()">${rpToolPinned?'Pinned':'Pin'}</button><button onclick="hideRadialMenu()">Close</button></span>`;
+}
+function rpFloatingToolsHtml(id){
+  return `<span class="rp-tool-tools"><button onclick="event.stopPropagation();toggleRPFloatingPin('${id}')">Pin</button><button onclick="event.stopPropagation();closeRPFloatingTool('${id}')">Close</button></span>`;
+}
+function getRPFloatingTool(id,width=336,height=240){
+  let tool=document.getElementById(id);
+  if(!tool){
+    tool=document.createElement('div');
+    tool.id=id;
+    tool.className='rp-floating-tool';
+    wrap.appendChild(tool);
+    const p=rpDockPoint();
+    const offset=document.querySelectorAll('.rp-floating-tool').length*24;
+    tool.style.left=Math.max(8,Math.min(wrap.clientWidth-width-8,p.x-width/2+offset))+'px';
+    tool.style.top=Math.max(8,Math.min(wrap.clientHeight-height-8,p.y+96+offset))+'px';
+  }
+  tool.style.zIndex=String(++rpFloatingZ);
+  return tool;
+}
+function closeRPFloatingTool(id){
+  document.getElementById(id)?.remove();
+}
+function toggleRPFloatingPin(id){
+  const tool=document.getElementById(id);
+  if(!tool) return;
+  tool.classList.toggle('pinned');
+  const pin=tool.querySelector('.rp-tool-tools button');
+  if(pin) pin.textContent=tool.classList.contains('pinned')?'Pinned':'Pin';
+}
+function openRPToolWindow(menu){
+  menu.classList.remove('show','skill-wheel');
+  menu.classList.add('skill-wheel','rp-tool-window');
+  menu.classList.toggle('pinned',rpToolPinned);
+}
+function toggleRPToolPin(){
+  rpToolPinned=!rpToolPinned;
+  const menu=document.getElementById('radial-menu');
+  if(menu) menu.classList.toggle('pinned',rpToolPinned);
+  const pin=menu?.querySelector('.rp-tool-tools button');
+  if(pin) pin.textContent=rpToolPinned?'Pinned':'Pin';
+}
+function openRPSavePanel(ch){
+  const tool=getRPFloatingTool('rp-save-tool',336,220);
+  hideSheet();
+  hideRadialMenu();
+  const stats=statsWithRace(ch);
+  const itemStats=itemStatBonuses(ch);
+  for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
+  tool.innerHTML=`
+    <div class="skill-wheel-panel">
+      <div class="skill-wheel-head"><b>${escapeHtml(ch.name)} saves</b>${rpFloatingToolsHtml('rp-save-tool')}</div>
+      <div class="skill-grid">
+        ${ABILITIES.map(ab=>`<button onclick="rollSavingThrow('${ch.id}','${ab}')"><span>${ab} Save</span><span>${formatSigned(abilityMod(stats[ab]||10))}</span></button>`).join('')}
+      </div>
+    </div>`;
+}
+function openRPDicePanel(ch){
+  const tool=getRPFloatingTool('rp-roll-tool',336,260);
+  hideSheet();
+  hideRadialMenu();
+  const dice=[4,6,8,10,12,20];
+  tool.innerHTML=`
+    <div class="skill-wheel-panel">
+      <div class="skill-wheel-head"><b>${escapeHtml(ch.name)} rolls</b>${rpFloatingToolsHtml('rp-roll-tool')}</div>
+      <div class="skill-grid">
+        ${dice.map(sides=>`<button onclick="rollSimpleDie(${sides})"><span>d${sides}</span><span>Roll</span></button>`).join('')}
+        <button onclick="rollD20('${ch.id}')"><span>Ability Check</span><span>d20</span></button>
+      </div>
+    </div>`;
+}
+function openRPSkillPanel(ch){
+  const tool=getRPFloatingTool('rp-skill-tool',360,420);
+  hideSheet();
+  hideRadialMenu();
+  const skills=Object.keys(SKILL_DEFS);
+  tool.innerHTML=`
+    <div class="skill-wheel-panel">
+      <div class="skill-wheel-head"><b>${escapeHtml(ch.name)} skills</b>${rpFloatingToolsHtml('rp-skill-tool')}</div>
+      <div class="skill-grid">
+        ${skills.map(skill=>`<button onclick="rollSkillCheck('${ch.id}','${skill}')"><span>${escapeHtml(skillLabel(skill))}</span><span>${formatSigned(skillTotal(ch,skill))}</span></button>`).join('')}
+      </div>
+    </div>`;
 }
 function sheetToolsHtml(){
   return `<div class="sheet-window-tools"><button title="Pin sheet" onclick="event.stopPropagation();toggleSheetPin()">${sheetPinned?'Pinned':'Pin'}</button><button class="sheet-close" onclick="closeSheet()">&times;</button></div>`;
@@ -4084,6 +4238,48 @@ function moveSheetDrag(e){
   pop.style.top=Math.max(8,Math.min(maxY,e.clientY-sheetDrag.wrapTop-sheetDrag.offsetY))+'px';
 }
 function endSheetDrag(){ sheetDrag=null; }
+function beginRPToolDrag(e){
+  const head=e.target.closest?.('.rp-tool-window .skill-wheel-head');
+  const menu=document.getElementById('radial-menu');
+  if(!head || !menu?.classList.contains('show') || e.target.closest('button')) return;
+  const rect=menu.getBoundingClientRect();
+  const wrapRect=wrap.getBoundingClientRect();
+  rpToolDrag={offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,wrapLeft:wrapRect.left,wrapTop:wrapRect.top};
+  rpToolPinned=true;
+  menu.classList.add('pinned');
+  const pin=menu.querySelector('.rp-tool-tools button');
+  if(pin) pin.textContent='Pinned';
+  e.preventDefault();
+}
+function moveRPToolDrag(e){
+  if(!rpToolDrag) return;
+  const menu=document.getElementById('radial-menu');
+  if(!menu) return;
+  const maxX=wrap.clientWidth-menu.offsetWidth-8;
+  const maxY=wrap.clientHeight-menu.offsetHeight-8;
+  menu.style.left=Math.max(8,Math.min(maxX,e.clientX-rpToolDrag.wrapLeft-rpToolDrag.offsetX))+'px';
+  menu.style.top=Math.max(8,Math.min(maxY,e.clientY-rpToolDrag.wrapTop-rpToolDrag.offsetY))+'px';
+}
+function endRPToolDrag(){ rpToolDrag=null; }
+function beginRPFloatingDrag(e){
+  const head=e.target.closest?.('.rp-floating-tool .skill-wheel-head');
+  const tool=e.target.closest?.('.rp-floating-tool');
+  if(!head || !tool || e.target.closest('button')) return;
+  const rect=tool.getBoundingClientRect();
+  const wrapRect=wrap.getBoundingClientRect();
+  rpFloatingDrag={tool,offsetX:e.clientX-rect.left,offsetY:e.clientY-rect.top,wrapLeft:wrapRect.left,wrapTop:wrapRect.top};
+  tool.style.zIndex=String(++rpFloatingZ);
+  e.preventDefault();
+}
+function moveRPFloatingDrag(e){
+  if(!rpFloatingDrag) return;
+  const tool=rpFloatingDrag.tool;
+  const maxX=wrap.clientWidth-tool.offsetWidth-8;
+  const maxY=wrap.clientHeight-tool.offsetHeight-8;
+  tool.style.left=Math.max(8,Math.min(maxX,e.clientX-rpFloatingDrag.wrapLeft-rpFloatingDrag.offsetX))+'px';
+  tool.style.top=Math.max(8,Math.min(maxY,e.clientY-rpFloatingDrag.wrapTop-rpFloatingDrag.offsetY))+'px';
+}
+function endRPFloatingDrag(){ rpFloatingDrag=null; }
 function toggleTokenLock(){
   tokenLock=!tokenLock;
   const btn=document.getElementById('btn-token-lock');
@@ -5558,7 +5754,8 @@ function updatePlayersList(){
 /* ===== NEW SECTION: Mini sheet, damage, statuses, dice, turns ===== */
 function hideRadialMenu(){
   const menu=document.getElementById('radial-menu');
-  if(menu) menu.classList.remove('show','skill-wheel');
+  if(menu) menu.classList.remove('show','skill-wheel','rp-tool-window','pinned');
+  rpToolDrag=null;
 }
 function showRadialMenu(ch,x,y){
   hideSheet();
@@ -7629,6 +7826,7 @@ function buildPersistedState(){
     version:1,
     myId,
     rpMode,
+    rpBoardId,
     mapImageData,
     mapUrl,
     mapRevision,
@@ -7684,6 +7882,10 @@ function loadState(){
     campaignInfo=state.campaign || campaignInfo;
     campaignPortal=normalizeCampaignPortal(state.campaignPortal);
     rpMode=state.rpMode===true;
+    if(RP_BOARD_PRESETS[state.rpBoardId]){
+      rpBoardId=state.rpBoardId;
+      rpModeBg.src=RP_BOARD_PRESETS[rpBoardId].src;
+    }
     mapImageData=state.mapImageData || '';
     mapUrl=state.mapUrl || '';
     mapRevision=Number(state.mapRevision)||0;
@@ -7747,6 +7949,11 @@ function applyPersistedState(state){
   campaignInfo=state.campaign || campaignInfo;
   campaignPortal=normalizeCampaignPortal(state.campaignPortal);
   rpMode=state.rpMode===true;
+  if(RP_BOARD_PRESETS[state.rpBoardId]){
+    rpBoardId=state.rpBoardId;
+    localStorage.setItem('dndRPBoard',rpBoardId);
+    rpModeBg.src=RP_BOARD_PRESETS[rpBoardId].src;
+  }
   const incomingMapRevision=Number(state.mapRevision)||0;
   const incomingFogRevision=Number(state.fogRevision)||0;
   if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,true);
@@ -8171,6 +8378,8 @@ function connectWS(){
         } else if(msg.type==='rpMode'){
           const nextRpMode=msg.rpMode===true;
           if(nextRpMode!==rpMode) applyRPMode(nextRpMode,{animate:true,saveChange:false});
+        } else if(msg.type==='rpBoard'){
+          if(RP_BOARD_PRESETS[msg.rpBoardId]) setRPBoard(msg.rpBoardId,false);
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) remoteCharacters[msg.characterId]=hydrateCharacter({...msg.character,owner:msg.from});
@@ -8354,8 +8563,14 @@ window.addEventListener('beforeunload',()=>{
 });
 window.addEventListener('resize',resize);
 document.getElementById('sheet-popup')?.addEventListener('pointerdown',beginSheetDrag);
+document.getElementById('radial-menu')?.addEventListener('pointerdown',beginRPToolDrag);
+wrap.addEventListener('pointerdown',beginRPFloatingDrag);
 window.addEventListener('pointermove',moveSheetDrag);
+window.addEventListener('pointermove',moveRPToolDrag);
+window.addEventListener('pointermove',moveRPFloatingDrag);
 window.addEventListener('pointerup',endSheetDrag);
+window.addEventListener('pointerup',endRPToolDrag);
+window.addEventListener('pointerup',endRPFloatingDrag);
 window.addEventListener('focus',()=>{ noteUserActivity(); pollCloudState(); });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden) resetCloudIdleTimer();
