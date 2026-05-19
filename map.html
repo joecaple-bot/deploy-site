@@ -3252,6 +3252,16 @@ function storeRemoteCharacter(ch){
   remoteCharacters[key]=ch;
   return ch;
 }
+function removeRemoteCharacterToken(characterId,owner=''){
+  for(const [key,ch] of Object.entries(remoteCharacters)){
+    if(ch.id===characterId && (!owner || ch.owner===owner)) delete remoteCharacters[key];
+  }
+  if(selectedTargetUid===characterId || selectedTargetUid===`${owner}:${characterId}`) selectedTargetUid=null;
+  turnOrder=turnOrder.filter(id=>id!==characterId && id!==`${owner}:${characterId}`);
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
 function drawSceneMood(world){
   const styles={
     cave:'rgba(5,7,16,.22)',
@@ -3828,9 +3838,9 @@ function allCharactersById(){
   },{});
   for(const ch of remoteValues){
     const key=(localIds.has(ch.id) || remoteCounts[ch.id]>1) ? remoteCharacterKey(ch) : ch.id;
-    all[key]=ch;
+    all[key]={...ch,runtimeId:key};
   }
-  for(const ch of myCharacters) all[ch.id]={...ch,isMe:true};
+  for(const ch of myCharacters) all[ch.id]={...ch,isMe:true,runtimeId:ch.id};
   return all;
 }
 function characterById(id){
@@ -5109,6 +5119,13 @@ function deleteCharacter(charId){
   syncAllCharacters();
   scheduleSave();
 }
+function removeStrayPlayerToken(characterId,owner=''){
+  if(!isDM()) return requireDM();
+  removeRemoteCharacterToken(characterId,owner);
+  hideSheet();
+  addChatMessage({kind:'system',character:'DM',label:'Removed stray player token'});
+  broadcast({type:'characterRemove',characterId,owner});
+}
 function buildModalIcons(current){
   const el=document.getElementById('modal-icons');
   el.innerHTML='';
@@ -5870,6 +5887,7 @@ function showSheet(ch,x,y,{hover=false}={}){
   sheetHoverPreview=hover;
   const d=ch.derived || calculateDerived(ch);
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
+  const dmRemoteActions=isDM()&&!ch.isMe ? `<button class="danger" onclick="removeStrayPlayerToken('${ch.id}','${ch.owner||''}')">Remove token</button>` : '';
   const inventoryRows=(ch.inventory||[]).slice(0,8).map(item=>{
     const profile=inventoryWeaponProfile(item);
     const consumable=inventoryConsumableProfile(item);
@@ -5908,7 +5926,7 @@ function showSheet(ch,x,y,{hover=false}={}){
     <div class="sheet-detail"><h4>Inventory</h4><div class="compact-list">${inventoryRows || '<div><span>No inventory yet</span><span></span></div>'}</div></div>
     ${deathControls}
     ${restControls}
-    <div class="sheet-actions">${ownerActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
+    <div class="sheet-actions">${ownerActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
   prepareSheetWindow(pop,x,y);
 }
 function showEnemySheet(enemy,x,y){
@@ -8412,6 +8430,8 @@ function connectWS(){
           if(nextRpMode!==rpMode) applyRPMode(nextRpMode,{animate:true,saveChange:false});
         } else if(msg.type==='rpBoard'){
           if(RP_BOARD_PRESETS[msg.rpBoardId]) setRPBoard(msg.rpBoardId,false);
+        } else if(msg.type==='characterRemove'){
+          if(msg.owner!==myId) removeRemoteCharacterToken(msg.characterId,msg.owner||'');
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:msg.from}));
