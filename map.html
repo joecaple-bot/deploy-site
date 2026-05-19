@@ -46,12 +46,48 @@ body:not(.dm-mode) .dm-only{display:none!important}
 #dot.on{background:var(--accent)}
 #main{display:flex;flex:1;min-height:0}
 #canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:crosshair;background:#0f1117;touch-action:none;min-height:240px}
+#canvas-wrap.scene-fading canvas{filter:brightness(.34) saturate(.72);transition:filter .28s ease}
 body.rp-mode #canvas-wrap{cursor:default}
 body.rp-mode #map3d-layer{display:none!important}
+.rp-ambience-layer{display:none;position:absolute;inset:0;z-index:12;pointer-events:none;overflow:hidden}
+body.rp-mode .rp-ambience-layer{display:block}
+.rp-ambience-layer:before{content:"";position:absolute;inset:-8%;background:
+  radial-gradient(circle at 18% 8%,rgba(255,143,38,.46) 0 3%,rgba(255,121,22,.19) 8%,rgba(255,128,24,.06) 17%,transparent 31%),
+  radial-gradient(circle at 79% 7%,rgba(255,155,48,.5) 0 3.5%,rgba(255,127,24,.2) 9%,rgba(255,137,28,.06) 19%,transparent 33%),
+  radial-gradient(circle at 50% 34%,rgba(255,174,70,.1),transparent 32%),
+  linear-gradient(90deg,rgba(255,116,26,.08),transparent 25%,transparent 72%,rgba(255,128,32,.09));
+  opacity:.85;animation:rpCandleFlicker 2.8s infinite ease-in-out;filter:blur(1px)}
+.rp-ambience-layer:after{content:"";position:absolute;left:-22%;right:-22%;top:18%;height:52%;background:
+  radial-gradient(ellipse at 8% 48%,rgba(185,202,210,.28),rgba(165,178,184,.075) 18%,transparent 38%),
+  radial-gradient(ellipse at 24% 32%,rgba(185,202,210,.24),rgba(165,178,184,.06) 16%,transparent 34%),
+  radial-gradient(ellipse at 43% 54%,rgba(185,202,210,.27),rgba(165,178,184,.07) 18%,transparent 38%),
+  radial-gradient(ellipse at 65% 38%,rgba(185,202,210,.22),rgba(165,178,184,.055) 15%,transparent 34%),
+  radial-gradient(ellipse at 84% 57%,rgba(185,202,210,.25),rgba(165,178,184,.065) 18%,transparent 38%),
+  linear-gradient(100deg,transparent 0%,rgba(170,188,196,.07) 13%,rgba(200,214,220,.12) 32%,rgba(170,188,196,.08) 50%,rgba(200,214,220,.1) 68%,rgba(170,188,196,.06) 86%,transparent 100%);
+  filter:blur(22px);opacity:.16;transform:rotate(-6deg);animation:rpSmokeRibbon 16s infinite ease-in-out}
+.rp-smoke{position:absolute;width:58%;height:18%;border-radius:50%;background:
+  radial-gradient(ellipse at 20% 55%,rgba(188,204,212,.26),rgba(170,184,190,.075) 32%,transparent 68%),
+  radial-gradient(ellipse at 62% 45%,rgba(188,204,212,.2),rgba(170,184,190,.055) 28%,transparent 64%);
+  filter:blur(22px);opacity:.14;animation:rpSmokeWisp 13s infinite ease-in-out}
+.rp-smoke.s1{left:-11%;top:29%;animation-delay:-2s}
+.rp-smoke.s2{left:20%;top:41%;width:66%;height:17%;animation-delay:-8s}
+.rp-smoke.s3{right:-14%;top:27%;width:54%;height:20%;animation-delay:-5s}
+@keyframes rpCandleFlicker{0%,100%{opacity:.76;transform:scale(1)}18%{opacity:.96;transform:scale(1.012)}36%{opacity:.68;transform:scale(.992)}58%{opacity:.9;transform:scale(1.018)}74%{opacity:.72;transform:scale(.998)}}
+@keyframes rpSmokeRibbon{0%,100%{transform:translateX(-3%) translateY(2%) rotate(-6deg) scale(1);opacity:.74}45%{transform:translateX(4%) translateY(-4%) rotate(-4deg) scale(1.04);opacity:.86}72%{transform:translateX(1%) translateY(3%) rotate(-7deg) scale(.99);opacity:.78}}
+@keyframes rpSmokeWisp{0%,100%{transform:translate3d(-6%,8%,0) rotate(-7deg) scale(.96);opacity:.62}35%{transform:translate3d(10%,-10%,0) rotate(4deg) scale(1.08);opacity:.86}70%{transform:translate3d(18%,-18%,0) rotate(-5deg) scale(1.02);opacity:.7}}
 .rp-mode-badge{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:62;pointer-events:none;border:1px solid rgba(255,190,84,.5);background:rgba(12,8,5,.62);box-shadow:0 0 26px rgba(255,123,34,.18);border-radius:999px;padding:7px 14px;color:#ffe7b0;font:800 12px Georgia,'Times New Roman',serif;letter-spacing:.05em;text-transform:uppercase}
 body:not(.rp-mode) .rp-mode-badge{display:none}
 .rp-command-dock{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:64;width:min(780px,calc(100% - 34px));pointer-events:auto;text-align:center}
 body.rp-mode .rp-command-dock{display:block}
+.scene-wipe{position:absolute;inset:0;z-index:92;pointer-events:none;display:none;overflow:hidden}
+.scene-wipe.show{display:block}
+.scene-wipe:before{content:"";position:absolute;top:-18%;bottom:-18%;width:64%;background:linear-gradient(90deg,rgba(8,5,3,.98),rgba(78,42,14,.98) 44%,rgba(242,168,59,1) 50%,rgba(26,12,5,.99) 56%,rgba(8,5,3,.98));box-shadow:0 0 44px rgba(255,151,45,.42),0 0 120px rgba(0,0,0,.82);transform:skewX(-10deg)}
+.scene-wipe.left-to-right:before{animation:sceneWipeLTR 1.05s cubic-bezier(.72,0,.22,1) forwards}
+.scene-wipe.right-to-left:before{animation:sceneWipeRTL 1.05s cubic-bezier(.72,0,.22,1) forwards}
+.scene-wipe:after{content:attr(data-label);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:9px 18px;border:1px solid rgba(255,209,126,.72);border-radius:999px;background:rgba(10,6,3,.72);color:#ffe8b2;font:800 13px Georgia,'Times New Roman',serif;letter-spacing:.1em;text-transform:uppercase;text-shadow:0 2px 6px #000;box-shadow:0 0 28px rgba(255,141,38,.24);animation:sceneWipeTitle 1.05s ease both}
+@keyframes sceneWipeLTR{0%{left:-75%;opacity:0}10%{opacity:1}54%{left:18%;opacity:1}100%{left:116%;opacity:.96}}
+@keyframes sceneWipeRTL{0%{right:-75%;opacity:0}10%{opacity:1}54%{right:18%;opacity:1}100%{right:116%;opacity:.96}}
+@keyframes sceneWipeTitle{0%,100%{opacity:0;transform:translate(-50%,-50%) scale(.94)}20%,78%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 .rp-character-bar{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;padding:9px 14px;border:1px solid rgba(255,203,113,.4);border-radius:999px;background:rgba(9,6,4,.62);box-shadow:0 0 24px rgba(255,132,40,.16),0 1px 0 rgba(255,235,170,.12) inset}
 .rp-character-bar select{width:220px;height:34px;font-size:12px}
 .rp-character-bar b{font-family:Georgia,'Times New Roman',serif;color:#ffe9b6;white-space:nowrap}
@@ -157,6 +193,18 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 #crit-overlay.roll .crit-burst span{border-color:rgba(102,167,216,.7);background:rgba(10,20,32,.78)}
 @keyframes critFade{0%{opacity:0;transform:scale(.86)}12%{opacity:1;transform:scale(1.04)}78%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.12)}}
 @keyframes critSpin{to{transform:rotate(360deg)}}
+#dice-overlay{position:absolute;inset:0;z-index:89;display:none;align-items:flex-start;justify-content:center;pointer-events:none;padding-top:clamp(72px,13vh,150px);background:radial-gradient(circle at 50% 24%,rgba(0,0,0,.32),rgba(0,0,0,0) 42%)}
+#dice-overlay.show{display:flex}
+.dice-stage{position:relative;width:min(330px,70vw);height:250px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;filter:drop-shadow(0 18px 42px rgba(0,0,0,.72))}
+#dice-3d-stage{position:absolute;left:0;right:0;top:0;height:190px}
+#dice-3d-stage canvas{width:100%!important;height:100%!important;display:block}
+.dice-result-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.85);min-width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff4c7;font:900 34px Georgia,'Times New Roman',serif;text-shadow:0 2px 8px rgba(0,0,0,.9);background:radial-gradient(circle,rgba(20,12,6,.72),rgba(20,12,6,.18) 62%,transparent 70%);border:1px solid rgba(255,216,118,.46);opacity:0;transition:opacity .18s ease,transform .18s ease}
+.dice-result-badge.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.dice-result-badge.fail{border-color:rgba(255,96,96,.7);color:#ffd2d2}
+.dice-result-badge.success{border-color:rgba(255,237,130,.9);color:#fff8b8;box-shadow:0 0 24px rgba(255,201,46,.34)}
+.dice-meta{text-align:center;color:#ffe9b6;text-shadow:0 2px 8px #000;font:800 13px Georgia,'Times New Roman',serif;letter-spacing:.04em}
+.dice-meta b{display:block;font-size:20px;color:#fff7d5}
+.dice-meta span{display:inline-block;margin-top:5px;padding:5px 10px;border:1px solid rgba(255,214,123,.45);border-radius:999px;background:rgba(11,7,4,.68);color:#d9c195;font:700 11px Inter,Segoe UI,sans-serif}
 #initiative-prompt{position:absolute;inset:0;z-index:88;display:none;align-items:center;justify-content:center;pointer-events:none;background:radial-gradient(circle at center,rgba(12,16,22,.45),rgba(0,0,0,0) 62%)}
 #initiative-prompt.show{display:flex}
 .initiative-card{width:min(390px,calc(100% - 28px));border:1px solid rgba(202,168,107,.65);background:rgba(24,27,32,.96);box-shadow:var(--shadow);border-radius:10px;padding:18px;text-align:center;pointer-events:auto}
@@ -720,8 +768,20 @@ h3{
   <div id="main">
     <div id="canvas-wrap">
       <canvas id="c"></canvas>
+      <div id="rp-ambience-layer" class="rp-ambience-layer">
+        <span class="rp-smoke s1"></span>
+        <span class="rp-smoke s2"></span>
+        <span class="rp-smoke s3"></span>
+      </div>
+      <div id="scene-wipe" class="scene-wipe" data-label=""></div>
       <div class="rp-mode-badge">RP Mode</div>
       <div id="rp-command-dock" class="rp-command-dock"></div>
+      <div id="dice-overlay">
+        <div class="dice-stage">
+          <div id="dice-3d-stage"><canvas id="dice-webgl" width="420" height="260"></canvas><div id="dice-result-badge" class="dice-result-badge">?</div></div>
+          <div class="dice-meta"><b id="dice-total">Rolling...</b><span id="dice-label">d20</span></div>
+        </div>
+      </div>
       <div id="crit-overlay"><div class="crit-burst"><b id="crit-title">Nat 20</b><span id="crit-text">Critical success</span></div></div>
       <div id="initiative-prompt">
         <div class="initiative-card">
@@ -1090,7 +1150,8 @@ const AUDIO_PACKS = {
       nat20:'audio/nat20.mp3',
       nat1:'audio/nat1.mp3',
       enemyDown:'audio/enemydown.mp3',
-      turn:'audio/dice.mp3'
+      turn:'audio/dice.mp3',
+      rollSuspense:'audio/ui/roll_suspense.wav'
     }
   }
 };
@@ -1779,6 +1840,8 @@ let hoveredTokenId = null, hoverSheetTimer = null;
 let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
+let diceAnimTimers = [];
+let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null };
 let sheetPinned = false;
 let sheetDrag = null;
 let dmUndoStack = [];
@@ -3847,6 +3910,48 @@ function toggleRole(){
   updateRoleUI();
   updateAllPanels();
 }
+function playSceneWipe(nextRpMode){
+  const wipe=document.getElementById('scene-wipe');
+  if(!wipe) return;
+  wipe.className='scene-wipe';
+  wipe.dataset.label=nextRpMode ? 'Entering RP Mode' : 'Returning To Map';
+  void wipe.offsetWidth;
+  wipe.classList.add('show',nextRpMode?'left-to-right':'right-to-left');
+  wrap.classList.add('scene-fading');
+  if(!audioState.muted){
+    try{
+      const sound=new Audio('audio/ui/scene_wipe.wav');
+      sound.volume=Math.max(0,Math.min(.8,(audioState.volume||0.65)*.75));
+      sound.play().catch(()=>{});
+    }catch(e){}
+  }
+  clearTimeout(playSceneWipe.timer);
+  clearTimeout(playSceneWipe.fadeTimer);
+  playSceneWipe.fadeTimer=setTimeout(()=>wrap.classList.remove('scene-fading'),760);
+  playSceneWipe.timer=setTimeout(()=>{ wipe.className='scene-wipe'; wipe.dataset.label=''; wrap.classList.remove('scene-fading'); },1080);
+}
+function applyRPMode(nextRpMode,{animate=false,broadcastChange=false,saveChange=true}={}){
+  const doApply=()=>{
+    rpMode=nextRpMode;
+    if(rpMode){
+      mode='move';
+      hideSheet();
+      hideRadialMenu();
+      if(map3DEditMode) toggle3DEditMode();
+    }
+    updateAllPanels();
+    draw();
+    if(saveChange) saveState();
+    if(broadcastChange) broadcast({type:'rpMode',rpMode});
+  };
+  if(animate){
+    playSceneWipe(nextRpMode);
+    clearTimeout(applyRPMode.timer);
+    applyRPMode.timer=setTimeout(doApply,470);
+  } else {
+    doApply();
+  }
+}
 function updateRoleUI(){
   document.body.classList.toggle('dm-mode',isDM());
   document.body.classList.toggle('rp-mode',rpMode);
@@ -3864,17 +3969,8 @@ function updateRoleUI(){
 }
 function toggleRPMode(){
   if(!isDM()) return requireDM();
-  rpMode=!rpMode;
-  if(rpMode){
-    mode='move';
-    hideSheet();
-    hideRadialMenu();
-    if(map3DEditMode) toggle3DEditMode();
-  }
-  updateAllPanels();
-  draw();
-  saveState();
-  broadcast({type:'rpMode',rpMode});
+  const nextRpMode=!rpMode;
+  applyRPMode(nextRpMode,{animate:true,broadcastChange:true});
 }
 function rpDockPoint(){
   return {x:Math.max(120,wrap.clientWidth/2),y:Math.max(120,wrap.clientHeight/2)};
@@ -4856,7 +4952,8 @@ function playSfx(name,options={}){
   }
   try{
     const instance=sound.cloneNode();
-    instance.volume=Math.max(0,Math.min(1,audioState.volume));
+    const volumeScale=Number.isFinite(Number(options.volume)) ? Number(options.volume) : 1;
+    instance.volume=Math.max(0,Math.min(1,audioState.volume*volumeScale));
     instance.play().catch(()=>{});
   }catch(e){}
 }
@@ -6589,8 +6686,9 @@ function rollD20(id=activeCharacterId){
   });
   const effect=rollVisualEffect(ch?.name || 'Player',result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`d20`);
   playSfx(sfxForRoll(result.rolls[0],true));
-  showCritOverlay(effect.text,effect.overlayType,effect.title);
-  emitLiveEffect({kind:'roll',...effect,roll:lastRoll});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||'d20',character:ch?.name||'Player'});
+  setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
+  emitLiveEffect({kind:'roll',...effect,roll:lastRoll,diceSides:20,diceLabel:effect.title||'d20'});
   updateActiveSummary();
   broadcast({type:'roll',roll:lastRoll});
 }
@@ -6606,8 +6704,9 @@ function rollSavingThrow(id=activeCharacterId,ability='DEX'){
   addChatMessage({kind:'save',character:ch.name,label:`${ability} save`,detail:rollDetailWithBuff(result,`1d20 ${formatBonus(mod)}`),total:result.total,rolls:result.rolls});
   const effect=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`${ability} save`);
   playSfx(sfxForRoll(result.rolls[0],true));
-  showCritOverlay(effect.text,effect.overlayType,effect.title);
-  emitLiveEffect({kind:'roll',...effect,roll:lastRoll});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||`${ability} save`,character:ch.name});
+  setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
+  emitLiveEffect({kind:'roll',...effect,roll:lastRoll,diceSides:20,diceLabel:effect.title||`${ability} save`});
   updateActiveSummary();
 }
 function skillBreakdown(character,skill){
@@ -6644,8 +6743,9 @@ function rollSkillCheck(id=activeCharacterId,skill='Perception'){
   addChatMessage({kind:'skill',character:ch.name,label:skillLabel(skill),detail:rollDetailWithBuff(result,baseLabel),total:result.total,rolls:result.rolls});
   const visual=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:skillDetailLabel(skill,breakdown));
   playSfx(sfxForRoll(result.rolls[0],true));
-  showCritOverlay(visual.text,visual.overlayType,visual.title);
-  emitLiveEffect({kind:'skill',...visual,roll:lastRoll});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:visual.title||skillLabel(skill),character:ch.name});
+  setTimeout(()=>showCritOverlay(visual.text,visual.overlayType,visual.title),850);
+  emitLiveEffect({kind:'skill',...visual,roll:lastRoll,diceSides:20,diceLabel:visual.title||skillLabel(skill)});
   updateActiveSummary();
   updateCombatPopout();
   syncCharacter(ch);
@@ -6664,8 +6764,9 @@ function rollSimpleDie(sides){
   });
   const effect=rollVisualEffect(ch?.name || 'Player',result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`d${sides}`,sides===20);
   playSfx(sfxForRoll(result.rolls[0],sides===20));
-  showCritOverlay(effect.text,effect.overlayType,effect.title);
-  emitLiveEffect({kind:'roll',...effect,roll:{roll:result.rolls[0],mod:0,total:result.total,character:ch?.name || 'Player'}});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides,label:effect.title||`d${sides}`,character:ch?.name||'Player'});
+  setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
+  emitLiveEffect({kind:'roll',...effect,roll:{roll:result.rolls[0],mod:0,total:result.total,character:ch?.name || 'Player'},diceSides:sides,diceLabel:effect.title||`d${sides}`});
 }
 function rollCharacterAction(characterId,type,itemId){
   const ch=characterById(characterId);
@@ -6927,6 +7028,125 @@ function rollVisualEffect(character,total,natural,title,isD20=true){
   if(isD20 && natural===1) return {text:`${character} rolled a natural 1`,overlayType:'fail',title:''};
   return {text:`${character} rolled ${total}`,overlayType:'roll',title};
 }
+function initDice3D(){
+  const canvas=document.getElementById('dice-webgl');
+  if(!canvas || !window.THREE) return false;
+  if(dice3DState.renderer) return true;
+  dice3DState.renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});
+  dice3DState.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  dice3DState.renderer.setSize(420,260,false);
+  dice3DState.scene=new THREE.Scene();
+  dice3DState.camera=new THREE.PerspectiveCamera(34,420/260,0.1,80);
+  dice3DState.camera.position.set(0,0.1,5.4);
+  dice3DState.scene.add(new THREE.HemisphereLight(0xffe1a8,0x170811,1.15));
+  const key=new THREE.PointLight(0xffb75a,2.8,18);
+  key.position.set(3,4,4);
+  dice3DState.scene.add(key);
+  const rim=new THREE.PointLight(0x8bc7ff,1.2,14);
+  rim.position.set(-3,-1,3);
+  dice3DState.scene.add(rim);
+  return true;
+}
+function clearDice3DMesh(){
+  if(dice3DState.frame) cancelAnimationFrame(dice3DState.frame);
+  dice3DState.frame=null;
+  if(!dice3DState.group || !dice3DState.scene) return;
+  dice3DState.scene.remove(dice3DState.group);
+  [dice3DState.mesh,dice3DState.edges].forEach(obj=>{
+    if(!obj) return;
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material){
+      if(Array.isArray(obj.material)) obj.material.forEach(mat=>mat.dispose&&mat.dispose());
+      else obj.material.dispose&&obj.material.dispose();
+    }
+  });
+  dice3DState.group=null;
+  dice3DState.mesh=null;
+  dice3DState.edges=null;
+}
+function diceGeometryForSides(sides){
+  const die=Number(sides)||20;
+  if(die===4) return new THREE.TetrahedronGeometry(1.16,0);
+  if(die===6) return new THREE.BoxGeometry(1.42,1.42,1.42);
+  if(die===8) return new THREE.OctahedronGeometry(1.18,0);
+  if(die===10) return new THREE.CylinderGeometry(0.92,0.92,1.5,10,1,false,Math.PI/10);
+  if(die===12) return new THREE.DodecahedronGeometry(1.13,0);
+  return new THREE.IcosahedronGeometry(1.18,0);
+}
+function renderDice3D({natural=0,sides=20}={}){
+  if(!initDice3D()) return false;
+  clearDice3DMesh();
+  const die=Number(sides)||20;
+  const roll=Number(natural)||0;
+  const isCrit=die===20 && roll===20;
+  const isFail=die===20 && roll===1;
+  const group=new THREE.Group();
+  const material=new THREE.MeshStandardMaterial({
+    color:isCrit?0xd89a26:isFail?0x8f1f1f:0x8a4d1c,
+    roughness:.34,
+    metalness:.18,
+    emissive:isCrit?0x5a3400:isFail?0x310505:0x211006,
+    emissiveIntensity:isCrit?.55:isFail?.42:.22
+  });
+  const mesh=new THREE.Mesh(diceGeometryForSides(die),material);
+  group.add(mesh);
+  const edges=new THREE.LineSegments(
+    new THREE.EdgesGeometry(mesh.geometry,18),
+    new THREE.LineBasicMaterial({color:isCrit?0xfff0a8:isFail?0xffa0a0:0xffd98d,transparent:true,opacity:.78})
+  );
+  group.add(edges);
+  dice3DState.group=group;
+  dice3DState.mesh=mesh;
+  dice3DState.edges=edges;
+  dice3DState.scene.add(group);
+  const start=performance.now();
+  const duration=1580;
+  const endRot={x:(roll%7)*0.43+0.42,y:(roll%11)*0.37+0.25,z:(roll%5)*0.31+0.15};
+  const animate=now=>{
+    const t=Math.min(1,(now-start)/duration);
+    const ease=1-Math.pow(1-t,3);
+    const bounce=Math.sin(Math.PI*t);
+    group.rotation.x=endRot.x+(1-ease)*Math.PI*7+Math.sin(t*28)*.18*(1-ease);
+    group.rotation.y=endRot.y+(1-ease)*Math.PI*9+Math.cos(t*23)*.14*(1-ease);
+    group.rotation.z=endRot.z+(1-ease)*Math.PI*5;
+    group.position.y=bounce*.34-(1-ease)*.18;
+    const scale=.68+ease*.32+bounce*.08;
+    group.scale.set(scale,scale,scale);
+    dice3DState.camera.position.z=5.55-ease*1.2;
+    dice3DState.camera.lookAt(0,0,0);
+    dice3DState.renderer.render(dice3DState.scene,dice3DState.camera);
+    if(t<1) dice3DState.frame=requestAnimationFrame(animate);
+  };
+  dice3DState.frame=requestAnimationFrame(animate);
+  return true;
+}
+function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',character='Player',type='roll'}={}){
+  const overlay=document.getElementById('dice-overlay');
+  const badge=document.getElementById('dice-result-badge');
+  const totalEl=document.getElementById('dice-total');
+  const labelEl=document.getElementById('dice-label');
+  if(!overlay||!badge||!totalEl||!labelEl) return;
+  const rollNumber=Number(natural)||Number(total)||0;
+  const sideCount=Number(sides)||20;
+  badge.textContent=String(rollNumber || '?');
+  badge.className='dice-result-badge';
+  if(sideCount===20 && rollNumber===20) badge.classList.add('success');
+  if(sideCount===20 && rollNumber===1) badge.classList.add('fail');
+  totalEl.textContent='Rolling...';
+  labelEl.textContent=`${character} · ${label || `d${sides}`}`;
+  labelEl.textContent=`${character} - ${label || `d${sideCount}`}`;
+  playSfx('rollSuspense',{volume:.25,force:true});
+  overlay.classList.remove('show');
+  badge.classList.remove('show');
+  void overlay.offsetWidth;
+  overlay.classList.add('show');
+  renderDice3D({natural:rollNumber,sides:sideCount});
+  diceAnimTimers.forEach(clearTimeout);
+  diceAnimTimers=[
+    setTimeout(()=>{ badge.classList.add('show'); totalEl.textContent=`Total ${total || rollNumber}`; },1280),
+    setTimeout(()=>{ overlay.classList.remove('show'); badge.classList.remove('show'); clearDice3DMesh(); },2600)
+  ];
+}
 function emitLiveEffect(effect){
   const payload={...effect,campaignId:CLOUD_CAMPAIGN_ID,id:'fx_'+Date.now()+Math.random().toString(36).slice(2,6)};
   broadcast({type:'liveEffect',effect:payload});
@@ -6992,7 +7212,18 @@ function handleLiveEffect(effect){
     if(effect.targetCharacterId) applyCharacterPatch(effect.targetCharacterId,{currentHP:effect.currentHP,statuses:effect.statuses});
     playActionAnimation(ch,'spell',effect);
   }
-  showCritOverlay(effect.text,effect.overlayType || 'roll',effect.title || '');
+  if(effect.roll && ['roll','skill'].includes(effect.kind)){
+    showDiceRollAnimation({
+      natural:Number(effect.roll.roll)||0,
+      total:Number(effect.roll.total)||Number(effect.roll.roll)||0,
+      sides:Number(effect.diceSides)||20,
+      label:effect.diceLabel||effect.title||'Roll',
+      character:effect.roll.character||effect.character||'Player'
+    });
+    setTimeout(()=>showCritOverlay(effect.text,effect.overlayType || 'roll',effect.title || ''),850);
+  } else {
+    showCritOverlay(effect.text,effect.overlayType || 'roll',effect.title || '');
+  }
   updateActiveSummary();
 }
 function playActionAnimation(ch,type='weapon',details={}){
@@ -7104,11 +7335,12 @@ function sendChatText(){
       total:value,
       rolls:[value]
     });
-    if(value===20) showCritOverlay(`${ch?.name || 'Player'} rolled a natural 20`);
-    if(value===1) showCritOverlay(`${ch?.name || 'Player'} rolled a natural 1`,'fail');
-    if(value!==20&&value!==1) showCritOverlay(`${ch?.name || 'Player'} rolled ${value}`,'roll','d20');
+    showDiceRollAnimation({natural:value,total:value,sides:20,label:'d20',character:ch?.name||'Player'});
+    if(value===20) setTimeout(()=>showCritOverlay(`${ch?.name || 'Player'} rolled a natural 20`),850);
+    if(value===1) setTimeout(()=>showCritOverlay(`${ch?.name || 'Player'} rolled a natural 1`,'fail'),850);
+    if(value!==20&&value!==1) setTimeout(()=>showCritOverlay(`${ch?.name || 'Player'} rolled ${value}`,'roll','d20'),850);
     playSfx(sfxForRoll(value,true));
-    emitLiveEffect({kind:'roll',...rollVisualEffect(ch?.name || 'Player',value,value,'d20'),roll:lastRoll});
+    emitLiveEffect({kind:'roll',...rollVisualEffect(ch?.name || 'Player',value,value,'d20'),roll:lastRoll,diceSides:20,diceLabel:'d20'});
     updateActiveSummary();
     input.value='';
     return;
@@ -7223,6 +7455,8 @@ function rollPlayerInitiative(id=activeCharacterId){
   addChatMessage({kind:'initiative',character:ch.name,label:`Initiative ${roll.total}`,detail:`1d20 ${formatBonus(ch.derived?.initiative||0)}`});
   broadcast({type:'initiativeRoll',characterId:ch.id,total:roll.total,character:ch});
   playSfx(sfxForRoll(roll.rolls[0],true));
+  showDiceRollAnimation({natural:roll.rolls[0],total:roll.total,sides:20,label:'Initiative',character:ch.name});
+  setTimeout(()=>showCritOverlay(`${ch.name} initiative ${roll.total}`,'roll','Initiative'),850);
   updateAllPanels();
   scheduleSave();
 }
@@ -7935,10 +8169,8 @@ function connectWS(){
           draw();
           scheduleSave();
         } else if(msg.type==='rpMode'){
-          rpMode=msg.rpMode===true;
-          updateAllPanels();
-          draw();
-          scheduleSave();
+          const nextRpMode=msg.rpMode===true;
+          if(nextRpMode!==rpMode) applyRPMode(nextRpMode,{animate:true,saveChange:false});
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) remoteCharacters[msg.characterId]=hydrateCharacter({...msg.character,owner:msg.from});
