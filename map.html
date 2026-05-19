@@ -1864,6 +1864,7 @@ let camera = {x:0,y:0,scale:1};
 let isPanning = false, panStartX = 0, panStartY = 0, panCameraX = 0, panCameraY = 0;
 let tokenLock = false;
 let hoveredTokenId = null, hoverSheetTimer = null;
+let sheetHoverPreview = false, sheetHoverInside = false;
 let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
@@ -4223,11 +4224,19 @@ function closeSheet(){
   if(!pop) return;
   pop.classList.remove('show','pinned');
   sheetPinned=false;
+  sheetHoverPreview=false;
+  sheetHoverInside=false;
 }
 function hideSheet(){
   if(sheetPinned) return;
   closeSheet();
   hideRadialMenu();
+}
+function scheduleHoverSheetHide(delay=120){
+  clearTimeout(hoverSheetTimer);
+  hoverSheetTimer=setTimeout(()=>{
+    if(sheetHoverPreview && !hoveredTokenId && !sheetHoverInside) closeSheet();
+  },delay);
 }
 function toggleSheetPin(){
   sheetPinned=!sheetPinned;
@@ -4694,11 +4703,12 @@ canvas.addEventListener('mousemove',e=>{
       if(hoveredTokenId!==hit.id){
         hoveredTokenId=hit.id;
         clearTimeout(hoverSheetTimer);
-          hoverSheetTimer=setTimeout(()=>{ if(hoveredTokenId===hit.id) showSheet(hit.p,sx,sy); },180);
+          hoverSheetTimer=setTimeout(()=>{ if(hoveredTokenId===hit.id) showSheet(hit.p,sx,sy,{hover:true}); },180);
       }
     } else {
       hoveredTokenId=null;
       clearTimeout(hoverSheetTimer);
+      scheduleHoverSheetHide();
     }
     return;
   }
@@ -4759,6 +4769,7 @@ canvas.addEventListener('mouseleave',()=>{
   }
   hoveredTokenId=null;
   clearTimeout(hoverSheetTimer);
+  scheduleHoverSheetHide();
 });
 
 canvas.addEventListener('click',e=>{
@@ -5853,9 +5864,10 @@ function openSkillWheel(id,x,y){
   menu.style.top=Math.max(6,Math.min(maxY,y-120))+'px';
   menu.classList.add('show');
 }
-function showSheet(ch,x,y){
+function showSheet(ch,x,y,{hover=false}={}){
   const pop=document.getElementById('sheet-popup');
   pop.classList.remove('enemy');
+  sheetHoverPreview=hover;
   const d=ch.derived || calculateDerived(ch);
   const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
   const inventoryRows=(ch.inventory||[]).slice(0,8).map(item=>{
@@ -5902,6 +5914,7 @@ function showSheet(ch,x,y){
 function showEnemySheet(enemy,x,y){
   const pop=document.getElementById('sheet-popup');
   pop.classList.add('enemy');
+  sheetHoverPreview=false;
   const dm=isDM();
   pop.innerHTML=`
     <div class="sheet-top">
@@ -8582,6 +8595,9 @@ window.addEventListener('beforeunload',()=>{
 });
 window.addEventListener('resize',resize);
 document.getElementById('sheet-popup')?.addEventListener('pointerdown',beginSheetDrag);
+document.getElementById('sheet-popup')?.addEventListener('pointerenter',()=>{ sheetHoverInside=true; clearTimeout(hoverSheetTimer); });
+document.getElementById('sheet-popup')?.addEventListener('pointerleave',()=>{ sheetHoverInside=false; scheduleHoverSheetHide(); });
+document.getElementById('sheet-popup')?.addEventListener('click',()=>{ sheetHoverPreview=false; });
 document.getElementById('radial-menu')?.addEventListener('pointerdown',beginRPToolDrag);
 wrap.addEventListener('pointerdown',beginRPFloatingDrag);
 window.addEventListener('pointermove',moveSheetDrag);
