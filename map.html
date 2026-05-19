@@ -3241,6 +3241,16 @@ function drawRPModeBackground(){
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.restore();
 }
+function remoteCharacterKey(ch){
+  return `${ch?.owner || 'remote'}:${ch?.id || ''}`;
+}
+function storeRemoteCharacter(ch){
+  if(!ch || !ch.id) return null;
+  const key=remoteCharacterKey(ch);
+  if(ch.owner && remoteCharacters[ch.id]?.owner===ch.owner) delete remoteCharacters[ch.id];
+  remoteCharacters[key]=ch;
+  return ch;
+}
 function drawSceneMood(world){
   const styles={
     cave:'rgba(5,7,16,.22)',
@@ -3809,7 +3819,16 @@ function getActiveCharacter(){
 
 function allCharactersById(){
   const all={};
-  for(const ch of Object.values(remoteCharacters)) all[ch.id]=ch;
+  const localIds=new Set(myCharacters.map(ch=>ch.id));
+  const remoteValues=Object.values(remoteCharacters);
+  const remoteCounts=remoteValues.reduce((counts,ch)=>{
+    counts[ch.id]=(counts[ch.id]||0)+1;
+    return counts;
+  },{});
+  for(const ch of remoteValues){
+    const key=(localIds.has(ch.id) || remoteCounts[ch.id]>1) ? remoteCharacterKey(ch) : ch.id;
+    all[key]=ch;
+  }
   for(const ch of myCharacters) all[ch.id]={...ch,isMe:true};
   return all;
 }
@@ -7936,7 +7955,7 @@ function applyCharacterStateFromCampaign(state){
     const chOwner=raw.owner || ownerId;
     if(!chOwner || chOwner===myId) continue;
     const ch=hydrateCharacter({...raw,owner:chOwner});
-    remoteCharacters[ch.id]=ch;
+    storeRemoteCharacter(ch);
   }
   if(activeCharacterId && !myCharacters.some(ch=>ch.id===activeCharacterId)){
     activeCharacterId=myCharacters[0]?.id || null;
@@ -8298,21 +8317,21 @@ function connectWS(){
         if(msg.campaignId && msg.campaignId!==CLOUD_CAMPAIGN_ID) return;
         if(msg.type==='characterState'){
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
-          remoteCharacters[ch.id]=ch;
+          storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
           updateAllPanels();
           draw();
         } else if(msg.type==='partyState'){
           for(const raw of msg.characters || []){
             const ch=hydrateCharacter({...raw,owner:msg.from});
-            remoteCharacters[ch.id]=ch;
+            storeRemoteCharacter(ch);
             if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
           }
           updateAllPanels();
           draw();
         } else if(msg.type==='move'){
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
-          remoteCharacters[ch.id]=ch;
+          storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
           updateAllPanels();
           draw();
@@ -8382,7 +8401,7 @@ function connectWS(){
           if(RP_BOARD_PRESETS[msg.rpBoardId]) setRPBoard(msg.rpBoardId,false);
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
-          if(msg.character) remoteCharacters[msg.characterId]=hydrateCharacter({...msg.character,owner:msg.from});
+          if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:msg.from}));
           const ids=[...new Set([...turnOrder,msg.characterId].filter(Boolean))];
           turnOrder=ids.sort((a,b)=>(initiativeRolls[b]||0)-(initiativeRolls[a]||0));
           updateAllPanels();
