@@ -5521,6 +5521,18 @@ function isPlaceholderCharacter(ch){
   const hasActions=(ch.weapons||[]).length || (ch.spells||[]).length || (ch.abilities||[]).length;
   return (ch.name==='Player'||ch.name==='New Character') && ch.class==='Fighter' && !hasActions;
 }
+function isGeneratedDefaultGhost(ch){
+  return isPlaceholderCharacter(ch) && ch.name==='Player' && (ch.race||'Human')==='Human' && Number(ch.level||1)===1;
+}
+function pruneGeneratedDefaultGhosts(characters=[]){
+  const list=characters.filter(Boolean);
+  const hasReal=list.some(ch=>!isGeneratedDefaultGhost(ch));
+  if(!hasReal) return list;
+  for(const ch of list){
+    if(isGeneratedDefaultGhost(ch)) delete characterClaims[ch.id];
+  }
+  return list.filter(ch=>!isGeneratedDefaultGhost(ch));
+}
 function updateBeginnerNudge(){
   const el=document.getElementById('new-player-nudge');
   if(!el) return;
@@ -5575,7 +5587,15 @@ function updateCharactersList(){
     }
     el.appendChild(d);
   }
-  const remoteAvailable=Object.values(allCharactersById()).filter(ch=>!ch.isMe && !characterClaim(ch.id));
+  const seenAvailable=new Set();
+  const remoteAvailable=Object.values(allCharactersById()).filter(ch=>{
+    if(ch.isMe || characterClaim(ch.id) || seenAvailable.has(ch.id)) return false;
+    seenAvailable.add(ch.id);
+    return true;
+  });
+  if(!myCharacters.length && !remoteAvailable.length){
+    el.innerHTML='<div class="hint">No character claimed yet. Ask the DM to create one or claim an available character.</div>';
+  }
   for(const ch of remoteAvailable){
     const placed=characterX(ch)!=null&&characterY(ch)!=null;
     const d=document.createElement('div');
@@ -8039,7 +8059,7 @@ function buildPersistedState(){
   const partyById={};
   for(const ch of Object.values(remoteCharacters)) partyById[ch.id]=hydrateCharacter(ch);
   for(const ch of myCharacters) partyById[ch.id]=hydrateCharacter({...ch,owner:myId,claimedBy:myId});
-  const partyCharacters=Object.values(partyById);
+  const partyCharacters=pruneGeneratedDefaultGhosts(Object.values(partyById));
   return {
     version:1,
     myId,
@@ -8147,10 +8167,18 @@ function loadState(){
 function applyCharacterStateFromCampaign(state){
   const ownerId=state.myId || state.ownerId || '';
   characterClaims=normalizeCharacterClaims(state.characterClaims || characterClaims);
-  const incomingParty=Array.isArray(state.partyCharacters) ? state.partyCharacters : [];
-  const incomingLocal=Array.isArray(state.myCharacters) ? state.myCharacters : [];
-  const allIncoming=incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner}));
-  if(ownerId===myId || (!myCharacters.length && incomingLocal.length)){
+  const incomingParty=pruneGeneratedDefaultGhosts(Array.isArray(state.partyCharacters) ? state.partyCharacters : []);
+  const incomingLocal=pruneGeneratedDefaultGhosts(Array.isArray(state.myCharacters) ? state.myCharacters : []);
+  const allIncoming=pruneGeneratedDefaultGhosts(incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner})));
+  const incomingIds=new Set(allIncoming.map(ch=>ch.id).filter(Boolean));
+  if(incomingIds.size){
+    myCharacters=myCharacters.filter(ch=>{
+      const shouldDropGeneratedDefault=isPlaceholderCharacter(ch) && ch.name==='Player' && !incomingIds.has(ch.id);
+      if(shouldDropGeneratedDefault) delete characterClaims[ch.id];
+      return !shouldDropGeneratedDefault;
+    });
+  }
+  if(ownerId===myId){
     myCharacters=incomingLocal.map(ch=>hydrateCharacter({...ch,owner:myId}));
     reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || activeCharacterId || myCharacters[0]?.id || null;
@@ -8172,6 +8200,13 @@ function applyCharacterStateFromCampaign(state){
   if(activeCharacterId && !myCharacters.some(ch=>ch.id===activeCharacterId)){
     activeCharacterId=myCharacters[0]?.id || null;
   }
+}
+function hasCampaignCharacters(){
+  if(myCharacters.length || Object.values(remoteCharacters).length) return true;
+  return latestCloudState && (
+    (Array.isArray(latestCloudState.partyCharacters) && latestCloudState.partyCharacters.length) ||
+    (Array.isArray(latestCloudState.myCharacters) && latestCloudState.myCharacters.length)
+  );
 }
 function applyPersistedState(state){
   if(!state) return;
@@ -8510,7 +8545,7 @@ function syncCharacter(ch){
 }
 function syncAllCharacters(){
   reconcileLocalClaims();
-  broadcast({type:'partyState',characters:myCharacters,characterClaims});
+  broadcast({type:'partyState',characters:pruneGeneratedDefaultGhosts(myCharacters),characterClaims});
 }
 function connectWS(){
   const dot=document.getElementById('dot'), stxt=document.getElementById('status-txt');
@@ -8532,6 +8567,7 @@ function connectWS(){
         if(msg.type==='characterState'){
           if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
           if(!acceptsRemoteCharacterUpdate(msg.character?.id,msg.from)) return;
+          if(isGeneratedDefaultGhost(msg.character) && hasCampaignCharacters()) return;
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
           storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
@@ -8539,7 +8575,7 @@ function connectWS(){
           draw();
         } else if(msg.type==='partyState'){
           if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
-          for(const raw of msg.characters || []){
+          for(const raw of pruneGeneratedDefaultGhosts(msg.characters || [])){
             if(!acceptsRemoteCharacterUpdate(raw?.id,msg.from)) continue;
             const ch=hydrateCharacter({...raw,owner:msg.from});
             storeRemoteCharacter(ch);
@@ -8550,6 +8586,7 @@ function connectWS(){
         } else if(msg.type==='move'){
           if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
           if(!acceptsRemoteCharacterUpdate(msg.character?.id,msg.from)) return;
+          if(isGeneratedDefaultGhost(msg.character) && hasCampaignCharacters()) return;
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
           storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
@@ -8651,7 +8688,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
@@ -8660,8 +8697,9 @@ function connectWS(){
   }catch(err){ stxt.textContent='Offline (solo)'; }
 }
 
-function ensureDefaultCharacter(){
+function ensureDefaultCharacter(force=false){
   if(myCharacters.length) return;
+  if(!force && hasCampaignCharacters()) return;
   const ch=hydrateCharacter({
     name:'Player',
     race:'Human',
