@@ -1091,8 +1091,8 @@ h3{
         <div class="panel-head">
           <h3>Turn order</h3>
           <div class="actions">
-            <button onclick="rollInitiative()" style="font-size:11px;padding:5px 8px">Roll</button>
-            <button onclick="nextTurn()" style="font-size:11px;padding:5px 8px">Next</button>
+            <button class="dm-only" onclick="rollInitiative()" style="font-size:11px;padding:5px 8px">Roll</button>
+            <button class="dm-only" onclick="nextTurn()" style="font-size:11px;padding:5px 8px">Next</button>
           </div>
         </div>
         <div id="turn-list"></div>
@@ -1101,7 +1101,7 @@ h3{
           <button onclick="cycleTarget(1)" style="font-size:11px;padding:6px 8px">Next target</button>
         </div>
         <button id="end-turn-btn" class="full-btn primary" onclick="endPlayerTurn()">End turn</button>
-        <button class="full-btn" onclick="clearInitiative()">Clear initiative</button>
+        <button class="full-btn dm-only" onclick="clearInitiative()">Clear initiative</button>
 
         <div class="hdiv"></div>
         <h3>Players online</h3>
@@ -1849,6 +1849,8 @@ let initiativeRolls = {};
 let activeTurnIndex = 0;
 let combatMode = false;
 let turnActionState = {};
+const COMBAT_MOVE_BUDGET_PX = 180;
+let lastCombatMoveWarn = 0;
 let lastRoll = null;
 let chatMessages = [];
 let myId = stablePlayerId();
@@ -4658,6 +4660,87 @@ function canMoveCharacterNow(ch){
   if(!combatMode || isDM()) return true;
   return turnOrder[activeTurnIndex]===ch?.id;
 }
+function getCombatMoveBudget(ch){
+  return Math.max(60,Number(ch?.movementPx || ch?.speedPx || COMBAT_MOVE_BUDGET_PX) || COMBAT_MOVE_BUDGET_PX);
+}
+function currentTurnId(){
+  return combatMode ? turnOrder[activeTurnIndex] || null : null;
+}
+function isCurrentTurnActor(id){
+  return !combatMode || isDM() || currentTurnId()===id;
+}
+function canUseTurnAction(ch,kind='action'){
+  if(!combatMode || isDM()) return true;
+  if(currentTurnId()!==ch?.id){
+    showCritOverlay('Wait for your turn','roll','Combat');
+    return false;
+  }
+  if(kind==='action' && turnActionState.actionTaken && turnActionState.actorId===ch.id){
+    showCritOverlay('Action already used','roll','Combat');
+    return false;
+  }
+  return true;
+}
+function canUseEnemyTurnAction(enemy){
+  if(!combatMode || !enemy) return true;
+  if(currentTurnId()!==enemy.uid){
+    showCritOverlay('Select that enemy turn first','roll','Combat');
+    return false;
+  }
+  if(turnActionState.actionTaken && turnActionState.actorId===enemy.uid){
+    showCritOverlay('Enemy action already used','roll','Combat');
+    return false;
+  }
+  return true;
+}
+function canSpendMovement(ch,nextX,nextY){
+  if(!combatMode || isDM() || !ch) return true;
+  if(currentTurnId()!==ch.id){
+    showCritOverlay('Wait for your turn','roll','Combat');
+    return false;
+  }
+  const from={x:characterX(ch),y:characterY(ch)};
+  if(from.x==null || from.y==null) return true;
+  const step=Math.hypot(nextX-from.x,nextY-from.y);
+  const used=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
+  const budget=getCombatMoveBudget(ch);
+  if(used+step>budget+1){
+    const now=Date.now();
+    if(now-lastCombatMoveWarn>900){
+      showCritOverlay(`Movement used ${Math.round(used)}/${budget}px`,'roll','Movement');
+      lastCombatMoveWarn=now;
+    }
+    return false;
+  }
+  return true;
+}
+function recordTurnMovement(ch,fromX,fromY,toX,toY){
+  if(!combatMode || isDM() || !ch || currentTurnId()!==ch.id) return;
+  const step=(fromX==null||fromY==null)?0:Math.hypot(toX-fromX,toY-fromY);
+  const state=turnActionState.actorId===ch.id ? turnActionState : {actorId:ch.id,acted:false,actionTaken:false,movementUsed:0};
+  state.movementUsed=Math.min(getCombatMoveBudget(ch),Math.round((Number(state.movementUsed)||0)+step));
+  state.moved=state.movementUsed>0;
+  state.acted=state.moved || state.actionTaken;
+  state.reason=state.actionTaken ? 'action' : 'movement';
+  state.at=Date.now();
+  turnActionState=state;
+  broadcast({type:'turnAction',turnActionState});
+  updateFloatingEndTurn();
+  updateEndTurnButton();
+}
+function moveCharacterOnMap(ch,nextX,nextY,{announce=true}={}){
+  if(!ch) return false;
+  if(!canMoveCharacterNow(ch) || !canSpendMovement(ch,nextX,nextY)) return false;
+  const fromX=characterX(ch), fromY=characterY(ch);
+  setCharacterPosition(ch,nextX,nextY);
+  revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
+  syncCharacter(ch);
+  recordTurnMovement(ch,fromX,fromY,characterX(ch),characterY(ch));
+  if(announce) updateAllPanels();
+  draw();
+  scheduleSave();
+  return true;
+}
 function handleCanvasTap(x,y,screenX=x,screenY=y){
   if(rpMode){
     if(mode==='ping'){
@@ -4728,15 +4811,8 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     const active=getActiveCharacter();
     if(!active) return;
     if(!canControlCharacter(active)) return showCritOverlay('That character belongs to another player','roll','Locked');
-    if(!canMoveCharacterNow(active)) return showCritOverlay('Wait for your turn','roll','Combat');
     pushDMUndo('move character');
-    setCharacterPosition(active,x,y);
-    revealAt(x,y,getCharacterRevealRadius(active));
-    syncCharacter(active);
-    markTurnAction('movement',active.id);
-    updateAllPanels();
-    draw();
-    scheduleSave();
+    moveCharacterOnMap(active,x,y);
   } else if(mode==='place'){
     if(!isDM()) return requireDM();
     pushDMUndo(selectedMapIcon.kind==='pin'?'place pin':'place icon');
@@ -4871,10 +4947,7 @@ canvas.addEventListener('mousemove',e=>{
   if(dragTarget==='player'){
     const active=getActiveCharacter();
     if(!active) return;
-    setCharacterPosition(active,x-dragOffX,y-dragOffY);
-    revealAt(characterX(active),characterY(active),getCharacterRevealRadius(active));
-    syncCharacter(active);
-    markTurnAction('movement',active.id);
+    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false});
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
@@ -5011,10 +5084,7 @@ canvas.addEventListener('touchmove',e=>{
   if(dragTarget==='player'){
     const active=getActiveCharacter();
     if(!active) return;
-    setCharacterPosition(active,x-dragOffX,y-dragOffY);
-    revealAt(characterX(active),characterY(active),getCharacterRevealRadius(active));
-    syncCharacter(active);
-    markTurnAction('movement',active.id);
+    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false});
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
@@ -5721,8 +5791,10 @@ function updateCombatPopout(){
     const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
     const targetCharacter=selectedTargetCharacter();
     const targetLabel=targetCharacter?`${escapeHtml(targetCharacter.name)} AC ${targetCharacter.derived?.AC||'-'} HP ${targetCharacter.currentHP}/${targetCharacter.derived?.HP||targetCharacter.currentHP}`:targetEnemy?`${escapeHtml(targetEnemy.name)} AC ${targetEnemy.ac} HP ${targetEnemy.hp}/${targetEnemy.maxHP}`:'None selected';
+    const turnLabel=combatMode ? (currentTurnId()===activeEnemy.uid ? `Enemy turn${turnActionState.actionTaken&&turnActionState.actorId===activeEnemy.uid?' · action used':''}` : 'Waiting for this enemy turn') : 'Free mode';
     title.textContent=`${activeEnemy.name} actions`;
     body.innerHTML=`
+      <div class="combat-meta">${turnLabel}</div>
       <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''} <button onclick="clearActiveEnemy()" style="font-size:10px;padding:2px 5px">Release control</button></div>
       <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')`,'d6')).join('')}
@@ -5742,12 +5814,15 @@ function updateCombatPopout(){
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   const friendly=selectedTargetCharacter();
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
+  const moveUsed=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
+  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn · move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${turnActionState.actionTaken&&turnActionState.actorId===ch.id?' · action used':''}` : 'Waiting for turn') : 'Free mode';
   title.textContent=`${ch.name} actions`;
   if(!weapons.length&&!spells.length){
-    body.innerHTML=`<div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
+    body.innerHTML=`<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
     return;
   }
   body.innerHTML=`
+    <div class="combat-meta">${turnLabel}</div>
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
@@ -7222,14 +7297,15 @@ function rollCharacterAction(characterId,type,itemId){
   const ch=characterById(characterId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
+  if(!canUseTurnAction(ch,'action')) return;
   const item=(ch[type+'s']||[]).find(x=>x.id===itemId);
   if(!item) return;
-  markTurnAction(type,characterId);
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
-  if(isAoeAction(item)) return rollAoeAction(ch,'character',type,item,actionType);
+  if(isAoeAction(item)){ markTurnAction(type,characterId); return rollAoeAction(ch,'character',type,item,actionType); }
   const friendly=selectedTargetCharacter();
   if(actionType==='healing'){
+    markTurnAction(type,characterId);
     const target=friendly||ch;
     const roll=rollDiceExpression('1'+item.die,item.bonus);
     const before=target.currentHP ?? target.derived.HP;
@@ -7246,6 +7322,7 @@ function rollCharacterAction(characterId,type,itemId){
     return;
   }
   if(actionType==='buff'||actionType==='utility'){
+    markTurnAction(type,characterId);
     const target=friendly||ch;
     const effectName=item.effect||item.name||'Buff';
     const conc=concentrationSpellName(effectName||item.name);
@@ -7264,6 +7341,8 @@ function rollCharacterAction(characterId,type,itemId){
   const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack');
   const damage=rollDiceExpression('1'+item.die,item.bonus);
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
+  if(!target) return showCritOverlay('Choose an enemy target first','roll','Attack');
+  markTurnAction(type,characterId);
   const hitTarget=target && attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=target.ac);
   const hpBefore=target ? target.hp : null;
   let hpAfter=target ? target.hp : null;
@@ -7405,13 +7484,15 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(enemyUid);
   if(!enemy) return;
+  if(!canUseEnemyTurnAction(enemy)) return;
   const item=(enemy[type+'s']||[]).find(x=>x.id===itemId);
   if(!item) return;
   const actionType=item.actionType||inferActionType(item);
-  if(isAoeAction(item)) return rollAoeAction(enemy,'enemy',type,item,actionType);
+  if(isAoeAction(item)){ markTurnAction(type,enemy.uid); return rollAoeAction(enemy,'enemy',type,item,actionType); }
   const targetCharacter=selectedTargetCharacter();
   const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(actionType==='healing'){
+    markTurnAction(type,enemy.uid);
     const target=targetEnemy||enemy;
     const roll=rollDiceExpression('1'+item.die,item.bonus);
     const before=target.hp;
@@ -7426,6 +7507,7 @@ function rollEnemyAction(enemyUid,type,itemId){
     return;
   }
   if(actionType==='buff'||actionType==='utility'){
+    markTurnAction(type,enemy.uid);
     const target=targetEnemy||enemy;
     const effectName=item.effect||item.name||'Buff';
     const updated=addEnemyStatus(target.uid,effectName,10);
@@ -7441,6 +7523,7 @@ function rollEnemyAction(enemyUid,type,itemId){
   const damage=rollDiceExpression('1'+item.die,item.bonus);
   const target=targetCharacter||targetEnemy;
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
+  markTurnAction(type,enemy.uid);
   const targetAC=targetCharacter ? target.derived?.AC || 10 : target.ac;
   const hit=attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=targetAC);
   let hpBefore=targetCharacter ? target.currentHP : target.hp;
@@ -7842,7 +7925,7 @@ function toggleCombatMode(){
     addChatMessage({kind:'initiative',character:'DM',label:'Combat ended',detail:'Free movement restored.'});
     showCritOverlay('Free movement restored','roll','Combat');
   }
-  broadcast({type:'combatMode',combatMode,initiativeRolls,turnOrder,activeTurnIndex});
+  broadcast({type:'combatMode',combatMode,initiativeRolls,turnOrder,activeTurnIndex,turnActionState});
   playSfx('turn');
   updateAllPanels();
   scheduleSave();
@@ -7866,7 +7949,9 @@ function updateInitiativePrompt(){
 function updateEndTurnButton(){
   const btn=document.getElementById('end-turn-btn');
   if(!btn) return;
-  btn.style.display='none';
+  const ch=getLocalTurnCharacter();
+  const show=!!(combatMode && ch && hasActedThisTurn(ch.id));
+  btn.style.display=show?'block':'none';
 }
 function getLocalTurnCharacter(){
   if(!combatMode || isDM()) return null;
@@ -7879,8 +7964,19 @@ function hasActedThisTurn(id=activeCharacterId){
 }
 function markTurnAction(reason='action',id=activeCharacterId){
   const turnCharacter=getLocalTurnCharacter();
-  if(!turnCharacter || turnCharacter.id!==id) return;
-  turnActionState={actorId:turnCharacter.id,reason,at:Date.now(),acted:true};
+  if(!combatMode){
+    turnActionState={actorId:id,reason,at:Date.now(),acted:true,actionTaken:true};
+    return;
+  }
+  const entity=turnEntityById(id);
+  if(!isDM() && (!turnCharacter || turnCharacter.id!==id)) return;
+  if(isDM() && currentTurnId()!==id && entity?.isEnemy) return showCritOverlay('Select that enemy turn first','roll','Combat');
+  const state=turnActionState.actorId===id ? turnActionState : {actorId:id,movementUsed:0,moved:false};
+  state.reason=reason;
+  state.at=Date.now();
+  state.acted=true;
+  state.actionTaken=true;
+  turnActionState=state;
   updateFloatingEndTurn();
   updateEndTurnButton();
 }
@@ -7888,10 +7984,14 @@ function updateFloatingEndTurn(){
   const panel=document.getElementById('floating-end-turn');
   if(!panel) return;
   const ch=getLocalTurnCharacter();
-  const show=!!(ch && hasActedThisTurn(ch.id));
+  const dmEnemy=isDM() ? enemyByUid(currentTurnId()) : null;
+  const activeEntity=ch || dmEnemy;
+  const show=!!((ch && hasActedThisTurn(ch.id)) || (dmEnemy && turnActionState.actionTaken && turnActionState.actorId===dmEnemy.uid));
   panel.classList.toggle('show',!!show);
   const text=document.getElementById('floating-end-turn-text');
-  if(text && ch) text.textContent=`${ch.name} has acted this turn. End turn when you are done moving, speaking, and using bonus actions.`;
+  if(text && activeEntity) text.textContent=`${activeEntity.name} has acted this turn. End turn when you are done moving, speaking, and using bonus actions.`;
+  const button=panel.querySelector('button');
+  if(button) button.onclick=isDM() ? nextTurn : endPlayerTurn;
 }
 function rollPlayerInitiative(id=activeCharacterId){
   const ch=myCharacters.find(c=>c.id===id)||getActiveCharacter();
@@ -7925,7 +8025,7 @@ function advanceTurn(){
   const id=turnOrder[activeTurnIndex];
   if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
   if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
-  broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls});
+  broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
   playSfx('turn');
   updateAllPanels();
   draw();
@@ -7994,7 +8094,17 @@ function updateTurnOrder(){
     div.className='turn-item'+(i===activeTurnIndex?' active':'');
     const init=initiativeRolls[id] ?? ch.derived?.initiative ?? 0;
     div.innerHTML=`<span>${ch.icon} ${escapeHtml(ch.name)}${ch.isEnemy?' (enemy)':''}</span><span>${init>=0?'+':''}${init}</span>`;
-    div.onclick=()=>{ activeTurnIndex=i; if(canControlCharacter(ch)) activeCharacterId=id; if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; } updateAllPanels(); draw(); scheduleSave(); };
+    div.onclick=()=>{
+      if(combatMode && !isDM()) return showCritOverlay('DM controls turn order','roll','Combat');
+      activeTurnIndex=i;
+      turnActionState={};
+      if(canControlCharacter(ch)) activeCharacterId=id;
+      if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; }
+      broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
+      updateAllPanels();
+      draw();
+      scheduleSave();
+    };
     el.appendChild(div);
   });
 }
@@ -8109,6 +8219,7 @@ function buildPersistedState(){
     initiativeRolls,
     activeTurnIndex,
     combatMode,
+    turnActionState,
     chatMessages:chatMessages.slice(-40),
     fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : ''
   };
@@ -8167,6 +8278,7 @@ function loadState(){
     initiativeRolls=state.initiativeRolls || {};
     activeTurnIndex=Number(state.activeTurnIndex)||0;
     combatMode=state.combatMode===true;
+    turnActionState=state.turnActionState || {};
     chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
     document.getElementById('radius-slider').value=revealRadius;
     document.getElementById('reveal-val').textContent=revealRadius;
@@ -8276,6 +8388,7 @@ function applyPersistedState(state){
   initiativeRolls=state.initiativeRolls || {};
   activeTurnIndex=Number(state.activeTurnIndex)||0;
   combatMode=state.combatMode===true;
+  turnActionState=state.turnActionState || {};
   chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
   document.getElementById('radius-slider').value=revealRadius;
   document.getElementById('reveal-val').textContent=revealRadius;
@@ -8671,6 +8784,7 @@ function connectWS(){
           initiativeRolls=msg.initiativeRolls||{};
           turnOrder=Array.isArray(msg.turnOrder)?msg.turnOrder:[];
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
+          turnActionState=msg.turnActionState||{};
           updateAllPanels();
           draw();
           scheduleSave();
@@ -8696,13 +8810,17 @@ function connectWS(){
           turnOrder=Array.isArray(msg.turnOrder)?msg.turnOrder:turnOrder;
           initiativeRolls=msg.initiativeRolls||initiativeRolls;
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
-          turnActionState={};
+          turnActionState=msg.turnActionState||{};
           const id=turnOrder[activeTurnIndex];
           if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
           if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
           playSfx('turn');
           updateAllPanels();
           draw();
+          scheduleSave();
+        } else if(msg.type==='turnAction'){
+          turnActionState=msg.turnActionState||{};
+          updateAllPanels();
           scheduleSave();
         } else if(msg.type==='actionEffect'){
           handleLiveEffect({kind:'action',campaignId:CLOUD_CAMPAIGN_ID,characterId:msg.characterId,actionType:msg.actionType,text:'Action roll',overlayType:'roll',title:''});
