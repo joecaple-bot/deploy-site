@@ -1843,6 +1843,7 @@ let myCharacters = [];
 let activeCharacterId = null;
 let players = {};
 let remoteCharacters = {};
+let characterClaims = {};
 let turnOrder = [];
 let initiativeRolls = {};
 let activeTurnIndex = 0;
@@ -3252,16 +3253,6 @@ function storeRemoteCharacter(ch){
   remoteCharacters[key]=ch;
   return ch;
 }
-function removeRemoteCharacterToken(characterId,owner=''){
-  for(const [key,ch] of Object.entries(remoteCharacters)){
-    if(ch.id===characterId && (!owner || ch.owner===owner)) delete remoteCharacters[key];
-  }
-  if(selectedTargetUid===characterId || selectedTargetUid===`${owner}:${characterId}`) selectedTargetUid=null;
-  turnOrder=turnOrder.filter(id=>id!==characterId && id!==`${owner}:${characterId}`);
-  updateAllPanels();
-  draw();
-  scheduleSave();
-}
 function drawSceneMood(world){
   const styles={
     cave:'rgba(5,7,16,.22)',
@@ -3825,7 +3816,143 @@ function drawEffectParticles(fx,now,color){
 }
 
 function getActiveCharacter(){
-  return myCharacters.find(c=>c.id===activeCharacterId) || myCharacters[0] || null;
+  if(activeCharacterId){
+    const active=characterById(activeCharacterId);
+    if(active && canControlCharacter(active)) return active;
+  }
+  return myCharacters.find(canControlCharacter) || myCharacters[0] || null;
+}
+
+function normalizeCharacterClaims(raw={}){
+  const claims={};
+  if(!raw || typeof raw!=='object') return claims;
+  for(const [id,claim] of Object.entries(raw)){
+    if(!id || !claim || typeof claim!=='object') continue;
+    const owner=claim.owner || '';
+    if(!owner) continue;
+    claims[id]={
+      owner,
+      label:claim.label || owner.slice(0,6),
+      updatedAt:Number(claim.updatedAt)||Date.now()
+    };
+  }
+  return claims;
+}
+function characterClaim(id){ return id ? characterClaims[id] || null : null; }
+function isCharacterClaimedByMe(ch){ return characterClaim(ch?.id)?.owner===myId; }
+function isCharacterClaimedByOther(ch){
+  const claim=characterClaim(ch?.id);
+  return !!claim && claim.owner!==myId;
+}
+function claimLabel(id){
+  const claim=characterClaim(id);
+  if(!claim) return 'Unclaimed';
+  return claim.owner===myId ? 'Claimed by you' : `Claimed by ${escapeHtml(claim.label||claim.owner.slice(0,6))}`;
+}
+function characterClaimBadge(ch){
+  const claim=characterClaim(ch?.id);
+  if(!claim) return '<span class="pill">Unclaimed</span>';
+  const label=claim.owner===myId ? 'Yours' : 'Claimed';
+  return `<span class="pill">${label}</span>`;
+}
+function reconcileLocalClaims(){
+  myCharacters=myCharacters.filter(ch=>{
+    const claim=characterClaim(ch.id);
+    if(claim && claim.owner!==myId){
+      storeRemoteCharacter(hydrateCharacter({...ch,owner:claim.owner,claimedBy:claim.owner}));
+      return false;
+    }
+    return true;
+  });
+  if(activeCharacterId && !myCharacters.some(ch=>ch.id===activeCharacterId) && !isCharacterClaimedByMe(characterById(activeCharacterId))){
+    activeCharacterId=myCharacters[0]?.id || null;
+  }
+  for(const ch of myCharacters){
+    const claim=characterClaim(ch.id);
+    if(!claim || claim.owner===myId){
+      characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:claim?.updatedAt||Date.now()};
+      ch.owner=myId;
+      ch.claimedBy=myId;
+    }
+  }
+}
+function removeLocalCharacterOnly(characterId){
+  myCharacters=myCharacters.filter(ch=>ch.id!==characterId);
+  if(activeCharacterId===characterId) activeCharacterId=myCharacters[0]?.id || null;
+}
+function removeRemoteCharacterToken(characterId,owner=''){
+  for(const [key,ch] of Object.entries(remoteCharacters)){
+    if(ch.id===characterId && (!owner || ch.owner===owner)) delete remoteCharacters[key];
+  }
+  if(selectedTargetUid===characterId || selectedTargetUid===`${owner}:${characterId}`) selectedTargetUid=null;
+  turnOrder=turnOrder.filter(id=>id!==characterId && id!==`${owner}:${characterId}`);
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function claimCharacter(characterId,force=false){
+  const source=characterById(characterId);
+  if(!source) return;
+  const existingClaim=characterClaim(characterId);
+  if(existingClaim && existingClaim.owner!==myId && !force && !isDM()){
+    return showCritOverlay(`${source.name} is already claimed`,'roll','Locked');
+  }
+  const claimed=hydrateCharacter({...source,owner:myId,claimedBy:myId});
+  const localIndex=myCharacters.findIndex(ch=>ch.id===characterId);
+  if(localIndex>=0) myCharacters[localIndex]=claimed;
+  else myCharacters.push(claimed);
+  removeRemoteCharacterToken(characterId);
+  characterClaims[characterId]={owner:myId,label:claimed.name||'Player',updatedAt:Date.now()};
+  activeCharacterId=characterId;
+  addChatMessage({kind:'system',character:'Table',label:`${claimed.name} claimed`});
+  broadcast({type:'characterClaim',characterId,owner:myId,label:claimed.name,character:claimed,force:isDM()||force});
+  syncAllCharacters();
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function releaseCharacter(characterId,force=false){
+  const source=characterById(characterId);
+  if(!source) return;
+  const claim=characterClaim(characterId);
+  if(claim && claim.owner!==myId && !force && !isDM()){
+    return showCritOverlay(`${source.name} is claimed by someone else`,'roll','Locked');
+  }
+  const released=hydrateCharacter({...source,owner:'unclaimed',claimedBy:''});
+  delete characterClaims[characterId];
+  removeLocalCharacterOnly(characterId);
+  storeRemoteCharacter(released);
+  addChatMessage({kind:'system',character:'Table',label:`${released.name} released`});
+  broadcast({type:'characterRelease',characterId,owner:claim?.owner||source.owner||'',character:released});
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function applyRemoteClaim(msg){
+  if(!msg.characterId || !msg.owner) return;
+  characterClaims[msg.characterId]={owner:msg.owner,label:msg.label||msg.owner.slice(0,6),updatedAt:Date.now()};
+  if(msg.owner!==myId){
+    const local=myCharacters.find(ch=>ch.id===msg.characterId);
+    if(local && !isDM()) removeLocalCharacterOnly(msg.characterId);
+    if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:msg.owner,claimedBy:msg.owner}));
+  }
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function applyRemoteRelease(msg){
+  if(!msg.characterId) return;
+  const wasMine=characterClaim(msg.characterId)?.owner===myId || msg.owner===myId;
+  delete characterClaims[msg.characterId];
+  if(wasMine && msg.from!==myId) removeLocalCharacterOnly(msg.characterId);
+  if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:'unclaimed',claimedBy:''}));
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function acceptsRemoteCharacterUpdate(characterId,fromId){
+  const claim=characterClaim(characterId);
+  return !claim || claim.owner===fromId;
 }
 
 function allCharactersById(){
@@ -3844,7 +3971,7 @@ function allCharactersById(){
   return all;
 }
 function characterById(id){
-  return myCharacters.find(c=>c.id===id) || remoteCharacters[id] || allCharactersById()[id] || null;
+  return myCharacters.find(c=>c.id===id) || remoteCharacters[id] || Object.values(remoteCharacters).find(c=>c.id===id) || allCharactersById()[id] || null;
 }
 function selectedTargetCharacter(){
   if(!selectedTargetUid || enemyByUid(selectedTargetUid)) return null;
@@ -3964,7 +4091,13 @@ function setMode(m){
   hideRadialMenu();
 }
 function isDM(){ return userRole==='dm'; }
-function canControlCharacter(ch){ return isDM() || ch?.owner===myId; }
+function canControlCharacter(ch){
+  if(!ch) return false;
+  if(isDM()) return true;
+  const claim=characterClaim(ch.id);
+  if(claim) return claim.owner===myId;
+  return ch.owner===myId || ch.isMe===true;
+}
 function requireDM(){
   showCritOverlay('DM mode required for that tool','roll','Locked');
   setMode('move');
@@ -5087,7 +5220,10 @@ function saveChar(){
   const data=readBuilder();
   if(pendingModalSave.mode==='add'){
     data.id='c_'+Date.now()+Math.random().toString(36).slice(2,5);
+    data.owner=myId;
+    data.claimedBy=myId;
     myCharacters.push(data);
+    characterClaims[data.id]={owner:myId,label:data.name||'Player',updatedAt:Date.now()};
     activeCharacterId=data.id;
     addToTurnOrder(data.id);
     setMode('move');
@@ -5098,6 +5234,7 @@ function saveChar(){
       const oldHP=existing.currentHP;
       const oldGold=existing.gold || 0;
       Object.assign(existing,data,{id:existing.id,position:oldPosition,currentHP:Math.min(data.derived.HP,oldHP || data.derived.HP),gold:oldGold,owner:myId});
+      characterClaims[existing.id]={owner:myId,label:existing.name||'Player',updatedAt:Date.now()};
       existing.derived=calculateDerived(existing);
     }
   }
@@ -5112,11 +5249,13 @@ function deleteCharacter(charId){
   if(ch&&!canControlCharacter(ch)) return showCritOverlay('Only the owner or DM can delete that character','roll','Locked');
   if(myCharacters.length<=1) return;
   myCharacters=myCharacters.filter(c=>c.id!==charId);
+  delete characterClaims[charId];
   turnOrder=turnOrder.filter(id=>id!==charId);
   if(activeCharacterId===charId) activeCharacterId=myCharacters[0]?.id||null;
   updateAllPanels();
   draw();
   syncAllCharacters();
+  broadcast({type:'characterRelease',characterId:charId,owner:myId});
   scheduleSave();
 }
 function removeStrayPlayerToken(characterId,owner=''){
@@ -5415,7 +5554,7 @@ function updateCharactersList(){
       <div class="char-avatar">${ch.icon}</div>
       <div>
         <div class="char-title">${escapeHtml(ch.name)}</div>
-        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} &middot; ${placed?'Placed':'Unplaced'}</div>
+        <div class="char-meta">L${ch.level} ${ch.race} ${ch.class} &middot; ${placed?'Placed':'Unplaced'} &middot; ${claimLabel(ch.id)}</div>
       </div>
       <div class="char-actions"></div>`;
     d.onclick=()=>{ if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'); activeCharacterId=ch.id; setMode('move'); updateAllPanels(); draw(); scheduleSave(); };
@@ -5424,12 +5563,36 @@ function updateCharactersList(){
     edit.textContent='Edit';
     edit.onclick=(e)=>{ e.stopPropagation(); openEditCharModal(ch.id); };
     actions.appendChild(edit);
+    const release=document.createElement('button');
+    release.textContent='Release';
+    release.onclick=(e)=>{ e.stopPropagation(); releaseCharacter(ch.id); };
+    actions.appendChild(release);
     if(myCharacters.length>1){
       const del=document.createElement('button');
       del.textContent='Del';
       del.onclick=(e)=>{ e.stopPropagation(); deleteCharacter(ch.id); };
       actions.appendChild(del);
     }
+    el.appendChild(d);
+  }
+  const remoteAvailable=Object.values(allCharactersById()).filter(ch=>!ch.isMe && !characterClaim(ch.id));
+  for(const ch of remoteAvailable){
+    const placed=characterX(ch)!=null&&characterY(ch)!=null;
+    const d=document.createElement('div');
+    d.className='char-chip';
+    d.innerHTML=`
+      <div class="char-avatar">${cleanEmoji(ch.icon,'\u{1F9D9}')}</div>
+      <div>
+        <div class="char-title">${escapeHtml(ch.name)}</div>
+        <div class="char-meta">L${ch.level||1} ${escapeHtml(ch.race||'')} ${escapeHtml(ch.class||'')} &middot; ${placed?'Placed':'Unplaced'} &middot; Available</div>
+      </div>
+      <div class="char-actions"></div>`;
+    const actions=d.querySelector('.char-actions');
+    const claim=document.createElement('button');
+    claim.textContent='Claim';
+    claim.onclick=(e)=>{ e.stopPropagation(); claimCharacter(ch.id); };
+    actions.appendChild(claim);
+    d.onclick=()=>showSheet(ch,wrap.clientWidth-420,140);
     el.appendChild(d);
   }
 }
@@ -5886,7 +6049,11 @@ function showSheet(ch,x,y,{hover=false}={}){
   pop.classList.remove('enemy');
   sheetHoverPreview=hover;
   const d=ch.derived || calculateDerived(ch);
-  const ownerActions=ch.isMe ? `<button onclick="openEditCharModal('${ch.id}')">Edit</button><button onclick="rollD20('${ch.id}')">Roll</button>` : '';
+  const isLocalSheet=myCharacters.some(local=>local.id===ch.id);
+  const ownerActions=canControlCharacter(ch) ? `${isLocalSheet?`<button onclick="openEditCharModal('${ch.id}')">Edit</button>`:''}<button onclick="rollD20('${ch.id}')">Roll</button>` : '';
+  const claimActions=!canControlCharacter(ch)
+    ? `<button onclick="claimCharacter('${ch.id}',${isDM()?'true':'false'})">${isCharacterClaimedByOther(ch)&&isDM()?'Override claim':'Claim character'}</button>`
+    : (isLocalSheet ? `<button onclick="releaseCharacter('${ch.id}',${isDM()?'true':'false'})">Release claim</button>` : `<button onclick="claimCharacter('${ch.id}',true)">Claim for edit</button>`);
   const dmRemoteActions=isDM()&&!ch.isMe ? `<button class="danger" onclick="removeStrayPlayerToken('${ch.id}','${ch.owner||''}')">Remove token</button>` : '';
   const inventoryRows=(ch.inventory||[]).slice(0,8).map(item=>{
     const profile=inventoryWeaponProfile(item);
@@ -5926,7 +6093,7 @@ function showSheet(ch,x,y,{hover=false}={}){
     <div class="sheet-detail"><h4>Inventory</h4><div class="compact-list">${inventoryRows || '<div><span>No inventory yet</span><span></span></div>'}</div></div>
     ${deathControls}
     ${restControls}
-    <div class="sheet-actions">${ownerActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
+    <div class="sheet-actions">${ownerActions}${claimActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
   prepareSheetWindow(pop,x,y);
 }
 function showEnemySheet(enemy,x,y){
@@ -7868,10 +8035,11 @@ function scheduleSave(){
   autosaveTimer=setTimeout(saveState,120);
 }
 function buildPersistedState(){
-  const partyCharacters=[
-    ...myCharacters.map(ch=>hydrateCharacter({...ch,owner:myId})),
-    ...Object.values(remoteCharacters).map(ch=>hydrateCharacter(ch))
-  ];
+  reconcileLocalClaims();
+  const partyById={};
+  for(const ch of Object.values(remoteCharacters)) partyById[ch.id]=hydrateCharacter(ch);
+  for(const ch of myCharacters) partyById[ch.id]=hydrateCharacter({...ch,owner:myId,claimedBy:myId});
+  const partyCharacters=Object.values(partyById);
   return {
     version:1,
     myId,
@@ -7898,6 +8066,7 @@ function buildPersistedState(){
     selectedTargetUid,
     myCharacters,
     partyCharacters,
+    characterClaims,
     activeCharacterId,
     revealRadius,
     turnOrder,
@@ -7954,6 +8123,8 @@ function loadState(){
     selectedTargetUid=state.selectedTargetUid || null;
     activeEnemyUid=null;
     myCharacters=(state.myCharacters || []).map(hydrateCharacter);
+    characterClaims=normalizeCharacterClaims(state.characterClaims);
+    reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || myCharacters[0]?.id || null;
     revealRadius=Number(state.revealRadius)||30;
     turnOrder=Array.isArray(state.turnOrder) ? state.turnOrder : [];
@@ -7975,16 +8146,26 @@ function loadState(){
 }
 function applyCharacterStateFromCampaign(state){
   const ownerId=state.myId || state.ownerId || '';
+  characterClaims=normalizeCharacterClaims(state.characterClaims || characterClaims);
   const incomingParty=Array.isArray(state.partyCharacters) ? state.partyCharacters : [];
   const incomingLocal=Array.isArray(state.myCharacters) ? state.myCharacters : [];
   const allIncoming=incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner}));
   if(ownerId===myId || (!myCharacters.length && incomingLocal.length)){
     myCharacters=incomingLocal.map(ch=>hydrateCharacter({...ch,owner:myId}));
+    reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || activeCharacterId || myCharacters[0]?.id || null;
   }
   for(const raw of allIncoming){
     const chOwner=raw.owner || ownerId;
-    if(!chOwner || chOwner===myId) continue;
+    const claim=characterClaim(raw.id);
+    if(chOwner===myId || claim?.owner===myId){
+      const local=hydrateCharacter({...raw,owner:myId,claimedBy:myId});
+      const idx=myCharacters.findIndex(ch=>ch.id===local.id);
+      if(idx>=0) myCharacters[idx]=local;
+      else myCharacters.push(local);
+      continue;
+    }
+    if(!chOwner) continue;
     const ch=hydrateCharacter({...raw,owner:chOwner});
     storeRemoteCharacter(ch);
   }
@@ -8323,11 +8504,13 @@ function broadcast(msg){
 function syncCharacter(ch){
   if(!ch) return;
   ch.derived=calculateDerived(ch);
-  broadcast({type:'characterState',character:ch});
+  if(canControlCharacter(ch)) characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:Date.now()};
+  broadcast({type:'characterState',character:ch,characterClaims});
   scheduleSave();
 }
 function syncAllCharacters(){
-  broadcast({type:'partyState',characters:myCharacters});
+  reconcileLocalClaims();
+  broadcast({type:'partyState',characters:myCharacters,characterClaims});
 }
 function connectWS(){
   const dot=document.getElementById('dot'), stxt=document.getElementById('status-txt');
@@ -8347,13 +8530,17 @@ function connectWS(){
         if(msg.from===myId) return;
         if(msg.campaignId && msg.campaignId!==CLOUD_CAMPAIGN_ID) return;
         if(msg.type==='characterState'){
+          if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
+          if(!acceptsRemoteCharacterUpdate(msg.character?.id,msg.from)) return;
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
           storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
           updateAllPanels();
           draw();
         } else if(msg.type==='partyState'){
+          if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
           for(const raw of msg.characters || []){
+            if(!acceptsRemoteCharacterUpdate(raw?.id,msg.from)) continue;
             const ch=hydrateCharacter({...raw,owner:msg.from});
             storeRemoteCharacter(ch);
             if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
@@ -8361,6 +8548,8 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='move'){
+          if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
+          if(!acceptsRemoteCharacterUpdate(msg.character?.id,msg.from)) return;
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
           storeRemoteCharacter(ch);
           if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
@@ -8432,6 +8621,10 @@ function connectWS(){
           if(RP_BOARD_PRESETS[msg.rpBoardId]) setRPBoard(msg.rpBoardId,false);
         } else if(msg.type==='characterRemove'){
           if(msg.owner!==myId) removeRemoteCharacterToken(msg.characterId,msg.owner||'');
+        } else if(msg.type==='characterClaim'){
+          applyRemoteClaim(msg);
+        } else if(msg.type==='characterRelease'){
+          applyRemoteRelease(msg);
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:msg.from}));
@@ -8458,7 +8651,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; ensureDefaultCharacter(); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
@@ -8479,6 +8672,7 @@ function ensureDefaultCharacter(){
     color:randomColor()
   });
   myCharacters=[ch];
+  characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:Date.now()};
   activeCharacterId=ch.id;
   addToTurnOrder(ch.id);
 }
