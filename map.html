@@ -4581,6 +4581,25 @@ function upsertTradeOffer(offer){
   else tradeOffers.unshift(offer);
   tradeOffers=tradeOffers.slice(0,20);
 }
+function tradeControlledCharacterById(id){
+  const ch=characterById(id);
+  return ch && canControlCharacter(ch) ? ch : null;
+}
+function tradeControlledIds(){
+  const ids=new Set();
+  [...myCharacters,Object.values(remoteCharacters||{})].forEach(ch=>{
+    if(ch?.id && canControlCharacter(ch)) ids.add(ch.id);
+  });
+  return ids;
+}
+function canHandleTradeOffer(offer){
+  return !!offer && (!!tradeControlledCharacterById(offer.fromId) || !!tradeControlledCharacterById(offer.toId));
+}
+function focusTradeCharacter(id){
+  const ch=tradeControlledCharacterById(id);
+  if(ch?.id) activeCharacterId=ch.id;
+  return ch;
+}
 function validateTradeSide(characterId,offer){
   const ch=characterById(characterId);
   if(!ch) return false;
@@ -4642,14 +4661,14 @@ function applyAcceptedTradeOffer(offer,{broadcastResult=false}={}){
 }
 function acceptTradeOffer(offerId){
   const offer=tradeOffers.find(item=>item.id===offerId);
-  const me=getActiveCharacter();
-  if(!offer || !me || offer.toId!==me.id) return;
+  const me=focusTradeCharacter(offer?.toId);
+  if(!offer || !me) return;
   applyAcceptedTradeOffer(offer,{broadcastResult:true});
 }
 function declineTradeOffer(offerId){
   const offer=tradeOffers.find(item=>item.id===offerId);
-  const me=getActiveCharacter();
-  if(!offer || !me || offer.toId!==me.id) return;
+  const me=focusTradeCharacter(offer?.toId);
+  if(!offer || !me) return;
   offer.status='declined';
   offer.updatedAt=Date.now();
   upsertTradeOffer(offer);
@@ -4691,8 +4710,9 @@ function renderTradeWindow(){
   document.getElementById('trade-left-inventory').innerHTML=inventoryHtml(me,'offered',countsOffered);
   document.getElementById('trade-left-offer').innerHTML=offerHtml('offered');
   document.getElementById('trade-right-offer').innerHTML=offerHtml('requested')+`<div class="trade-offer-row"><span>Request from</span><small>${escapeHtml(partner?.name||'Partner')}</small></div>`+inventoryHtml(partner,'requested',countsRequested);
-  const incoming=tradeOffers.filter(o=>o.status==='pending' && o.toId===me?.id);
-  const sent=tradeOffers.filter(o=>o.fromId===me?.id && o.status==='pending');
+  const controlledIds=tradeControlledIds();
+  const incoming=tradeOffers.filter(o=>o.status==='pending' && controlledIds.has(o.toId));
+  const sent=tradeOffers.filter(o=>o.status==='pending' && controlledIds.has(o.fromId));
   document.getElementById('trade-right-inventory').innerHTML=[
     ...incoming.map(o=>tradeOfferCard(o,true)),
     ...sent.map(o=>tradeOfferCard(o,false))
@@ -9291,10 +9311,9 @@ function connectWS(){
           scheduleSave();
         } else if(msg.type==='tradeOffer'){
           const offer=normalizeTradeOffer(msg.offer);
-          const active=getActiveCharacter();
-          if(offer && active && [offer.fromId,offer.toId].includes(active.id)){
+          if(offer && canHandleTradeOffer(offer)){
             upsertTradeOffer(offer);
-            if(offer.toId===active.id){
+            if(focusTradeCharacter(offer.toId)){
               document.getElementById('trade-window')?.classList.add('show');
               showCritOverlay('Trade offer received','roll','Trade');
             }
@@ -9302,8 +9321,7 @@ function connectWS(){
           }
         } else if(msg.type==='tradeOfferResult'){
           const offer=normalizeTradeOffer(msg.offer);
-          const active=getActiveCharacter();
-          if(offer && active && [offer.fromId,offer.toId].includes(active.id)){
+          if(offer && canHandleTradeOffer(offer)){
             upsertTradeOffer(offer);
             if(offer.status==='accepted') applyAcceptedTradeOffer(offer,{broadcastResult:false});
             else renderTradeWindow();
