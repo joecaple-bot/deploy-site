@@ -31,6 +31,14 @@ input{width:100%;border:1px solid var(--line);border-radius:var(--radius);backgr
 .token.one{left:33%;top:38%}.token.two{left:62%;top:54%}.token.three{left:73%;top:24%}
 .fog{position:absolute;inset:0;background:radial-gradient(circle at 35% 43%,transparent 0 86px,rgba(10,12,18,.86) 128px),rgba(10,12,18,.7)}
 .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}
+.profile{border:1px solid var(--line);border-radius:12px;background:#111419;padding:12px;margin-bottom:14px;display:grid;gap:10px}
+.profile-row{display:flex;gap:10px;align-items:center}
+.profile-avatar{width:42px;height:42px;border-radius:50%;background:rgba(202,168,107,.16);border:1px solid rgba(202,168,107,.55);display:grid;place-items:center;font-weight:800;overflow:hidden}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-name{font-size:14px;font-weight:800}
+.profile-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.profile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.profile-actions button{font-size:12px;padding:8px}
 @media(max-width:880px){.hero{grid-template-columns:1fr;padding:22px}.actions{grid-template-columns:1fr}.map-preview{height:260px}}
 </style>
 </head>
@@ -48,6 +56,19 @@ input{width:100%;border:1px solid var(--line);border-radius:var(--radius);backgr
     </div>
   </section>
   <section class="panel">
+    <div class="profile" id="profile-box">
+      <div class="profile-row">
+        <div class="profile-avatar" id="profile-avatar">?</div>
+        <div>
+          <div class="profile-name" id="profile-name">Guest profile</div>
+          <div class="profile-sub" id="profile-sub">Discord login will lock characters to your account.</div>
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="primary" id="discord-login" onclick="loginDiscord()">Log in with Discord</button>
+        <button id="discord-logout" onclick="logoutDiscord()" style="display:none">Log out</button>
+      </div>
+    </div>
     <h2>Quick Join</h2>
     <div class="join">
       <input id="campaign" placeholder="Campaign ID, e.g. test-party">
@@ -60,13 +81,67 @@ input{width:100%;border:1px solid var(--line);border-radius:var(--radius);backgr
     </div>
   </section>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
+const SUPABASE_PUBLIC_KEY='sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
+const client=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
 const KEY='fogOfWarDnDCampaignId.v1';
+let authUser=null;
 function current(){return localStorage.getItem(KEY)||'default-campaign'}
 function campaignQuery(id=current()){return '?campaign='+encodeURIComponent(id)}
 function goMap(){location.href='map.html'+campaignQuery()}
 function goBuilder(){location.href='character_builder.html'+campaignQuery()}
 function join(){const id=(document.getElementById('campaign').value||current()).trim()||'default-campaign';localStorage.setItem(KEY,id);location.href='campaign_manager.html?campaign='+encodeURIComponent(id)}
+async function loginDiscord(){
+  if(!client) return;
+  await client.auth.signInWithOAuth({
+    provider:'discord',
+    options:{redirectTo:location.origin+location.pathname}
+  });
+}
+async function logoutDiscord(){
+  if(!client) return;
+  await client.auth.signOut();
+  authUser=null;
+  renderProfile();
+}
+async function upsertProfile(user){
+  if(!client||!user) return;
+  const meta=user.user_metadata||{};
+  const display=meta.full_name||meta.name||meta.preferred_username||meta.user_name||user.email||'Player';
+  const avatar=meta.avatar_url||meta.picture||'';
+  await client.from('player_profiles').upsert({
+    user_id:user.id,
+    display_name:display,
+    avatar_url:avatar,
+    provider:'discord',
+    updated_at:new Date().toISOString()
+  });
+}
+function renderProfile(){
+  const meta=authUser?.user_metadata||{};
+  const display=meta.full_name||meta.name||meta.preferred_username||meta.user_name||authUser?.email||'Guest profile';
+  const avatar=meta.avatar_url||meta.picture||'';
+  document.getElementById('profile-name').textContent=authUser?display:'Guest profile';
+  document.getElementById('profile-sub').textContent=authUser?'Characters can now be tied to your Discord account.':'Discord login will lock characters to your account.';
+  document.getElementById('discord-login').style.display=authUser?'none':'block';
+  document.getElementById('discord-logout').style.display=authUser?'block':'none';
+  document.getElementById('profile-avatar').innerHTML=avatar?`<img src="${avatar}" alt="">`:(authUser?display.slice(0,1).toUpperCase():'?');
+}
+async function initAuth(){
+  if(!client) return renderProfile();
+  const {data}=await client.auth.getUser();
+  authUser=data?.user||null;
+  if(authUser) await upsertProfile(authUser);
+  renderProfile();
+  client.auth.onAuthStateChange(async (_event,session)=>{
+    authUser=session?.user||null;
+    if(authUser) await upsertProfile(authUser);
+    renderProfile();
+  });
+}
+initAuth();
 </script>
 </body>
 </html>
