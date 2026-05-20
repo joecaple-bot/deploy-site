@@ -854,16 +854,16 @@ h3{
       <div id="trade-window">
         <div class="trade-head">
           <b>Player Trade</b>
-          <span id="trade-status">Choose a trade partner.</span>
+          <span id="trade-status">Build an offer, then send it.</span>
           <select id="trade-partner-select" onchange="setTradePartner(this.value)"></select>
           <button onclick="closeTradeWindow()">Close</button>
         </div>
         <div class="trade-grid">
           <section class="trade-panel"><h3 id="trade-left-title">Your Inventory</h3><div id="trade-left-inventory" class="trade-list"></div></section>
-          <section class="trade-panel"><h3 id="trade-left-offer-title">Your Offer</h3><div class="trade-gold-row"><input id="trade-my-gold" type="number" min="0" step="1" value="0" oninput="setTradeGold(this.value)"><button onclick="setTradeGold(document.getElementById('trade-my-gold').value)">Set gp</button></div><div id="trade-left-offer" class="trade-list"></div><button id="trade-my-accept" class="trade-accept" onclick="acceptTrade()">Accept offer</button></section>
-          <div class="trade-center"><div class="trade-arrow">&larr;</div><div>Shared table</div><div class="trade-arrow">&rarr;</div></div>
-          <section class="trade-panel"><h3 id="trade-right-offer-title">Their Offer</h3><div id="trade-right-offer" class="trade-list"></div><button id="trade-their-accept" class="trade-accept" disabled>Waiting</button></section>
-          <section class="trade-panel"><h3 id="trade-right-title">Partner Inventory</h3><div id="trade-right-inventory" class="trade-list"></div></section>
+          <section class="trade-panel"><h3 id="trade-left-offer-title">You Offer</h3><div class="trade-gold-row"><input id="trade-my-gold" type="number" min="0" step="1" value="0" oninput="setTradeGold(this.value,'offered')"><button onclick="setTradeGold(document.getElementById('trade-my-gold').value,'offered')">Set gp</button></div><div id="trade-left-offer" class="trade-list"></div><button id="trade-my-accept" class="trade-accept" onclick="sendTradeOffer()">Send offer</button></section>
+          <div class="trade-center"><div class="trade-arrow">&rarr;</div><div>Offer based</div><div class="trade-arrow">&larr;</div></div>
+          <section class="trade-panel"><h3 id="trade-right-offer-title">You Request</h3><div class="trade-gold-row"><input id="trade-request-gold" type="number" min="0" step="1" value="0" oninput="setTradeGold(this.value,'requested')"><button onclick="setTradeGold(document.getElementById('trade-request-gold').value,'requested')">Set gp</button></div><div id="trade-right-offer" class="trade-list"></div></section>
+          <section class="trade-panel"><h3 id="trade-right-title">Incoming / Sent</h3><div id="trade-right-inventory" class="trade-list"></div></section>
         </div>
       </div>
 
@@ -1928,8 +1928,9 @@ let rpToolDrag = null;
 let rpFloatingDrag = null;
 let rpFloatingZ = 90;
 let dmUndoStack = [];
-let activeTrade = null;
-const completedTradeIds = new Set();
+let tradeDraft = null;
+let tradeOffers = [];
+const completedTradeOfferIds = new Set();
 let autosaveTimer = null;
 let cloudClient = null;
 let cloudReady = false;
@@ -4506,6 +4507,209 @@ function renderTradeWindow(){
   document.getElementById('trade-my-accept')?.classList.toggle('ready',!!activeTrade?.offers[mine]?.accepted);
   document.getElementById('trade-their-accept')?.classList.toggle('ready',!!activeTrade?.offers[theirs]?.accepted);
   document.getElementById('trade-their-accept').textContent=activeTrade?.offers[theirs]?.accepted?'Accepted':'Waiting';
+}
+
+/* Offer-based player trades replace the older live barter table. */
+function emptyOffer(){ return {items:[],gold:0}; }
+function normalizeTradeOffer(raw=null){
+  if(!raw) return null;
+  return {
+    id:raw.id || 'offer_'+Date.now()+Math.random().toString(36).slice(2,6),
+    fromId:raw.fromId || '',
+    toId:raw.toId || '',
+    offered:{...emptyOffer(),...(raw.offered||{})},
+    requested:{...emptyOffer(),...(raw.requested||{})},
+    status:raw.status || 'pending',
+    createdAt:Number(raw.createdAt)||Date.now(),
+    updatedAt:Number(raw.updatedAt)||Date.now()
+  };
+}
+function newTradeDraft(partnerId=''){
+  const ch=getActiveCharacter();
+  return normalizeTradeOffer({fromId:ch?.id||'',toId:partnerId,offered:emptyOffer(),requested:emptyOffer(),status:'draft'});
+}
+function openTradeWindow(){
+  const ch=getActiveCharacter();
+  const win=document.getElementById('trade-window');
+  if(!win || !ch) return showCritOverlay('Choose your character first','roll','Trade');
+  const partners=tradeParticipants();
+  if(!tradeDraft || tradeDraft.fromId!==ch.id) tradeDraft=newTradeDraft(partners[0]?.id||'');
+  win.classList.add('show');
+  renderTradeWindow();
+}
+function closeTradeWindow(){ document.getElementById('trade-window')?.classList.remove('show'); }
+function setTradePartner(partnerId){
+  tradeDraft=newTradeDraft(partnerId);
+  renderTradeWindow();
+}
+function setTradeGold(value,side='offered'){
+  if(!tradeDraft) return;
+  const me=getActiveCharacter();
+  const partner=characterById(tradeDraft.toId);
+  const max=side==='requested' ? Number(partner?.gold)||0 : Number(me?.gold)||0;
+  tradeDraft[side].gold=Math.max(0,Math.min(max,Math.round(Number(value)||0)));
+  renderTradeWindow();
+}
+function tradeItemCounts(items=[]){
+  return items.reduce((acc,item)=>{ acc[item.itemId]=(acc[item.itemId]||0)+1; return acc; },{});
+}
+function offerTradeItem(itemId,side='offered'){
+  if(!tradeDraft) return;
+  const ch=side==='requested' ? characterById(tradeDraft.toId) : getActiveCharacter();
+  if(!ch) return;
+  const item=(ch.inventory||[]).find(x=>x.id===itemId);
+  if(!item) return;
+  const counts=tradeItemCounts(tradeDraft[side].items);
+  if((counts[itemId]||0)>=Math.max(1,Number(item.qty)||1)) return showCritOverlay('No more copies to add','roll','Trade');
+  tradeDraft[side].items.push({itemId:item.id,name:item.name,rarity:item.rarity,qty:1,snapshot:cloneTradeItem(item)});
+  renderTradeWindow();
+}
+function removeTradeOfferItem(side,itemId,index){
+  if(!tradeDraft) return;
+  let seen=0;
+  tradeDraft[side].items=tradeDraft[side].items.filter(item=>{
+    if(item.itemId!==itemId) return true;
+    return seen++!==index;
+  });
+  renderTradeWindow();
+}
+function upsertTradeOffer(offer){
+  offer=normalizeTradeOffer(offer);
+  if(!offer) return;
+  const i=tradeOffers.findIndex(item=>item.id===offer.id);
+  if(i>=0) tradeOffers[i]=offer;
+  else tradeOffers.unshift(offer);
+  tradeOffers=tradeOffers.slice(0,20);
+}
+function validateTradeSide(characterId,offer){
+  const ch=characterById(characterId);
+  if(!ch) return false;
+  if(!canControlCharacter(ch)) return true;
+  if((Number(ch.gold)||0)<(Number(offer.gold)||0)) return false;
+  const counts=tradeItemCounts(offer.items||[]);
+  for(const [id,qty] of Object.entries(counts)){
+    const inv=(ch.inventory||[]).find(item=>item.id===id);
+    if(!inv || Math.max(1,Number(inv.qty)||1)<qty) return false;
+  }
+  return true;
+}
+function applyTradeTransfer(fromId,toId,offer){
+  const from=characterById(fromId), to=characterById(toId);
+  if(!from || !to) return false;
+  const gold=Math.max(0,Math.round(Number(offer.gold)||0));
+  if(gold && canControlCharacter(from)) from.gold=Math.max(0,(Number(from.gold)||0)-gold);
+  if(gold && canControlCharacter(to)) to.gold=Math.max(0,(Number(to.gold)||0)+gold);
+  for(const entry of offer.items||[]){
+    const removed=!canControlCharacter(from) || decrementInventoryById(from,entry.itemId,1);
+    if(removed && canControlCharacter(to)) addInventoryItem(to,entry.snapshot||entry);
+  }
+  return true;
+}
+function sendTradeOffer(){
+  const me=getActiveCharacter();
+  if(!tradeDraft || !me || !tradeDraft.toId) return showCritOverlay('Choose a trade partner','roll','Trade');
+  if(!canControlCharacter(me)) return showCritOverlay('Claim your character first','roll','Trade');
+  const hasOffer=tradeDraft.offered.gold || tradeDraft.offered.items.length || tradeDraft.requested.gold || tradeDraft.requested.items.length;
+  if(!hasOffer) return showCritOverlay('Add something to the offer','roll','Trade');
+  const offer=normalizeTradeOffer({...tradeDraft,status:'pending',createdAt:Date.now(),updatedAt:Date.now()});
+  if(!validateTradeSide(offer.fromId,offer.offered)) return showCritOverlay('You no longer have that offer','roll','Trade');
+  upsertTradeOffer(offer);
+  broadcast({type:'tradeOffer',offer});
+  addChatMessage({kind:'trade',character:me.name,label:'Trade offer sent',detail:`To ${characterById(offer.toId)?.name||'player'}`});
+  tradeDraft=newTradeDraft(offer.toId);
+  renderTradeWindow();
+  scheduleSave();
+}
+function applyAcceptedTradeOffer(offer,{broadcastResult=false}={}){
+  offer=normalizeTradeOffer(offer);
+  if(!offer || completedTradeOfferIds.has(offer.id)) return;
+  if(!validateTradeSide(offer.fromId,offer.offered) || !validateTradeSide(offer.toId,offer.requested)) return showCritOverlay('Trade offer is no longer valid','roll','Trade');
+  applyTradeTransfer(offer.fromId,offer.toId,offer.offered);
+  applyTradeTransfer(offer.toId,offer.fromId,offer.requested);
+  completedTradeOfferIds.add(offer.id);
+  offer.status='accepted';
+  offer.updatedAt=Date.now();
+  upsertTradeOffer(offer);
+  for(const id of [offer.fromId,offer.toId]){
+    const ch=characterById(id);
+    if(ch && canControlCharacter(ch)) syncCharacter(ch);
+  }
+  addChatMessage({kind:'trade',character:'Table',label:'Trade accepted',detail:`${characterById(offer.fromId)?.name||'Player'} -> ${characterById(offer.toId)?.name||'Player'}`});
+  if(broadcastResult) broadcast({type:'tradeOfferResult',offer});
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function acceptTradeOffer(offerId){
+  const offer=tradeOffers.find(item=>item.id===offerId);
+  const me=getActiveCharacter();
+  if(!offer || !me || offer.toId!==me.id) return;
+  applyAcceptedTradeOffer(offer,{broadcastResult:true});
+}
+function declineTradeOffer(offerId){
+  const offer=tradeOffers.find(item=>item.id===offerId);
+  const me=getActiveCharacter();
+  if(!offer || !me || offer.toId!==me.id) return;
+  offer.status='declined';
+  offer.updatedAt=Date.now();
+  upsertTradeOffer(offer);
+  broadcast({type:'tradeOfferResult',offer});
+  addChatMessage({kind:'trade',character:me.name,label:'Trade declined'});
+  renderTradeWindow();
+}
+function renderTradeWindow(){
+  const win=document.getElementById('trade-window');
+  if(!win?.classList.contains('show')) return;
+  const me=getActiveCharacter();
+  const partners=tradeParticipants();
+  if(!tradeDraft && me) tradeDraft=newTradeDraft(partners[0]?.id||'');
+  const partner=characterById(tradeDraft?.toId) || partners[0] || null;
+  const partnerSelect=document.getElementById('trade-partner-select');
+  if(partnerSelect) partnerSelect.innerHTML=partners.map(ch=>`<option value="${ch.id}" ${tradeDraft?.toId===ch.id?'selected':''}>${escapeHtml(ch.name)} L${ch.level||1}</option>`).join('');
+  document.getElementById('trade-left-title').textContent=`${me?.name||'Your'} Inventory`;
+  document.getElementById('trade-left-offer-title').textContent='You Offer';
+  document.getElementById('trade-right-offer-title').textContent='You Request';
+  document.getElementById('trade-right-title').textContent='Offers';
+  document.getElementById('trade-status').textContent=partner ? `Offer to ${partner.name}` : 'No trade partner available.';
+  const countsOffered=tradeItemCounts(tradeDraft?.offered.items||[]);
+  const countsRequested=tradeItemCounts(tradeDraft?.requested.items||[]);
+  const inventoryHtml=(ch,side,counts)=>ch ? `
+    <div class="trade-offer-row"><span>Gold</span><small>${Math.max(0,Number(ch.gold)||0)} gp</small></div>
+    ${(ch.inventory||[]).map(item=>{
+      const left=Math.max(1,Number(item.qty)||1)-(counts[item.id]||0);
+      return `<button ${left>0?'':'disabled'} onclick="offerTradeItem('${item.id}','${side}')"><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity||'Common')}</small></span><small>x${left}</small></button>`;
+    }).join('') || '<div class="trade-offer-row"><span>No items</span><small></small></div>'}` : '<div class="trade-offer-row"><span>No character</span><small></small></div>';
+  const offerHtml=(side)=>{
+    const offer=tradeDraft?.[side] || emptyOffer();
+    const seen={};
+    return `${offer.gold?`<div class="trade-offer-row"><span>Gold</span><small>${offer.gold} gp <button onclick="setTradeGold(0,'${side}')">Remove</button></small></div>`:''}
+      ${(offer.items||[]).map(item=>{
+        const idx=seen[item.itemId]||0; seen[item.itemId]=idx+1;
+        return `<div class="trade-offer-row"><span>${escapeHtml(item.name)} <small>${escapeHtml(item.rarity||'Common')}</small></span><small>x1 <button onclick="removeTradeOfferItem('${side}','${item.itemId}',${idx})">Remove</button></small></div>`;
+      }).join('') || '<div class="trade-offer-row"><span>Nothing yet</span><small></small></div>'}`;
+  };
+  document.getElementById('trade-left-inventory').innerHTML=inventoryHtml(me,'offered',countsOffered);
+  document.getElementById('trade-left-offer').innerHTML=offerHtml('offered');
+  document.getElementById('trade-right-offer').innerHTML=offerHtml('requested')+`<div class="trade-offer-row"><span>Request from</span><small>${escapeHtml(partner?.name||'Partner')}</small></div>`+inventoryHtml(partner,'requested',countsRequested);
+  const incoming=tradeOffers.filter(o=>o.status==='pending' && o.toId===me?.id);
+  const sent=tradeOffers.filter(o=>o.fromId===me?.id && o.status==='pending');
+  document.getElementById('trade-right-inventory').innerHTML=[
+    ...incoming.map(o=>tradeOfferCard(o,true)),
+    ...sent.map(o=>tradeOfferCard(o,false))
+  ].join('') || '<div class="trade-offer-row"><span>No pending offers</span><small></small></div>';
+  const myGold=document.getElementById('trade-my-gold');
+  const reqGold=document.getElementById('trade-request-gold');
+  if(myGold) myGold.value=tradeDraft?.offered.gold||0;
+  if(reqGold) reqGold.value=tradeDraft?.requested.gold||0;
+}
+function tradeOfferSummary(offer,side){
+  const part=offer[side]||emptyOffer();
+  const items=(part.items||[]).map(i=>i.name).slice(0,3).join(', ');
+  return [part.gold?`${part.gold} gp`:'',items].filter(Boolean).join(' + ') || 'nothing';
+}
+function tradeOfferCard(offer,incoming){
+  const from=characterById(offer.fromId), to=characterById(offer.toId);
+  return `<div class="trade-offer-row"><span><b>${incoming?'Incoming':'Sent'}</b><br><small>${escapeHtml(from?.name||'Player')} to ${escapeHtml(to?.name||'Player')}</small><br><small>Offers: ${escapeHtml(tradeOfferSummary(offer,'offered'))}</small><br><small>Requests: ${escapeHtml(tradeOfferSummary(offer,'requested'))}</small></span><small>${incoming?`<button onclick="acceptTradeOffer('${offer.id}')">Accept</button> <button onclick="declineTradeOffer('${offer.id}')">Decline</button>`:'Pending'}</small></div>`;
 }
 function setRPCharacter(id){
   const ch=myCharacters.find(c=>c.id===id);
@@ -9085,16 +9289,25 @@ function connectWS(){
           turnActionState=msg.turnActionState||{};
           updateAllPanels();
           scheduleSave();
-        } else if(msg.type==='tradeState'){
-          const trade=normalizeTrade(msg.trade);
+        } else if(msg.type==='tradeOffer'){
+          const offer=normalizeTradeOffer(msg.offer);
           const active=getActiveCharacter();
-          if(trade && active && [trade.fromId,trade.toId].includes(active.id)){
-            activeTrade=trade;
-            document.getElementById('trade-window')?.classList.add('show');
+          if(offer && active && [offer.fromId,offer.toId].includes(active.id)){
+            upsertTradeOffer(offer);
+            if(offer.toId===active.id){
+              document.getElementById('trade-window')?.classList.add('show');
+              showCritOverlay('Trade offer received','roll','Trade');
+            }
             renderTradeWindow();
           }
-        } else if(msg.type==='tradeComplete'){
-          applyTradeComplete(msg.trade,{announce:true});
+        } else if(msg.type==='tradeOfferResult'){
+          const offer=normalizeTradeOffer(msg.offer);
+          const active=getActiveCharacter();
+          if(offer && active && [offer.fromId,offer.toId].includes(active.id)){
+            upsertTradeOffer(offer);
+            if(offer.status==='accepted') applyAcceptedTradeOffer(offer,{broadcastResult:false});
+            else renderTradeWindow();
+          }
         } else if(msg.type==='actionEffect'){
           handleLiveEffect({kind:'action',campaignId:CLOUD_CAMPAIGN_ID,characterId:msg.characterId,actionType:msg.actionType,text:'Action roll',overlayType:'roll',title:''});
         } else if(msg.type==='bye'){
