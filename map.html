@@ -4524,6 +4524,23 @@ function normalizeTradeOffer(raw=null){
     updatedAt:Number(raw.updatedAt)||Date.now()
   };
 }
+function normalizeTradeOffers(raw=[]){
+  return (Array.isArray(raw)?raw:[])
+    .map(normalizeTradeOffer)
+    .filter(Boolean)
+    .sort((a,b)=>(Number(b.updatedAt)||0)-(Number(a.updatedAt)||0))
+    .slice(0,40);
+}
+function mergeTradeOffers(...lists){
+  const byId=new Map();
+  lists.flat().filter(Boolean).forEach(raw=>{
+    const offer=normalizeTradeOffer(raw);
+    if(!offer) return;
+    const existing=byId.get(offer.id);
+    if(!existing || Number(offer.updatedAt)>Number(existing.updatedAt)) byId.set(offer.id,offer);
+  });
+  return normalizeTradeOffers([...byId.values()]);
+}
 function newTradeDraft(partnerId=''){
   const ch=getActiveCharacter();
   return normalizeTradeOffer({fromId:ch?.id||'',toId:partnerId,offered:emptyOffer(),requested:emptyOffer(),status:'draft'});
@@ -4576,10 +4593,7 @@ function removeTradeOfferItem(side,itemId,index){
 function upsertTradeOffer(offer){
   offer=normalizeTradeOffer(offer);
   if(!offer) return;
-  const i=tradeOffers.findIndex(item=>item.id===offer.id);
-  if(i>=0) tradeOffers[i]=offer;
-  else tradeOffers.unshift(offer);
-  tradeOffers=tradeOffers.slice(0,20);
+  tradeOffers=mergeTradeOffers([offer],tradeOffers).slice(0,40);
 }
 function tradeControlledCharacterById(id){
   const ch=characterById(id);
@@ -4634,6 +4648,7 @@ function sendTradeOffer(){
   if(!validateTradeSide(offer.fromId,offer.offered)) return showCritOverlay('You no longer have that offer','roll','Trade');
   upsertTradeOffer(offer);
   broadcast({type:'tradeOffer',offer});
+  scheduleCloudSave(buildPersistedState(),true);
   addChatMessage({kind:'trade',character:me.name,label:'Trade offer sent',detail:`To ${characterById(offer.toId)?.name||'player'}`});
   tradeDraft=newTradeDraft(offer.toId);
   renderTradeWindow();
@@ -4655,6 +4670,7 @@ function applyAcceptedTradeOffer(offer,{broadcastResult=false}={}){
   }
   addChatMessage({kind:'trade',character:'Table',label:'Trade accepted',detail:`${characterById(offer.fromId)?.name||'Player'} -> ${characterById(offer.toId)?.name||'Player'}`});
   if(broadcastResult) broadcast({type:'tradeOfferResult',offer});
+  scheduleCloudSave(buildPersistedState(),true);
   updateAllPanels();
   draw();
   scheduleSave();
@@ -4673,6 +4689,7 @@ function declineTradeOffer(offerId){
   offer.updatedAt=Date.now();
   upsertTradeOffer(offer);
   broadcast({type:'tradeOfferResult',offer});
+  scheduleCloudSave(buildPersistedState(),true);
   addChatMessage({kind:'trade',character:me.name,label:'Trade declined'});
   renderTradeWindow();
 }
@@ -4711,8 +4728,9 @@ function renderTradeWindow(){
   document.getElementById('trade-left-offer').innerHTML=offerHtml('offered');
   document.getElementById('trade-right-offer').innerHTML=offerHtml('requested')+`<div class="trade-offer-row"><span>Request from</span><small>${escapeHtml(partner?.name||'Partner')}</small></div>`+inventoryHtml(partner,'requested',countsRequested);
   const controlledIds=tradeControlledIds();
-  const incoming=tradeOffers.filter(o=>o.status==='pending' && controlledIds.has(o.toId));
-  const sent=tradeOffers.filter(o=>o.status==='pending' && controlledIds.has(o.fromId));
+  const involvedIds=new Set([...controlledIds,me?.id,tradeDraft?.fromId,tradeDraft?.toId].filter(Boolean));
+  const incoming=tradeOffers.filter(o=>o.status==='pending' && (controlledIds.has(o.toId) || involvedIds.has(o.toId)));
+  const sent=tradeOffers.filter(o=>o.status==='pending' && (controlledIds.has(o.fromId) || involvedIds.has(o.fromId)) && !incoming.some(i=>i.id===o.id));
   document.getElementById('trade-right-inventory').innerHTML=[
     ...incoming.map(o=>tradeOfferCard(o,true)),
     ...sent.map(o=>tradeOfferCard(o,false))
@@ -4729,7 +4747,8 @@ function tradeOfferSummary(offer,side){
 }
 function tradeOfferCard(offer,incoming){
   const from=characterById(offer.fromId), to=characterById(offer.toId);
-  return `<div class="trade-offer-row"><span><b>${incoming?'Incoming':'Sent'}</b><br><small>${escapeHtml(from?.name||'Player')} to ${escapeHtml(to?.name||'Player')}</small><br><small>Offers: ${escapeHtml(tradeOfferSummary(offer,'offered'))}</small><br><small>Requests: ${escapeHtml(tradeOfferSummary(offer,'requested'))}</small></span><small>${incoming?`<button onclick="acceptTradeOffer('${offer.id}')">Accept</button> <button onclick="declineTradeOffer('${offer.id}')">Decline</button>`:'Pending'}</small></div>`;
+  const canReceive=!!tradeControlledCharacterById(offer.toId);
+  return `<div class="trade-offer-row"><span><b>${incoming?'Incoming':'Sent'}</b><br><small>${escapeHtml(from?.name||'Player')} to ${escapeHtml(to?.name||'Player')}</small><br><small>Offers: ${escapeHtml(tradeOfferSummary(offer,'offered'))}</small><br><small>Requests: ${escapeHtml(tradeOfferSummary(offer,'requested'))}</small></span><small>${incoming && canReceive?`<button onclick="acceptTradeOffer('${offer.id}')">Accept</button> <button onclick="declineTradeOffer('${offer.id}')">Decline</button>`:incoming?'Claim target to accept':'Pending'}</small></div>`;
 }
 function setRPCharacter(id){
   const ch=myCharacters.find(c=>c.id===id);
@@ -8707,6 +8726,7 @@ function buildPersistedState(){
     activeTurnIndex,
     combatMode,
     turnActionState,
+    tradeOffers:normalizeTradeOffers(tradeOffers),
     chatMessages:chatMessages.slice(-40),
     fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : ''
   };
@@ -8876,6 +8896,12 @@ function applyPersistedState(state){
   activeTurnIndex=Number(state.activeTurnIndex)||0;
   combatMode=state.combatMode===true;
   turnActionState=state.turnActionState || {};
+  tradeOffers=mergeTradeOffers(state.tradeOffers||[],tradeOffers);
+  const incomingOffer=tradeOffers.find(o=>o.status==='pending' && tradeControlledCharacterById(o.toId));
+  if(incomingOffer){
+    focusTradeCharacter(incomingOffer.toId);
+    document.getElementById('trade-window')?.classList.add('show');
+  }
   chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
   document.getElementById('radius-slider').value=revealRadius;
   document.getElementById('reveal-val').textContent=revealRadius;
@@ -9088,6 +9114,7 @@ function mergeCloudStateBeforeSave(state){
   if(remoteFogRev>localFogRev) state={...state,fogRevision:remoteFogRev};
   if(latestCloudState.campaign && !state.campaign) state.campaign=latestCloudState.campaign;
   if(latestCloudState.campaignPortal && !state.campaignPortal) state.campaignPortal=latestCloudState.campaignPortal;
+  state.tradeOffers=mergeTradeOffers(state.tradeOffers||[],latestCloudState.tradeOffers||[]);
   return state;
 }
 function stripCloudState(state){
