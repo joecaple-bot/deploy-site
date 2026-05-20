@@ -3881,6 +3881,11 @@ function removeLocalCharacterOnly(characterId){
   myCharacters=myCharacters.filter(ch=>ch.id!==characterId);
   if(activeCharacterId===characterId) activeCharacterId=myCharacters[0]?.id || null;
 }
+function removeRemoteCharacterCopies(characterId){
+  for(const [key,ch] of Object.entries(remoteCharacters)){
+    if(ch.id===characterId) delete remoteCharacters[key];
+  }
+}
 function removeRemoteCharacterToken(characterId,owner=''){
   for(const [key,ch] of Object.entries(remoteCharacters)){
     if(ch.id===characterId && (!owner || ch.owner===owner)) delete remoteCharacters[key];
@@ -3932,6 +3937,7 @@ function releaseCharacter(characterId,force=false){
 function applyRemoteClaim(msg){
   if(!msg.characterId || !msg.owner) return;
   characterClaims[msg.characterId]={owner:msg.owner,label:msg.label||msg.owner.slice(0,6),updatedAt:Date.now()};
+  removeRemoteCharacterCopies(msg.characterId);
   if(msg.owner!==myId){
     const local=myCharacters.find(ch=>ch.id===msg.characterId);
     if(local && !isDM()) removeLocalCharacterOnly(msg.characterId);
@@ -3959,7 +3965,13 @@ function acceptsRemoteCharacterUpdate(characterId,fromId){
 function allCharactersById(){
   const all={};
   const localIds=new Set(myCharacters.map(ch=>ch.id));
-  const remoteValues=Object.values(remoteCharacters);
+  const latestRemoteById={};
+  for(const ch of Object.values(remoteCharacters)){
+    const claim=characterClaim(ch.id);
+    if(claim && ch.owner!==claim.owner) continue;
+    latestRemoteById[ch.id]=ch;
+  }
+  const remoteValues=Object.values(latestRemoteById);
   const remoteCounts=remoteValues.reduce((counts,ch)=>{
     counts[ch.id]=(counts[ch.id]||0)+1;
     return counts;
