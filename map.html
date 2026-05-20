@@ -1895,6 +1895,7 @@ let campaignNotesTab = 'public';
 let latestCloudState = null;
 let selectedCharTokenArt = '';
 let pendingEnemyTokenArt = '';
+let generatedGhostsPruned = false;
 const tokenImageCache = {};
 
 function assetManifest(){
@@ -5529,7 +5530,10 @@ function pruneGeneratedDefaultGhosts(characters=[]){
   const hasReal=list.some(ch=>!isGeneratedDefaultGhost(ch));
   if(!hasReal) return list;
   for(const ch of list){
-    if(isGeneratedDefaultGhost(ch)) delete characterClaims[ch.id];
+    if(isGeneratedDefaultGhost(ch)){
+      delete characterClaims[ch.id];
+      generatedGhostsPruned = true;
+    }
   }
   return list.filter(ch=>!isGeneratedDefaultGhost(ch));
 }
@@ -8174,7 +8178,10 @@ function applyCharacterStateFromCampaign(state){
   if(incomingIds.size){
     myCharacters=myCharacters.filter(ch=>{
       const shouldDropGeneratedDefault=isPlaceholderCharacter(ch) && ch.name==='Player' && !incomingIds.has(ch.id);
-      if(shouldDropGeneratedDefault) delete characterClaims[ch.id];
+      if(shouldDropGeneratedDefault){
+        delete characterClaims[ch.id];
+        generatedGhostsPruned = true;
+      }
       return !shouldDropGeneratedDefault;
     });
   }
@@ -8277,6 +8284,10 @@ function applyPersistedState(state){
   draw();
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
   applyingCloudState=false;
+  if(generatedGhostsPruned){
+    generatedGhostsPruned=false;
+    setTimeout(()=>scheduleCloudSave(buildPersistedState(),true),0);
+  }
 }
 function hasCampaignAccess(state){
   const hash=state.campaign?.passwordHash;
