@@ -42,6 +42,12 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
 .account-panel b{font-size:13px}
 .account-panel small{color:var(--muted);font-size:10px;line-height:1.4}
 .account-panel button{font-size:11px;padding:7px 8px}
+.migration-panel{border:1px solid rgba(102,167,216,.45);border-radius:10px;background:rgba(102,167,216,.08);padding:10px;margin-bottom:10px;display:none}
+.migration-panel.show{display:grid;gap:8px}
+.migration-list{display:grid;gap:6px;max-height:190px;overflow:auto}
+.migration-item{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;background:#111419;padding:7px}
+.migration-item input{width:auto}
+.migration-item small{color:var(--muted)}
 #layout{flex:1;display:grid;grid-template-columns:300px 1fr 310px;min-height:0}
 #library,#sheet{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:14px}
 #sheet{border-right:0;border-left:1px solid var(--line)}
@@ -221,6 +227,14 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         <div class="actions">
           <button onclick="attachSelectedToCampaign()">Add selected to campaign</button>
           <button onclick="removeSelectedFromCampaign()">Remove from campaign</button>
+        </div>
+      </div>
+      <div id="migration-panel" class="migration-panel">
+        <div><b>Import local characters?</b><br><small>Choose which browser-local characters belong to this Discord account.</small></div>
+        <div id="migration-list" class="migration-list"></div>
+        <div class="actions">
+          <button class="primary" onclick="importSelectedLocalCharacters()">Import selected</button>
+          <button onclick="skipLocalCharacterImport()">Skip</button>
         </div>
       </div>
       <div id="character-list"></div>
@@ -583,6 +597,8 @@ let campaignInfo=null;
 let authUser=null;
 let accountCharactersLoaded=false;
 let campaignCharacterIds=new Set();
+let pendingLocalImport=[];
+let accountSyncEnabled=false;
 
 function abilityMod(score){return Math.floor((Number(score)-10)/2)}
 function proficiencyBonus(level){return 2+Math.floor((Math.max(1,Math.min(20,level))-1)/4)}
@@ -816,8 +832,35 @@ function renderAccountUI(){
   if(logout) logout.style.display=authUser?'inline-block':'none';
   if(title) title.textContent=authUser?'Account library':'Guest library';
   if(text) text.textContent=authUser
-    ? `${state.myCharacters.length} account character${state.myCharacters.length===1?'':'s'} loaded. Selected is ${selectedInCampaign?'in':'not in'} this campaign.`
+    ? accountSyncEnabled
+      ? `${state.myCharacters.length} account character${state.myCharacters.length===1?'':'s'} loaded. Selected is ${selectedInCampaign?'in':'not in'} this campaign.`
+      : 'Choose which local characters to import before account sync starts.'
     : 'Log in with Discord to sync characters to your account.';
+  renderMigrationPanel();
+}
+function localImportDecisionKey(){return `${STORAGE_PREFIX}:accountImportDone:${authUser?.id||'guest'}:${CLOUD_CAMPAIGN_ID}`}
+function shouldOfferLocalImport(accountChars){
+  if(!authUser) return false;
+  if(localStorage.getItem(localImportDecisionKey())==='1') return false;
+  const accountIds=new Set((accountChars||[]).map(ch=>ch.id));
+  pendingLocalImport=(state.myCharacters||[]).filter(ch=>ch?.id && !accountIds.has(ch.id) && !isDefaultGhostCharacter(ch));
+  return pendingLocalImport.length>0;
+}
+function isDefaultGhostCharacter(ch){
+  return (!ch?.name || ch.name==='Player' || ch.name==='New Character') && Number(ch?.level||1)===1 && (ch?.class||'Fighter')==='Fighter';
+}
+function renderMigrationPanel(){
+  const panel=document.getElementById('migration-panel');
+  const list=document.getElementById('migration-list');
+  if(!panel||!list) return;
+  panel.classList.toggle('show',!!authUser && pendingLocalImport.length>0 && !accountSyncEnabled);
+  if(!pendingLocalImport.length){list.innerHTML='';return;}
+  list.innerHTML=pendingLocalImport.map(ch=>`
+    <label class="migration-item">
+      <input type="checkbox" data-import-character="${escapeHtml(ch.id)}" checked>
+      <span>${tokenThumbHtml(ch)} ${escapeHtml(ch.name||'Player')}<br><small>L${ch.level||1} ${escapeHtml(ch.race||'Human')} ${escapeHtml(ch.class||'Fighter')}</small></span>
+      <small>${campaignCharacterIds.has(ch.id)?'Campaign':'Local'}</small>
+    </label>`).join('');
 }
 async function loginDiscord(){
   const client=ensureSupabaseClient();
@@ -830,6 +873,8 @@ async function logoutDiscord(){
   await client.auth.signOut();
   authUser=null;
   accountCharactersLoaded=false;
+  accountSyncEnabled=false;
+  pendingLocalImport=[];
   campaignCharacterIds=new Set();
   renderAccountUI();
   toast('Logged out');
@@ -863,6 +908,8 @@ async function initAccountAuth(){
       await loadAccountCharacters();
     } else {
       accountCharactersLoaded=false;
+      accountSyncEnabled=false;
+      pendingLocalImport=[];
       campaignCharacterIds=new Set();
     }
     renderAccountUI();
@@ -876,6 +923,13 @@ async function loadAccountCharacters(){
   const accountChars=(data||[]).map(row=>accountCharacterPayload({...row.character,id:row.id})).filter(Boolean);
   const {data:campaignLinks}=await client.from('campaign_characters').select('character_id').eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('owner_user_id',authUser.id).eq('active',true);
   campaignCharacterIds=new Set((campaignLinks||[]).map(row=>row.character_id));
+  const offerImport=shouldOfferLocalImport(accountChars);
+  if(offerImport){
+    accountSyncEnabled=false;
+    renderAccountUI();
+    return;
+  }
+  accountSyncEnabled=true;
   if(accountChars.length){
     const current=selectedId;
     state.myCharacters=accountChars;
@@ -885,12 +939,15 @@ async function loadAccountCharacters(){
     renderAll();
     try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
     document.getElementById('save-state').textContent='Loaded account characters.';
+  } else {
+    accountCharactersLoaded=true;
+    document.getElementById('save-state').textContent='Account library is empty. Create or import a character.';
   }
   renderAccountUI();
 }
 async function saveAccountCharacters(){
   const client=ensureSupabaseClient();
-  if(!client||!authUser) return;
+  if(!client||!authUser||!accountSyncEnabled) return;
   const rows=state.myCharacters.map(ch=>{
     const character=accountCharacterPayload(ch);
     return {
@@ -912,10 +969,34 @@ async function deleteAccountCharacter(characterId){
 }
 async function syncAccountNow(){
   if(!authUser) return loginDiscord();
+  if(!accountSyncEnabled && pendingLocalImport.length) return renderMigrationPanel();
   commitForm();
+  accountSyncEnabled=true;
   await saveAccountCharacters();
   await loadAccountCharacters();
   toast('Account synced');
+}
+async function importSelectedLocalCharacters(){
+  if(!authUser) return loginDiscord();
+  const selectedIds=[...document.querySelectorAll('[data-import-character]:checked')].map(input=>input.dataset.importCharacter);
+  const selectedSet=new Set(selectedIds);
+  const imports=pendingLocalImport.filter(ch=>selectedSet.has(ch.id)).map(ch=>accountCharacterPayload({...ch,accountOwnerUserId:authUser.id}));
+  const existingIds=new Set(state.myCharacters.map(ch=>ch.id));
+  imports.forEach(ch=>{ if(!existingIds.has(ch.id)) state.myCharacters.push(ch); });
+  accountSyncEnabled=true;
+  pendingLocalImport=[];
+  localStorage.setItem(localImportDecisionKey(),'1');
+  await saveAccountCharacters();
+  await loadAccountCharacters();
+  toast(imports.length?`Imported ${imports.length} character${imports.length===1?'':'s'}`:'Import skipped');
+}
+async function skipLocalCharacterImport(){
+  pendingLocalImport=[];
+  accountSyncEnabled=true;
+  localStorage.setItem(localImportDecisionKey(),'1');
+  await loadAccountCharacters();
+  renderAccountUI();
+  toast('Local import skipped');
 }
 async function ensureCampaignMembership(){
   const client=ensureSupabaseClient();
@@ -925,6 +1006,7 @@ async function ensureCampaignMembership(){
 }
 async function attachSelectedToCampaign(){
   if(!authUser) return loginDiscord();
+  if(!accountSyncEnabled && pendingLocalImport.length) return toast('Import or skip local characters first');
   commitForm();
   const ch=selected();
   if(!ch) return;
@@ -944,6 +1026,7 @@ async function attachSelectedToCampaign(){
 }
 async function removeSelectedFromCampaign(){
   if(!authUser) return loginDiscord();
+  if(!accountSyncEnabled && pendingLocalImport.length) return toast('Import or skip local characters first');
   const ch=selected();
   if(!ch) return;
   const client=ensureSupabaseClient();
@@ -993,7 +1076,7 @@ function writeStorage(message='Saved'){
     localStorage.setItem(storageKey(),JSON.stringify(state));
     document.getElementById('save-state').textContent='Saved locally.';
     scheduleCloudSave(state);
-    if(authUser) saveAccountCharacters().then(()=>renderAccountUI()).catch(()=>toast('Account sync failed'));
+    if(authUser&&accountSyncEnabled) saveAccountCharacters().then(()=>renderAccountUI()).catch(()=>toast('Account sync failed'));
     toast(message);
   }catch(e){
     document.getElementById('save-state').textContent='Save failed. Browser storage may be full.';
@@ -1774,7 +1857,7 @@ function persistBeforeLeaving(){
 async function goToMap(shouldSave=true){
   if(shouldSave) writeStorage('Character saved');
   else persistBeforeLeaving();
-  if(authUser){
+  if(authUser&&accountSyncEnabled){
     try{ await saveAccountCharacters(); }catch(e){}
   }
   if(cloudReady&&!applyingCloudState){
