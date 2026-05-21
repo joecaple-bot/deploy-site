@@ -8897,11 +8897,6 @@ function applyPersistedState(state){
   combatMode=state.combatMode===true;
   turnActionState=state.turnActionState || {};
   tradeOffers=mergeTradeOffers(state.tradeOffers||[],tradeOffers);
-  const incomingOffer=tradeOffers.find(o=>o.status==='pending' && tradeControlledCharacterById(o.toId));
-  if(incomingOffer){
-    focusTradeCharacter(incomingOffer.toId);
-    document.getElementById('trade-window')?.classList.add('show');
-  }
   chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
   document.getElementById('radius-slider').value=revealRadius;
   document.getElementById('reveal-val').textContent=revealRadius;
