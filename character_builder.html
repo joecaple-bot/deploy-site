@@ -36,6 +36,12 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
 #topbar h1{font-size:17px;margin-right:auto}
 #topbar button{font-size:12px;padding:7px 10px}
 .campaign-badge{font-size:11px;color:#dcffe9;border:1px solid rgba(72,179,127,.45);background:rgba(72,179,127,.1);border-radius:999px;padding:5px 9px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-badge{font-size:11px;color:#fff2d0;border:1px solid rgba(202,168,107,.52);background:rgba(202,168,107,.1);border-radius:999px;padding:5px 9px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-panel{border:1px solid rgba(202,168,107,.42);border-radius:10px;background:rgba(202,168,107,.08);padding:10px;margin-bottom:12px;display:grid;gap:8px}
+.account-panel .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.account-panel b{font-size:13px}
+.account-panel small{color:var(--muted);font-size:10px;line-height:1.4}
+.account-panel button{font-size:11px;padding:7px 8px}
 #layout{flex:1;display:grid;grid-template-columns:300px 1fr 310px;min-height:0}
 #library,#sheet{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:14px}
 #sheet{border-right:0;border-left:1px solid var(--line)}
@@ -194,6 +200,9 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
   <header id="topbar">
     <h1>Character Builder</h1>
     <span id="campaign-badge" class="campaign-badge"></span>
+    <span id="account-badge" class="account-badge">Guest profile</span>
+    <button id="discord-login-btn" onclick="loginDiscord()">Discord login</button>
+    <button id="discord-logout-btn" onclick="logoutDiscord()" style="display:none">Log out</button>
     <button onclick="window.location.href='campaign_manager.html'+campaignQuery()">Campaigns</button>
     <button onclick="window.location.href='campaign_overview.html'+campaignQuery()">Overview</button>
     <button onclick="saveAndReturn()">Save & return to map</button>
@@ -205,6 +214,14 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
       <div class="panel-head">
         <h3>Saved Characters</h3>
         <button class="primary" onclick="newCharacter()" style="font-size:11px;padding:6px 8px">New</button>
+      </div>
+      <div class="account-panel">
+        <div class="row"><b id="account-panel-title">Guest library</b><button onclick="syncAccountNow()">Sync</button></div>
+        <small id="account-panel-text">Log in with Discord to sync characters to your account.</small>
+        <div class="actions">
+          <button onclick="attachSelectedToCampaign()">Add selected to campaign</button>
+          <button onclick="removeSelectedFromCampaign()">Remove from campaign</button>
+        </div>
       </div>
       <div id="character-list"></div>
     </aside>
@@ -563,6 +580,9 @@ let cloudLastUpdated='';
 let cloudIdleTimer=null;
 let cloudPausedForIdle=false;
 let campaignInfo=null;
+let authUser=null;
+let accountCharactersLoaded=false;
+let campaignCharacterIds=new Set();
 
 function abilityMod(score){return Math.floor((Number(score)-10)/2)}
 function proficiencyBonus(level){return 2+Math.floor((Math.max(1,Math.min(20,level))-1)/4)}
@@ -701,6 +721,7 @@ function hydrateCharacter(raw={}){
     abilities:Array.isArray(raw.abilities)?raw.abilities.map(normalizeTextItem):[],
     bonusActions:Array.isArray(raw.bonusActions)?raw.bonusActions.map(normalizeTextItem):[],
     spellSlotUsage:raw.spellSlotUsage&&typeof raw.spellSlotUsage==='object'?raw.spellSlotUsage:{},
+    accountOwnerUserId:raw.accountOwnerUserId||'',
     owner:raw.owner||BUILDER_PLAYER_ID
   };
   character.derived=calculateDerived(character);
@@ -770,6 +791,167 @@ function canMakeInventoryWeapon(item={}){
 function normalizeTextItem(item={}){
   return {id:item.id||'t_'+Date.now()+Math.random().toString(36).slice(2,7),name:item.name||'New ability',description:item.description||''};
 }
+function ensureSupabaseClient(){
+  if(!window.supabase||!SUPABASE_URL||!SUPABASE_PUBLIC_KEY) return null;
+  if(!cloudClient) cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
+  return cloudClient;
+}
+function accountOwnerId(){return authUser?.id ? `auth:${authUser.id}` : BUILDER_PLAYER_ID}
+function authDisplayName(){
+  const meta=authUser?.user_metadata||{};
+  return meta.full_name||meta.name||meta.preferred_username||meta.user_name||authUser?.email||'Discord player';
+}
+function accountCharacterPayload(ch){
+  return hydrateCharacter({...ch,accountOwnerUserId:authUser?.id||ch.accountOwnerUserId||'',owner:BUILDER_PLAYER_ID});
+}
+function renderAccountUI(){
+  const badge=document.getElementById('account-badge');
+  const login=document.getElementById('discord-login-btn');
+  const logout=document.getElementById('discord-logout-btn');
+  const title=document.getElementById('account-panel-title');
+  const text=document.getElementById('account-panel-text');
+  const selectedInCampaign=selectedId&&campaignCharacterIds.has(selectedId);
+  if(badge) badge.textContent=authUser?`Discord: ${authDisplayName()}`:'Guest profile';
+  if(login) login.style.display=authUser?'none':'inline-block';
+  if(logout) logout.style.display=authUser?'inline-block':'none';
+  if(title) title.textContent=authUser?'Account library':'Guest library';
+  if(text) text.textContent=authUser
+    ? `${state.myCharacters.length} account character${state.myCharacters.length===1?'':'s'} loaded. Selected is ${selectedInCampaign?'in':'not in'} this campaign.`
+    : 'Log in with Discord to sync characters to your account.';
+}
+async function loginDiscord(){
+  const client=ensureSupabaseClient();
+  if(!client) return toast('Supabase not ready');
+  await client.auth.signInWithOAuth({provider:'discord',options:{redirectTo:location.origin+location.pathname+campaignQuery()}});
+}
+async function logoutDiscord(){
+  const client=ensureSupabaseClient();
+  if(!client) return;
+  await client.auth.signOut();
+  authUser=null;
+  accountCharactersLoaded=false;
+  campaignCharacterIds=new Set();
+  renderAccountUI();
+  toast('Logged out');
+}
+async function upsertAccountProfile(){
+  const client=ensureSupabaseClient();
+  if(!client||!authUser) return;
+  const meta=authUser.user_metadata||{};
+  await client.from('player_profiles').upsert({
+    user_id:authUser.id,
+    display_name:authDisplayName(),
+    avatar_url:meta.avatar_url||meta.picture||'',
+    provider:'discord',
+    updated_at:new Date().toISOString()
+  });
+}
+async function initAccountAuth(){
+  const client=ensureSupabaseClient();
+  if(!client){renderAccountUI();return;}
+  const {data}=await client.auth.getUser();
+  authUser=data?.user||null;
+  if(authUser){
+    await upsertAccountProfile();
+    await loadAccountCharacters();
+  }
+  renderAccountUI();
+  client.auth.onAuthStateChange(async (_event,session)=>{
+    authUser=session?.user||null;
+    if(authUser){
+      await upsertAccountProfile();
+      await loadAccountCharacters();
+    } else {
+      accountCharactersLoaded=false;
+      campaignCharacterIds=new Set();
+    }
+    renderAccountUI();
+  });
+}
+async function loadAccountCharacters(){
+  const client=ensureSupabaseClient();
+  if(!client||!authUser) return;
+  const {data,error}=await client.from('account_characters').select('id,character,updated_at').eq('owner_user_id',authUser.id).order('updated_at',{ascending:false});
+  if(error){toast('Account character sync failed');return;}
+  const accountChars=(data||[]).map(row=>accountCharacterPayload({...row.character,id:row.id})).filter(Boolean);
+  const {data:campaignLinks}=await client.from('campaign_characters').select('character_id').eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('owner_user_id',authUser.id).eq('active',true);
+  campaignCharacterIds=new Set((campaignLinks||[]).map(row=>row.character_id));
+  if(accountChars.length){
+    const current=selectedId;
+    state.myCharacters=accountChars;
+    selectedId=(current&&state.myCharacters.some(ch=>ch.id===current)?current:null)||state.activeCharacterId||state.myCharacters[0].id;
+    state.activeCharacterId=selectedId;
+    accountCharactersLoaded=true;
+    renderAll();
+    try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
+    document.getElementById('save-state').textContent='Loaded account characters.';
+  }
+  renderAccountUI();
+}
+async function saveAccountCharacters(){
+  const client=ensureSupabaseClient();
+  if(!client||!authUser) return;
+  const rows=state.myCharacters.map(ch=>{
+    const character=accountCharacterPayload(ch);
+    return {
+      id:character.id,
+      owner_user_id:authUser.id,
+      name:character.name||'Player',
+      character,
+      updated_at:new Date().toISOString()
+    };
+  });
+  if(rows.length) await client.from('account_characters').upsert(rows);
+}
+async function deleteAccountCharacter(characterId){
+  const client=ensureSupabaseClient();
+  if(!client||!authUser||!characterId) return;
+  await client.from('campaign_characters').update({active:false,controller_user_id:null}).eq('character_id',characterId).eq('owner_user_id',authUser.id);
+  await client.from('account_characters').delete().eq('id',characterId).eq('owner_user_id',authUser.id);
+  campaignCharacterIds.delete(characterId);
+}
+async function syncAccountNow(){
+  if(!authUser) return loginDiscord();
+  commitForm();
+  await saveAccountCharacters();
+  await loadAccountCharacters();
+  toast('Account synced');
+}
+async function ensureCampaignMembership(){
+  const client=ensureSupabaseClient();
+  if(!client||!authUser) return false;
+  await client.from('campaign_members').upsert({campaign_id:CLOUD_CAMPAIGN_ID,user_id:authUser.id,role:builderIsDM()?'dm':'player'});
+  return true;
+}
+async function attachSelectedToCampaign(){
+  if(!authUser) return loginDiscord();
+  commitForm();
+  const ch=selected();
+  if(!ch) return;
+  await saveAccountCharacters();
+  await ensureCampaignMembership();
+  const client=ensureSupabaseClient();
+  await client.from('campaign_characters').upsert({
+    campaign_id:CLOUD_CAMPAIGN_ID,
+    character_id:ch.id,
+    owner_user_id:authUser.id,
+    controller_user_id:authUser.id,
+    active:true
+  });
+  campaignCharacterIds.add(ch.id);
+  writeStorage(`${ch.name} added to campaign`);
+  renderAccountUI();
+}
+async function removeSelectedFromCampaign(){
+  if(!authUser) return loginDiscord();
+  const ch=selected();
+  if(!ch) return;
+  const client=ensureSupabaseClient();
+  await client.from('campaign_characters').update({active:false,controller_user_id:null}).eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('character_id',ch.id).eq('owner_user_id',authUser.id);
+  campaignCharacterIds.delete(ch.id);
+  renderAccountUI();
+  toast(`${ch.name} removed from this campaign`);
+}
 function readStorage(){
   try{
     const raw=localStorage.getItem(storageKey());
@@ -811,6 +993,7 @@ function writeStorage(message='Saved'){
     localStorage.setItem(storageKey(),JSON.stringify(state));
     document.getElementById('save-state').textContent='Saved locally.';
     scheduleCloudSave(state);
+    if(authUser) saveAccountCharacters().then(()=>renderAccountUI()).catch(()=>toast('Account sync failed'));
     toast(message);
   }catch(e){
     document.getElementById('save-state').textContent='Save failed. Browser storage may be full.';
@@ -906,7 +1089,9 @@ function readFormFor(existing=null){
     equipment:readEquipment(),
     spellSlotUsage:readSpellSlotUsage(),
     abilities:readTextItems('ability'),
-    bonusActions:readTextItems('bonus-action')
+    bonusActions:readTextItems('bonus-action'),
+    accountOwnerUserId:authUser?.id||existing?.accountOwnerUserId||'',
+    owner:BUILDER_PLAYER_ID
   };
   return hydrateCharacter(base);
 }
@@ -956,9 +1141,10 @@ function renderList(){
   list.innerHTML=state.myCharacters.map(ch=>`
     <div class="char-card ${ch.id===selectedId?'active':''}" onclick="selectCharacter('${ch.id}')">
       <div class="avatar">${tokenThumbHtml(ch)}</div>
-      <div><div class="name">${escapeHtml(ch.name)}</div><div class="meta">L${ch.level} ${ch.race} ${ch.class}</div></div>
+      <div><div class="name">${escapeHtml(ch.name)}</div><div class="meta">L${ch.level} ${ch.race} ${ch.class}${campaignCharacterIds.has(ch.id)?' · Campaign':''}</div></div>
       <div class="tiny">${ch.currentHP}/${ch.derived.HP}</div>
     </div>`).join('');
+  renderAccountUI();
 }
 function renderLive(){
   syncCustomFields();
@@ -1507,6 +1693,7 @@ function applyBeginnerPreset(kind){
     ...preset,
     id:existing?.id||selectedId,
     position:existing?.position||{x:null,y:null},
+    accountOwnerUserId:authUser?.id||existing?.accountOwnerUserId||'',
     owner:BUILDER_PLAYER_ID
   });
   const i=state.myCharacters.findIndex(c=>c.id===selectedId);
@@ -1526,7 +1713,7 @@ function selectCharacter(id){
 }
 function newCharacter(){
   commitForm();
-  const ch=hydrateCharacter({id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:'New Character',color:randomColor()});
+  const ch=hydrateCharacter({id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:'New Character',color:randomColor(),accountOwnerUserId:authUser?.id||'',owner:BUILDER_PLAYER_ID});
   state.myCharacters.push(ch);
   selectedId=ch.id;
   state.activeCharacterId=ch.id;
@@ -1536,7 +1723,7 @@ function newCharacter(){
 }
 function duplicateCharacter(){
   commitForm();
-  const ch=hydrateCharacter({...selected(),id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:selected().name+' Copy',position:{x:null,y:null}});
+  const ch=hydrateCharacter({...selected(),id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:selected().name+' Copy',position:{x:null,y:null},accountOwnerUserId:authUser?.id||''});
   state.myCharacters.push(ch);
   selectedId=ch.id;
   renderAll();
@@ -1544,12 +1731,14 @@ function duplicateCharacter(){
 }
 function deleteSelected(){
   if(state.myCharacters.length<=1){toast('Keep at least one character');return}
+  const deletedId=selectedId;
   state.myCharacters=state.myCharacters.filter(c=>c.id!==selectedId);
   state.turnOrder=(state.turnOrder||[]).filter(id=>id!==selectedId);
   selectedId=state.myCharacters[0].id;
   state.activeCharacterId=selectedId;
   renderAll();
   writeStorage('Character deleted');
+  if(authUser) deleteAccountCharacter(deletedId).catch(()=>toast('Account delete failed'));
 }
 function autoRollStats(){
   for(const ab of ABILITIES) document.getElementById('stat-'+ab).value=rollAbilityScore();
@@ -1585,6 +1774,9 @@ function persistBeforeLeaving(){
 async function goToMap(shouldSave=true){
   if(shouldSave) writeStorage('Character saved');
   else persistBeforeLeaving();
+  if(authUser){
+    try{ await saveAccountCharacters(); }catch(e){}
+  }
   if(cloudReady&&!applyingCloudState){
     clearTimeout(cloudSaveTimer);
     try{ await saveCloudState(state); }catch(e){}
@@ -1637,7 +1829,7 @@ function hasCampaignAccess(nextState){
 function redirectToCampaignManager(){window.location.href='campaign_manager.html?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID)}
 function initSupabaseCloud(){
   if(!window.supabase||!SUPABASE_URL||!SUPABASE_PUBLIC_KEY) return;
-  if(!cloudClient) cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
+  ensureSupabaseClient();
   cloudReady=true;
   cloudPausedForIdle=false;
   loadCloudState();
@@ -1778,6 +1970,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 setup();
 initSupabaseCloud();
+initAccountAuth();
 </script>
 </body>
 </html>
