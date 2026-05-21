@@ -7849,24 +7849,34 @@ function rollCharacterAction(characterId,type,itemId){
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(!target) return showCritOverlay('Choose an enemy target first','roll','Attack');
   markTurnAction(type,characterId);
-  const hitTarget=target && attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=target.ac);
+  const natural=attack.rolls[0];
+  const critical=natural===20;
+  const fumble=natural===1;
+  const hitTarget=target && !fumble && (critical || attack.total>=target.ac);
+  const rolledDamage=damage.total;
+  const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) : 0;
+  const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   const hpBefore=target ? target.hp : null;
   let hpAfter=target ? target.hp : null;
+  let backfire=null;
   if(hitTarget){
     if(isDM()) pushDMUndo('attack damage');
-    target.hp=Math.max(0,target.hp-damage.total);
+    target.hp=Math.max(0,target.hp-appliedDamage);
     hpAfter=target.hp;
-    campaignStat('damageDealt',damage.total);
+    campaignStat('damageDealt',appliedDamage);
     if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
     broadcast({type:'iconUpdate',icon:target});
+  }
+  if(backfireDamage){
+    backfire=applyAttackBackfire(ch,'character',backfireDamage);
   }
   lastRoll={roll:attack.rolls[0],mod:ch.derived.attackBonus,total:attack.total,character:ch.name};
   addChatMessage({
     kind:type,
     character:ch.name,
     label:item.name,
-    detail:`Attack ${attack.total} [${attack.rolls[0]} ${formatBonus(ch.derived.attackBonus)}${attack.buff?` + ${attack.buffRoll} ${attack.buff.label}`:''}] - Damage ${damage.total} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]`,
-    total:damage.total,
+    detail:`Attack ${attack.total} [${attack.rolls[0]} ${formatBonus(ch.derived.attackBonus)}${attack.buff?` + ${attack.buffRoll} ${attack.buff.label}`:''}] - Damage ${rolledDamage} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]${critical?` x2 = ${appliedDamage}`:''}${backfireDamage?` - Nat 1 backfire ${backfireDamage} to ${ch.name}`:''}`,
+    total:appliedDamage||attack.total,
     rolls:damage.rolls
   });
   if(target){
@@ -7874,15 +7884,15 @@ function rollCharacterAction(characterId,type,itemId){
       kind:'target',
       character:'Table',
       label:`${hitTarget?'Hit':'Miss'} ${target.name}`,
-      detail:`Attack ${attack.total}${attack.buff?` (${attack.rolls[0]} ${formatBonus(ch.derived.attackBonus)} + ${attack.buffRoll} ${attack.buff.label})`:''} vs AC ${target.ac}${hitTarget?` - ${damage.total} damage, HP ${target.hp}/${target.maxHP}`:''}`
+      detail:`Attack ${attack.total}${attack.buff?` (${attack.rolls[0]} ${formatBonus(ch.derived.attackBonus)} + ${attack.buffRoll} ${attack.buff.label})`:''} vs AC ${target.ac}${hitTarget?` - ${appliedDamage} damage, HP ${target.hp}/${target.maxHP}`:backfireDamage?` - Nat 1, ${ch.name} takes ${backfireDamage}`:''}`
     });
   }
-  const effect=attack.rolls[0]===20
-    ? {text:`${ch.name} lands a critical hit`,overlayType:'success',title:''}
-    : attack.rolls[0]===1
-      ? {text:`${ch.name} critically misses`,overlayType:'fail',title:''}
-      : {text:`${item.name}: attack ${attack.total}, damage ${damage.total}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${item.die} ${formatBonus(item.bonus)}`};
-  playSfx(attack.rolls[0]===20?'nat20':attack.rolls[0]===1?'nat1':hitTarget?'hit':'miss');
+  const effect=critical
+    ? {text:`${ch.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Double damage'}
+    : fumble
+      ? {text:`${ch.name} fumbles and takes ${backfireDamage}`,overlayType:'fail',title:'Backfire'}
+      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${item.die} ${formatBonus(item.bonus)}`};
+  playSfx(critical?'nat20':fumble?'nat1':hitTarget?'hit':'miss');
   if(hitTarget && target?.hp<=0) playSfx('enemyDown');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   const actionPayload={
@@ -7895,10 +7905,14 @@ function rollCharacterAction(characterId,type,itemId){
     targetUid:target?.uid||null,
     tx:target?.x,
     ty:target?.y,
-    damage:hitTarget?damage.total:0,
+    damage:hitTarget?appliedDamage:0,
     hpBefore,
     hpAfter,
-    maxHP:target?.maxHP
+    maxHP:target?.maxHP,
+    backfireDamage,
+    backfireHpBefore:backfire?.hpBefore,
+    backfireHpAfter:backfire?.hpAfter,
+    backfireMaxHP:backfire?.maxHP
   };
   playActionAnimation(ch,type,actionPayload);
   emitLiveEffect(actionPayload);
@@ -7936,6 +7950,21 @@ function applyAoeResult(entry,amount,actionType,effectName){
   }
   const p=entityPoint(target);
   return {kind:entry.kind,id:entry.kind==='enemy'?target.uid:target.id,name:target.name,x:p.x,y:p.y,damage:amount,hpBefore:before,hpAfter:after,maxHP:entry.kind==='enemy'?target.maxHP:target.derived?.HP,statuses:target.statuses,currentHP:after};
+}
+function applyAttackBackfire(attacker,attackerKind,amount){
+  amount=Math.max(0,Math.floor(Number(amount)||0));
+  if(!attacker || !amount) return null;
+  if(attackerKind==='enemy' || attacker.kind==='enemy' || attacker.uid){
+    const before=Number(attacker.hp)||0;
+    attacker.hp=Math.max(0,before-amount);
+    broadcast({type:'iconUpdate',icon:attacker});
+    return {hpBefore:before,hpAfter:attacker.hp,maxHP:attacker.maxHP||before};
+  }
+  const before=Number(attacker.currentHP ?? attacker.derived?.HP ?? 0);
+  const maxHP=Number(attacker.derived?.HP)||before;
+  const after=Math.max(0,before-amount);
+  applyCharacterPatch(attacker.id,{currentHP:after});
+  return {hpBefore:before,hpAfter:after,maxHP};
 }
 function rollAoeAction(caster,casterKind,type,item,actionType){
   const radius=Number(item.aoeRadius)||40;
@@ -8031,29 +8060,39 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
   markTurnAction(type,enemy.uid);
   const targetAC=targetCharacter ? target.derived?.AC || 10 : target.ac;
-  const hit=attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=targetAC);
+  const natural=attack.rolls[0];
+  const critical=natural===20;
+  const fumble=natural===1;
+  const hit=!fumble && (critical || attack.total>=targetAC);
+  const rolledDamage=damage.total;
+  const appliedDamage=hit ? (critical ? rolledDamage*2 : rolledDamage) : 0;
+  const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   let hpBefore=targetCharacter ? target.currentHP : target.hp;
   let hpAfter=hpBefore;
+  let backfire=null;
   if(hit){
-    hpAfter=Math.max(0,hpBefore-damage.total);
+    hpAfter=Math.max(0,hpBefore-appliedDamage);
     if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter});
     else {
       target.hp=hpAfter;
       broadcast({type:'iconUpdate',icon:target});
     }
   }
+  if(backfireDamage){
+    backfire=applyAttackBackfire(enemy,'enemy',backfireDamage);
+  }
   addChatMessage({
     kind:type,
     character:enemy.name,
     label:item.name,
-    detail:`Attack ${attack.total} [${attack.rolls[0]} ${formatBonus(enemy.attackBonus||0)}] vs AC ${targetAC} - ${hit?'Hit':'Miss'}${hit?`, ${damage.total} damage`:''}`,
-    total:hit?damage.total:attack.total,
+    detail:`Attack ${attack.total} [${attack.rolls[0]} ${formatBonus(enemy.attackBonus||0)}] vs AC ${targetAC} - ${hit?'Hit':'Miss'}${critical?`, critical ${rolledDamage} x2 = ${appliedDamage}`:hit?`, ${appliedDamage} damage`:''}${backfireDamage?`, nat 1 backfire ${backfireDamage} to ${enemy.name}`:''}`,
+    total:hit?appliedDamage:attack.total,
     rolls:hit?damage.rolls:attack.rolls
   });
   if(hit && hpAfter<=0){ if(targetEnemy) ensureEnemyLoot(targetEnemy); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
-  const visual=attack.rolls[0]===20 ? {text:`${enemy.name} lands a critical hit`,overlayType:'success',title:''} : attack.rolls[0]===1 ? {text:`${enemy.name} critically misses`,overlayType:'fail',title:''} : {text:`${enemy.name}: ${hit?'hit':'miss'} ${target.name}`,overlayType:'roll',title:`Attack ${attack.total}`};
-  const effect={kind:'action',...visual,characterId:enemy.uid,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?damage.total:0,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP};
-  playSfx(attack.rolls[0]===20?'nat20':attack.rolls[0]===1?'nat1':hit?'hit':'miss');
+  const visual=critical ? {text:`${enemy.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Double damage'} : fumble ? {text:`${enemy.name} fumbles and takes ${backfireDamage}`,overlayType:'fail',title:'Backfire'} : {text:`${enemy.name}: ${hit?'hit':'miss'} ${target.name}`,overlayType:'roll',title:`Attack ${attack.total}`};
+  const effect={kind:'action',...visual,characterId:enemy.uid,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?appliedDamage:0,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,backfireDamage,backfireHpBefore:backfire?.hpBefore,backfireHpAfter:backfire?.hpAfter,backfireMaxHP:backfire?.maxHP};
+  playSfx(critical?'nat20':fumble?'nat1':hit?'hit':'miss');
   if(hit && hpAfter<=0) playSfx('enemyDown');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(enemy,type,effect);
