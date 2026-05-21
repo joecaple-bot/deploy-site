@@ -1,6 +1,7 @@
-const CACHE_NAME='dnd-campaign-assets-v4';
+const CACHE_NAME='dnd-campaign-assets-v5';
 const CACHE_ASSETS=[
   'assets/ui/campaign_overview_frame.webp',
+  'assets/ui/dnd_moovables_logo.png',
   'assets/ui/torn_paper_texture.webp',
   'assets/ui/torn_paper_mask.png',
   'assets/rp/rp_table.png',

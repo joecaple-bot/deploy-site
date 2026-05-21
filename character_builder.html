@@ -199,6 +199,201 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
   .skills-grid{grid-template-columns:1fr}
   .preset-grid,.checklist{grid-template-columns:1fr 1fr}
 }
+
+/* Premium fantasy builder shell */
+body{
+  background:
+    radial-gradient(circle at 50% 8%,rgba(255,142,38,.2),transparent 34%),
+    linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.72)),
+    url('assets/rp/rp_table.png') center/cover fixed,
+    #070604;
+  font-family:Georgia,'Times New Roman',serif;
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 22% 4%,rgba(255,170,73,.22),transparent 12%),
+    radial-gradient(circle at 78% 6%,rgba(255,146,47,.18),transparent 13%),
+    linear-gradient(90deg,rgba(0,0,0,.58),transparent 22%,transparent 78%,rgba(0,0,0,.62));
+  mix-blend-mode:screen;
+  opacity:.74;
+  z-index:-1;
+}
+#topbar{
+  height:66px;
+  background:linear-gradient(180deg,rgba(8,7,6,.94),rgba(17,11,7,.76));
+  border-bottom:1px solid rgba(202,168,107,.45);
+  box-shadow:0 14px 40px rgba(0,0,0,.42);
+}
+#topbar h1{
+  font-size:24px;
+  color:#ffe8a8;
+  text-shadow:0 0 16px rgba(255,151,54,.24);
+}
+button,input,select,textarea{font-family:Georgia,'Times New Roman',serif}
+button{
+  border-color:rgba(202,168,107,.55);
+  background:linear-gradient(180deg,rgba(59,39,18,.9),rgba(18,14,10,.92));
+  color:#f6dfb1;
+  box-shadow:inset 0 1px 0 rgba(255,230,164,.12),0 0 14px rgba(0,0,0,.22);
+}
+button:hover{background:linear-gradient(180deg,rgba(92,58,21,.94),rgba(29,19,10,.94));border-color:rgba(255,190,96,.72)}
+button.primary{
+  background:linear-gradient(180deg,rgba(26,103,72,.92),rgba(9,53,44,.95));
+  border-color:rgba(92,255,174,.64);
+  color:#edfff5;
+}
+input,select,textarea{
+  border-color:rgba(202,168,107,.32);
+  background:rgba(4,6,8,.82);
+  color:#fff3d1;
+}
+label,h3{color:#cba86e}
+#layout{
+  grid-template-columns:320px minmax(720px,1fr) 330px;
+  gap:12px;
+  padding:12px;
+  min-height:calc(100vh - 66px);
+}
+#library,#sheet,#builder{
+  border:1px solid rgba(202,168,107,.38);
+  background:
+    linear-gradient(180deg,rgba(18,14,10,.86),rgba(8,7,6,.92)),
+    radial-gradient(circle at 50% 0,rgba(255,154,59,.14),transparent 42%);
+  box-shadow:0 24px 80px rgba(0,0,0,.48),inset 0 0 0 1px rgba(255,226,163,.05);
+  border-radius:12px;
+}
+#library,#sheet{padding:16px}
+#builder{
+  position:relative;
+  padding:0;
+  overflow:hidden;
+}
+#builder:before,#library:before,#sheet:before{
+  content:"";
+  position:absolute;
+  inset:8px;
+  pointer-events:none;
+  border:1px solid rgba(202,168,107,.18);
+  border-radius:9px;
+}
+#library,#sheet{position:relative}
+.builder-hero{
+  position:sticky;
+  top:0;
+  z-index:5;
+  padding:16px 18px 12px;
+  background:linear-gradient(180deg,rgba(8,7,6,.98),rgba(8,7,6,.86) 78%,transparent);
+  border-bottom:1px solid rgba(202,168,107,.28);
+}
+.builder-title{
+  text-align:center;
+  color:#ffe8aa;
+  font-size:25px;
+  font-weight:800;
+  text-shadow:0 0 18px rgba(255,146,47,.35);
+}
+.builder-subtitle{
+  text-align:center;
+  color:#d3b27b;
+  font-size:12px;
+  margin-top:4px;
+}
+.builder-tabs{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:13px;
+  flex-wrap:wrap;
+}
+.builder-tab{
+  min-width:104px;
+  padding:9px 12px;
+  border-radius:0;
+  clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,8px 100%,0 50%);
+  opacity:.76;
+}
+.builder-tab.active{
+  opacity:1;
+  background:linear-gradient(180deg,rgba(130,77,22,.98),rgba(49,30,12,.98));
+  color:#fff3c2;
+  box-shadow:0 0 22px rgba(255,157,43,.22),inset 0 -2px 0 rgba(255,190,96,.72);
+}
+.builder-content{
+  height:calc(100vh - 184px);
+  overflow:auto;
+  padding:16px 18px 92px;
+}
+#builder .section{display:none}
+#builder .section.active-tab{display:block}
+#builder .section.always-visible{display:block}
+.section-body{
+  border-color:rgba(202,168,107,.3);
+  background:linear-gradient(180deg,rgba(21,17,13,.9),rgba(9,9,8,.9));
+  box-shadow:0 16px 44px rgba(0,0,0,.34),inset 0 0 32px rgba(255,154,47,.035);
+}
+.starter-panel{border-color:rgba(255,187,86,.42)}
+.panel-head h2,.panel-head h3{
+  color:#ffe5a7;
+  text-shadow:0 0 12px rgba(255,155,43,.22);
+}
+.char-card{
+  border-color:rgba(202,168,107,.28);
+  background:linear-gradient(180deg,rgba(37,27,17,.78),rgba(8,8,8,.78));
+  border-radius:10px;
+}
+.char-card.active{
+  border-color:rgba(255,187,86,.86);
+  background:linear-gradient(180deg,rgba(96,56,17,.82),rgba(28,19,10,.86));
+  box-shadow:0 0 18px rgba(255,157,43,.18);
+}
+.sheet-hero{
+  padding:12px;
+  border:1px solid rgba(202,168,107,.34);
+  border-radius:10px;
+  background:radial-gradient(circle at 20% 20%,rgba(255,169,62,.13),transparent 48%),rgba(0,0,0,.25);
+}
+.sheet-icon{
+  width:82px;
+  height:82px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(202,168,107,.48);
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,180,69,.18),rgba(0,0,0,.72));
+}
+.sheet-stats,.derived,.stats{
+  gap:10px;
+}
+.sheet-box,.derived-card,.stat,.slot-box,.item-row,.equip-row,.skill-row,.suggestion,.combine-box{
+  border-color:rgba(202,168,107,.26);
+  background:linear-gradient(180deg,rgba(20,17,12,.88),rgba(6,7,8,.9));
+}
+.derived-card b,.sheet-box b,.stat input{
+  color:#fff4cf;
+  text-shadow:0 0 12px rgba(255,164,54,.18);
+}
+.savebar{
+  position:fixed;
+  right:28px;
+  bottom:22px;
+  z-index:20;
+  padding:10px;
+  border:1px solid rgba(202,168,107,.32);
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(15,11,8,.92),rgba(5,5,5,.94));
+  box-shadow:0 18px 50px rgba(0,0,0,.48);
+}
+.savebar .primary{font-size:16px;padding:12px 18px}
+@media(max-width:1180px){
+  #layout{grid-template-columns:1fr}
+  .builder-content{height:auto;min-height:60vh}
+  .savebar{position:sticky;right:auto;bottom:0}
+}
 </style>
 </head>
 <body>
@@ -241,7 +436,20 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
     </aside>
 
     <section id="builder">
-      <div class="section">
+      <div class="builder-hero">
+        <div class="builder-title" id="builder-title">New Character</div>
+        <div class="builder-subtitle" id="builder-subtitle">Build the hero, tune the sheet, then send them to the table.</div>
+        <div class="builder-tabs">
+          <button class="builder-tab active" data-builder-tab="identity" onclick="setBuilderTab('identity')">Identity</button>
+          <button class="builder-tab" data-builder-tab="combat" onclick="setBuilderTab('combat')">Combat</button>
+          <button class="builder-tab" data-builder-tab="spells" onclick="setBuilderTab('spells')">Spells</button>
+          <button class="builder-tab" data-builder-tab="equipment" onclick="setBuilderTab('equipment')">Equipment</button>
+          <button class="builder-tab" data-builder-tab="traits" onclick="setBuilderTab('traits')">Traits</button>
+          <button class="builder-tab" data-builder-tab="notes" onclick="setBuilderTab('notes')">Notes</button>
+        </div>
+      </div>
+      <div class="builder-content">
+      <div class="section" data-builder-section="identity">
         <div class="section-body starter-panel">
           <h2>New Player Start</h2>
           <p class="muted">Make your hero first. Pick a beginner preset or fill in the basics, add a weapon or spell, then save and return to the map.</p>
@@ -255,7 +463,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="identity">
         <div class="panel-head">
           <h2>Builder</h2>
           <div class="actions">
@@ -335,10 +543,6 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
               </select>
             </div>
             <div class="span-2">
-              <label>Notes</label>
-              <textarea id="notes" placeholder="Personality, equipment, campaign notes"></textarea>
-            </div>
-            <div class="span-2">
               <label>Icon</label>
               <div class="icons" id="icons"></div>
               <div id="asset-picker"></div>
@@ -347,21 +551,29 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="notes">
+        <div class="panel-head"><h3>Character Notes</h3></div>
+        <div class="section-body">
+          <label>Personality, equipment notes, secrets, campaign hooks</label>
+          <textarea id="notes" placeholder="Personality, equipment, campaign notes"></textarea>
+        </div>
+      </div>
+
+      <div class="section" data-builder-section="combat">
         <div class="panel-head"><h3>Ability Scores</h3></div>
         <div class="section-body">
           <div class="stats" id="stats"></div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="traits">
         <div class="panel-head"><h3>Skills</h3></div>
         <div class="section-body">
           <div class="skills-grid" id="skills-list"></div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="combat">
         <div class="panel-head"><h3>Live Derived Stats</h3></div>
         <div class="section-body">
           <div class="derived" id="derived"></div>
@@ -369,21 +581,21 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="traits">
         <div class="panel-head"><h3>Level Up Helper</h3></div>
         <div class="section-body">
           <div class="level-panel" id="level-helper"></div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="spells">
         <div class="panel-head"><h3>Spell Slots Tracker</h3></div>
         <div class="section-body">
           <div class="slot-grid" id="spell-slot-list"></div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="combat">
         <div class="panel-head">
           <h3>Weapons</h3>
           <button onclick="addWeapon()" style="font-size:11px;padding:6px 8px">Add weapon</button>
@@ -393,7 +605,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="spells">
         <div class="panel-head">
           <h3>Spells</h3>
           <button onclick="addSpell()" style="font-size:11px;padding:6px 8px">Add spell</button>
@@ -403,7 +615,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="traits">
         <div class="panel-head">
           <h3>Abilities</h3>
           <button onclick="addAbility()" style="font-size:11px;padding:6px 8px">Add ability</button>
@@ -413,7 +625,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="traits">
         <div class="panel-head">
           <h3>Bonus Actions</h3>
           <button onclick="addBonusAction()" style="font-size:11px;padding:6px 8px">Add bonus</button>
@@ -423,7 +635,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="equipment">
         <div class="panel-head">
           <h3>Equipment Slots</h3>
           <button onclick="autoEquipFromInventory()" style="font-size:11px;padding:6px 8px">Auto equip</button>
@@ -433,7 +645,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         </div>
       </div>
 
-      <div class="section">
+      <div class="section" data-builder-section="equipment">
         <div class="panel-head">
           <h3>Inventory & Magic Items</h3>
           <button onclick="addInventoryItem()" style="font-size:11px;padding:6px 8px">Add item</button>
@@ -456,6 +668,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
         <button onclick="exportSelected()">Export JSON</button>
         <button onclick="importFromPrompt()">Import JSON</button>
         <span class="muted" id="save-state">Autosaves locally after changes.</span>
+      </div>
       </div>
     </section>
 
@@ -599,6 +812,7 @@ let accountCharactersLoaded=false;
 let campaignCharacterIds=new Set();
 let pendingLocalImport=[];
 let accountSyncEnabled=false;
+let currentBuilderTab='identity';
 
 function abilityMod(score){return Math.floor((Number(score)-10)/2)}
 function proficiencyBonus(level){return 2+Math.floor((Math.max(1,Math.min(20,level))-1)/4)}
@@ -1088,6 +1302,22 @@ function scheduleSave(){
   saveTimer=setTimeout(()=>writeStorage('Autosaved'),500);
 }
 function selected(){return state.myCharacters.find(c=>c.id===selectedId)||state.myCharacters[0]}
+function setBuilderTab(tab=currentBuilderTab){
+  currentBuilderTab=tab||'identity';
+  document.querySelectorAll('.builder-tab').forEach(btn=>btn.classList.toggle('active',btn.dataset.builderTab===currentBuilderTab));
+  document.querySelectorAll('[data-builder-section]').forEach(section=>{
+    section.classList.toggle('active-tab',section.dataset.builderSection===currentBuilderTab);
+  });
+  const content=document.querySelector('.builder-content');
+  if(content) content.scrollTop=0;
+}
+function updateBuilderChrome(ch=selected()){
+  if(!ch) return;
+  const title=document.getElementById('builder-title');
+  const sub=document.getElementById('builder-subtitle');
+  if(title) title.textContent=ch.name||'New Character';
+  if(sub) sub.textContent=`Level ${ch.level||1} ${ch.race||'Unknown'} ${ch.subclass?`${ch.subclass} `:''}${ch.class||'Adventurer'}`;
+}
 function setup(){
   document.getElementById('campaign-badge').textContent='Campaign: '+CLOUD_CAMPAIGN_ID;
   document.getElementById('race').innerHTML=Object.keys(RACE_DEFS).map(x=>`<option>${x}</option>`).join('')+'<option>Custom</option>';
@@ -1102,6 +1332,7 @@ function setup(){
   document.getElementById('class').addEventListener('change',()=>renderSubclassOptions());
   readStorage();
   renderAll();
+  setBuilderTab(currentBuilderTab);
 }
 function fillForm(ch){
   selectedIcon=ch.icon;
@@ -1232,6 +1463,7 @@ function renderList(){
 function renderLive(){
   syncCustomFields();
   const ch=readFormFor(selected());
+  updateBuilderChrome(ch);
   const finalStats=statsWithRace(ch);
   const itemStats=itemStatBonuses(ch);
   for(const ab of ABILITIES) finalStats[ab]=(finalStats[ab]||10)+(itemStats[ab]||0);
