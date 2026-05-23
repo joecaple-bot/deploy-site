@@ -213,6 +213,11 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 #dice-3d-stage{position:absolute;left:0;right:0;top:0;height:190px}
 #dice-3d-stage canvas{width:100%!important;height:100%!important;display:block}
 .dice-result-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.85);min-width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff4c7;font:900 34px Georgia,'Times New Roman',serif;text-shadow:0 2px 8px rgba(0,0,0,.9);background:radial-gradient(circle,rgba(20,12,6,.72),rgba(20,12,6,.18) 62%,transparent 70%);border:1px solid rgba(255,216,118,.46);opacity:0;transition:opacity .18s ease,transform .18s ease}
+.dice-result-badge.premium{left:78%;top:44%;min-width:54px;height:54px;font-size:28px;background:radial-gradient(circle,rgba(12,8,5,.86),rgba(12,8,5,.36) 62%,transparent 72%)}
+.dice-result-badge.dual{left:50%;top:75%;min-width:190px;height:auto;min-height:42px;border-radius:999px;font-size:17px;gap:10px;padding:8px 14px;background:rgba(12,8,5,.78)}
+.dice-pick{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,216,118,.22);opacity:.62}
+.dice-pick.kept{opacity:1;color:#fff8c7;border-color:rgba(255,232,133,.88);box-shadow:0 0 18px rgba(255,196,64,.24)}
+.dice-pick.drop{text-decoration:line-through;color:#b8b0a3}
 .dice-result-badge.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .dice-result-badge.fail{border-color:rgba(255,96,96,.7);color:#ffd2d2}
 .dice-result-badge.success{border-color:rgba(255,237,130,.9);color:#fff8b8;box-shadow:0 0 24px rgba(255,201,46,.34)}
@@ -1943,7 +1948,7 @@ let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
 let diceAnimTimers = [];
-let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null };
+let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, d20Model:null, d20Loading:null };
 let sheetPinned = false;
 let sheetDrag = null;
 let rpToolPinned = false;
@@ -7903,7 +7908,7 @@ function rollD20(id=activeCharacterId){
   const ch=myCharacters.find(c=>c.id===id) || getActiveCharacter();
   const mod=0;
   const result=rollWithBuffs(ch,'1d20',mod,'check');
-  lastRoll={roll:result.rolls[0],mod,total:result.total,character:ch?.name || 'Player'};
+  lastRoll={roll:result.rolls[0],mod,total:result.total,character:ch?.name || 'Player',rolls:result.d20Rolls,rollMode:result.rollMode};
   addChatMessage({
     kind:'roll',
     character:ch?.name || 'Player',
@@ -7914,7 +7919,7 @@ function rollD20(id=activeCharacterId){
   });
   const effect=rollVisualEffect(ch?.name || 'Player',result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`d20`);
   playSfx(sfxForRoll(result.rolls[0],true));
-  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||'d20',character:ch?.name||'Player'});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||'d20',character:ch?.name||'Player',rolls:result.d20Rolls,rollMode:result.rollMode});
   setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
   emitLiveEffect({kind:'roll',...effect,roll:lastRoll,diceSides:20,diceLabel:effect.title||'d20'});
   updateActiveSummary();
@@ -7928,11 +7933,11 @@ function rollSavingThrow(id=activeCharacterId,ability='DEX'){
   for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
   const mod=abilityMod(stats[ability]||10);
   const result=rollWithBuffs(ch,'1d20',mod,'save');
-  lastRoll={roll:result.rolls[0],mod,total:result.total,character:ch.name};
+  lastRoll={roll:result.rolls[0],mod,total:result.total,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode};
   addChatMessage({kind:'save',character:ch.name,label:`${ability} save`,detail:rollDetailWithBuff(result,`1d20 ${formatBonus(mod)}`),total:result.total,rolls:result.rolls});
   const effect=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`${ability} save`);
   playSfx(sfxForRoll(result.rolls[0],true));
-  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||`${ability} save`,character:ch.name});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:effect.title||`${ability} save`,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode});
   setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
   emitLiveEffect({kind:'roll',...effect,roll:lastRoll,diceSides:20,diceLabel:effect.title||`${ability} save`});
   updateActiveSummary();
@@ -7967,11 +7972,11 @@ function rollSkillCheck(id=activeCharacterId,skill='Perception'){
   const profLabel=breakdown.profMult===2 ? ` + ${breakdown.profBonus} expertise` : breakdown.profMult===1 ? ` + ${breakdown.profBonus} proficiency` : '';
   const flatLabel=breakdown.flatBonus ? ` ${formatBonus(breakdown.flatBonus)} custom` : '';
   const baseLabel=`1d20 ${formatBonus(breakdown.abilityBonus)} ${breakdown.ability}${profLabel}${flatLabel}`;
-  lastRoll={roll:result.rolls[0],mod:breakdown.total,total:result.total,character:ch.name};
+  lastRoll={roll:result.rolls[0],mod:breakdown.total,total:result.total,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode};
   addChatMessage({kind:'skill',character:ch.name,label:skillLabel(skill),detail:rollDetailWithBuff(result,baseLabel),total:result.total,rolls:result.rolls});
   const visual=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:skillDetailLabel(skill,breakdown));
   playSfx(sfxForRoll(result.rolls[0],true));
-  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:visual.title||skillLabel(skill),character:ch.name});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides:20,label:visual.title||skillLabel(skill),character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode});
   setTimeout(()=>showCritOverlay(visual.text,visual.overlayType,visual.title),850);
   emitLiveEffect({kind:'skill',...visual,roll:lastRoll,diceSides:20,diceLabel:visual.title||skillLabel(skill)});
   updateActiveSummary();
@@ -7992,9 +7997,9 @@ function rollSimpleDie(sides){
   });
   const effect=rollVisualEffect(ch?.name || 'Player',result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`d${sides}`,sides===20);
   playSfx(sfxForRoll(result.rolls[0],sides===20));
-  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides,label:effect.title||`d${sides}`,character:ch?.name||'Player'});
+  showDiceRollAnimation({natural:result.rolls[0],total:result.total,sides,label:effect.title||`d${sides}`,character:ch?.name||'Player',rolls:result.d20Rolls,rollMode:result.rollMode});
   setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
-  emitLiveEffect({kind:'roll',...effect,roll:{roll:result.rolls[0],mod:0,total:result.total,character:ch?.name || 'Player'},diceSides:sides,diceLabel:effect.title||`d${sides}`});
+  emitLiveEffect({kind:'roll',...effect,roll:{roll:result.rolls[0],mod:0,total:result.total,character:ch?.name || 'Player',rolls:result.d20Rolls,rollMode:result.rollMode},diceSides:sides,diceLabel:effect.title||`d${sides}`});
 }
 function rollCharacterAction(characterId,type,itemId){
   const ch=characterById(characterId);
@@ -8067,7 +8072,7 @@ function rollCharacterAction(characterId,type,itemId){
   if(backfireDamage){
     backfire=applyAttackBackfire(ch,'character',backfireDamage);
   }
-  lastRoll={roll:attack.rolls[0],mod:ch.derived.attackBonus,total:attack.total,character:ch.name};
+  lastRoll={roll:attack.rolls[0],mod:ch.derived.attackBonus,total:attack.total,character:ch.name,rolls:attack.d20Rolls,rollMode:attack.rollMode};
   addChatMessage({
     kind:type,
     character:ch.name,
@@ -8091,10 +8096,14 @@ function rollCharacterAction(characterId,type,itemId){
       : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${item.die} ${formatBonus(item.bonus)}`};
   playSfx(critical?'nat20':fumble?'nat1':hitTarget?'hit':'miss');
   if(hitTarget && target?.hp<=0) playSfx('enemyDown');
+  showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:ch.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   const actionPayload={
     kind:'action',
     ...effect,
+    roll:lastRoll,
+    diceSides:20,
+    diceLabel:item.name,
     characterId:ch.id,
     actionType,
     x:characterX(ch),
@@ -8288,9 +8297,10 @@ function rollEnemyAction(enemyUid,type,itemId){
   });
   if(hit && hpAfter<=0){ if(targetEnemy) ensureEnemyLoot(targetEnemy); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
   const visual=critical ? {text:`${enemy.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Double damage'} : fumble ? {text:`${enemy.name} fumbles and takes ${backfireDamage}`,overlayType:'fail',title:'Backfire'} : {text:`${enemy.name}: ${hit?'hit':'miss'} ${target.name}`,overlayType:'roll',title:`Attack ${attack.total}`};
-  const effect={kind:'action',...visual,characterId:enemy.uid,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?appliedDamage:0,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,backfireDamage,backfireHpBefore:backfire?.hpBefore,backfireHpAfter:backfire?.hpAfter,backfireMaxHP:backfire?.maxHP};
+  const effect={kind:'action',...visual,roll:{roll:attack.rolls[0],mod:enemy.attackBonus||0,total:attack.total,character:enemy.name,rolls:attack.d20Rolls,rollMode:attack.rollMode},diceSides:20,diceLabel:item.name,characterId:enemy.uid,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?appliedDamage:0,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,backfireDamage,backfireHpBefore:backfire?.hpBefore,backfireHpAfter:backfire?.hpAfter,backfireMaxHP:backfire?.maxHP};
   playSfx(critical?'nat20':fumble?'nat1':hit?'hit':'miss');
   if(hit && hpAfter<=0) playSfx('enemyDown');
+  showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:enemy.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(enemy,type,effect);
   emitLiveEffect(effect);
@@ -8320,6 +8330,10 @@ function initDice3D(){
   const rim=new THREE.PointLight(0x8bc7ff,1.2,14);
   rim.position.set(-3,-1,3);
   dice3DState.scene.add(rim);
+  const face=new THREE.PointLight(0xfff0c0,1.65,12);
+  face.position.set(0,1.2,4.6);
+  dice3DState.scene.add(face);
+  loadPremiumD20Model().catch(()=>{});
   return true;
 }
 function clearDice3DMesh(){
@@ -8348,13 +8362,130 @@ function diceGeometryForSides(sides){
   if(die===12) return new THREE.DodecahedronGeometry(1.13,0);
   return new THREE.IcosahedronGeometry(1.18,0);
 }
-function renderDice3D({natural=0,sides=20}={}){
-  if(!initDice3D()) return false;
-  clearDice3DMesh();
-  const die=Number(sides)||20;
-  const roll=Number(natural)||0;
-  const isCrit=die===20 && roll===20;
-  const isFail=die===20 && roll===1;
+// Approximate outward face normals for the imported d20 texture. The roll engine
+// chooses one of these so the generated result is the face that settles toward camera.
+const D20_FACE_NORMALS = {
+  1:[-0.1876,0.7947,-0.5774],
+  2:[0.1876,-0.7947,0.5774],
+  3:[-0.4911,-0.7947,0.3568],
+  4:[0.6071,-0.7947,0],
+  5:[0.3035,-0.1876,-0.9342],
+  6:[-0.3035,0.1876,0.9342],
+  7:[0.7946,0.1876,0.5774],
+  8:[0.1876,-0.7947,-0.5774],
+  9:[-0.6071,0.7947,0],
+  10:[-0.7946,-0.1876,0.5774],
+  11:[0.7946,0.1876,-0.5774],
+  12:[-0.7946,-0.1876,-0.5774],
+  13:[0.4911,0.7947,-0.3568],
+  14:[0.4911,0.7947,0.3568],
+  15:[0.3035,-0.1876,0.9342],
+  16:[-0.1876,0.7947,0.5774],
+  17:[-0.9511,0,-0.309],
+  18:[0.1876,-0.7947,-0.5774],
+  19:[-0.6071,0.7947,0],
+  20:[-0.4911,-0.7947,-0.3568],
+  21:[0.9822,-0.1876,0],
+  22:[-0.9822,0.1876,0],
+  23:[-0.3035,0.1876,-0.9342]
+};
+const D20_FACE_CALIBRATION = {
+  1:14,
+  2:8,
+  4:1,
+  5:21,
+  6:23,
+  8:6,
+  9:4,
+  12:9,
+  13:5,
+  14:12,
+  16:17,
+  17:2,
+  18:13,
+  19:16
+};
+const D20_FACE_TWISTS = {
+  2:90 * Math.PI / 180,
+  5:-100 * Math.PI / 180,
+  9:-130 * Math.PI / 180,
+  12:-50 * Math.PI / 180,
+  13:Math.PI,
+  16:-30 * Math.PI / 180,
+  20:90 * Math.PI / 180
+};
+function premiumD20FaceQuaternion(roll){
+  if(!window.THREE) return null;
+  const rollNumber=Math.max(1,Math.min(20,Number(roll)||1));
+  const normal=D20_FACE_NORMALS[D20_FACE_CALIBRATION[rollNumber] || rollNumber];
+  if(!normal) return null;
+  const q=new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(normal[0],normal[1],normal[2]).normalize(),
+    new THREE.Vector3(0,0,1)
+  );
+  const twist=D20_FACE_TWISTS[rollNumber] || 0;
+  return twist ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),twist).multiply(q) : q;
+}
+function loadPremiumD20Model(){
+  if(dice3DState.d20Model) return Promise.resolve(dice3DState.d20Model);
+  if(dice3DState.d20Loading) return dice3DState.d20Loading;
+  if(!window.THREE?.GLTFLoader) return Promise.reject(new Error('GLTFLoader unavailable'));
+  const loader=new THREE.GLTFLoader();
+  dice3DState.d20Loading=new Promise((resolve,reject)=>{
+    loader.load('assets/dice/dice_20.glb?v=8',gltf=>{
+      const model=gltf.scene || gltf.scenes?.[0];
+      if(!model) return reject(new Error('Dice model missing scene'));
+      model.traverse(child=>{
+        if(child.isMesh){
+          child.castShadow=false;
+          child.receiveShadow=false;
+          if(child.material){
+            const mats=Array.isArray(child.material)?child.material:[child.material];
+            mats.forEach(mat=>{
+              if(mat.color) mat.color.multiplyScalar(1.35);
+              if(mat.map && 'emissive' in mat){
+                mat.emissive?.setRGB?.(.22,.22,.22);
+                mat.emissiveMap=mat.map;
+                mat.emissiveIntensity=.48;
+              }
+              if('roughness' in mat) mat.roughness=.42;
+              if('metalness' in mat) mat.metalness=.03;
+              if(mat.roughnessMap) mat.roughnessMap=null;
+              if(mat.metalnessMap) mat.metalnessMap=null;
+              mat.needsUpdate=true;
+              ['map','emissiveMap','metalnessMap','roughnessMap','normalMap'].forEach(key=>{
+                const tex=mat[key];
+                if(tex){
+                  tex.anisotropy=8;
+                  tex.generateMipmaps=true;
+                  if(window.THREE?.LinearMipmapLinearFilter) tex.minFilter=THREE.LinearMipmapLinearFilter;
+                  if(window.THREE?.LinearFilter) tex.magFilter=THREE.LinearFilter;
+                  tex.needsUpdate=true;
+                }
+              });
+            });
+          }
+        }
+      });
+      const box=new THREE.Box3().setFromObject(model);
+      const size=new THREE.Vector3();
+      const center=new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      const maxDim=Math.max(size.x,size.y,size.z)||1;
+      model.position.sub(center);
+      model.scale.multiplyScalar(2/maxDim);
+      dice3DState.d20Model=model;
+      resolve(model);
+    },undefined,reject);
+  }).catch(err=>{
+    console.warn('Premium d20 failed to load',err);
+    dice3DState.d20Loading=null;
+    return null;
+  });
+  return dice3DState.d20Loading;
+}
+function makeProceduralDiceGroup(die,roll,isCrit,isFail){
   const group=new THREE.Group();
   const material=new THREE.MeshStandardMaterial({
     color:isCrit?0xd89a26:isFail?0x8f1f1f:0x8a4d1c,
@@ -8370,21 +8501,67 @@ function renderDice3D({natural=0,sides=20}={}){
     new THREE.LineBasicMaterial({color:isCrit?0xfff0a8:isFail?0xffa0a0:0xffd98d,transparent:true,opacity:.78})
   );
   group.add(edges);
-  dice3DState.group=group;
   dice3DState.mesh=mesh;
   dice3DState.edges=edges;
+  return group;
+}
+function setDiceGroup(group){
+  dice3DState.group=group;
   dice3DState.scene.add(group);
+}
+function makePremiumDiceGroup(model,roll,{x=0,kept=true}={}){
+  const group=new THREE.Group();
+  const premium=model.clone(true);
+  premium.traverse(child=>{
+    if(!child.isMesh || !child.material) return;
+    const cloneMaterial=mat=>{
+      const next=mat.clone();
+      if(!kept){
+        next.transparent=true;
+        next.opacity=.48;
+      } else if('emissiveIntensity' in next) {
+        next.emissiveIntensity=Math.max(next.emissiveIntensity||0,.62);
+      }
+      return next;
+    };
+    child.material=Array.isArray(child.material) ? child.material.map(cloneMaterial) : cloneMaterial(child.material);
+  });
+  group.add(premium);
+  group.userData.premiumDice=true;
+  group.userData.roll=Number(roll)||1;
+  group.userData.baseX=x;
+  group.userData.kept=kept;
+  group.position.x=x;
+  return group;
+}
+function animateDiceGroup(group,roll){
   const start=performance.now();
   const duration=1580;
   const endRot={x:(roll%7)*0.43+0.42,y:(roll%11)*0.37+0.25,z:(roll%5)*0.31+0.15};
+  const premium=group.userData?.premiumDice===true;
+  const faceQuat=premium ? premiumD20FaceQuaternion(roll) : null;
+  const spinX=premium ? Math.PI*3.4 : Math.PI*7;
+  const spinY=premium ? Math.PI*4.2 : Math.PI*9;
+  const spinZ=premium ? Math.PI*2.2 : Math.PI*5;
+  const wobble=premium ? .06 : .18;
+  const lift=premium ? .18 : .34;
   const animate=now=>{
     const t=Math.min(1,(now-start)/duration);
     const ease=1-Math.pow(1-t,3);
     const bounce=Math.sin(Math.PI*t);
-    group.rotation.x=endRot.x+(1-ease)*Math.PI*7+Math.sin(t*28)*.18*(1-ease);
-    group.rotation.y=endRot.y+(1-ease)*Math.PI*9+Math.cos(t*23)*.14*(1-ease);
-    group.rotation.z=endRot.z+(1-ease)*Math.PI*5;
-    group.position.y=bounce*.34-(1-ease)*.18;
+    if(faceQuat){
+      const extra=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        (1-ease)*spinX+Math.sin(t*28)*wobble*(1-ease),
+        (1-ease)*spinY+Math.cos(t*23)*wobble*(1-ease),
+        (1-ease)*spinZ
+      ));
+      group.quaternion.copy(faceQuat).premultiply(extra);
+    } else {
+      group.rotation.x=endRot.x+(1-ease)*spinX+Math.sin(t*28)*wobble*(1-ease);
+      group.rotation.y=endRot.y+(1-ease)*spinY+Math.cos(t*23)*wobble*(1-ease);
+      group.rotation.z=endRot.z+(1-ease)*spinZ;
+    }
+    group.position.y=bounce*lift-(1-ease)*.18;
     const scale=.68+ease*.32+bounce*.08;
     group.scale.set(scale,scale,scale);
     dice3DState.camera.position.z=5.55-ease*1.2;
@@ -8393,9 +8570,74 @@ function renderDice3D({natural=0,sides=20}={}){
     if(t<1) dice3DState.frame=requestAnimationFrame(animate);
   };
   dice3DState.frame=requestAnimationFrame(animate);
+}
+function animateDiceSet(root,items){
+  const start=performance.now();
+  const duration=1580;
+  const animate=now=>{
+    const t=Math.min(1,(now-start)/duration);
+    const ease=1-Math.pow(1-t,3);
+    const bounce=Math.sin(Math.PI*t);
+    root.children.forEach((group,index)=>{
+      const roll=Number(group.userData.roll)||1;
+      const faceQuat=premiumD20FaceQuaternion(roll);
+      const phase=index*.45;
+      const extra=new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        (1-ease)*Math.PI*3.4+Math.sin(t*28+phase)*.06*(1-ease),
+        (1-ease)*Math.PI*4.2+Math.cos(t*23+phase)*.06*(1-ease),
+        (1-ease)*Math.PI*2.2
+      ));
+      if(faceQuat) group.quaternion.copy(faceQuat).premultiply(extra);
+      group.position.x=group.userData.baseX;
+      group.position.y=bounce*.18-(1-ease)*.18 + (group.userData.kept ? .08*ease : -.04*ease);
+      const scale=(.68+ease*.32+bounce*.08) * (group.userData.kept ? 1.06 : .86);
+      group.scale.set(scale,scale,scale);
+    });
+    dice3DState.camera.position.z=5.55-ease*1.2;
+    dice3DState.camera.lookAt(0,0,0);
+    dice3DState.renderer.render(dice3DState.scene,dice3DState.camera);
+    if(t<1) dice3DState.frame=requestAnimationFrame(animate);
+  };
+  dice3DState.frame=requestAnimationFrame(animate);
+}
+function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
+  if(!initDice3D()) return false;
+  clearDice3DMesh();
+  const die=Number(sides)||20;
+  const roll=Number(natural)||0;
+  const isCrit=die===20 && roll===20;
+  const isFail=die===20 && roll===1;
+  const d20Rolls=Array.isArray(rolls) ? rolls.map(Number).filter(Boolean).slice(0,2) : [roll];
+  if(die===20){
+    loadPremiumD20Model().then(model=>{
+      if(!model || dice3DState.group) return;
+      if(d20Rolls.length>1){
+        const root=new THREE.Group();
+        const keptIndex=Math.max(0,d20Rolls.findIndex(value=>value===roll));
+        d20Rolls.forEach((value,index)=>{
+          root.add(makePremiumDiceGroup(model,value,{x:index===0?-1.35:1.35,kept:index===keptIndex}));
+        });
+        setDiceGroup(root);
+        animateDiceSet(root,d20Rolls);
+      } else {
+        const group=makePremiumDiceGroup(model,roll,{x:0,kept:true});
+        setDiceGroup(group);
+        animateDiceGroup(group,roll);
+      }
+    }).catch(()=>{
+      if(dice3DState.group) return;
+      const group=makeProceduralDiceGroup(die,roll,isCrit,isFail);
+      setDiceGroup(group);
+      animateDiceGroup(group,roll);
+    });
+    return true;
+  }
+  const group=makeProceduralDiceGroup(die,roll,isCrit,isFail);
+  setDiceGroup(group);
+  animateDiceGroup(group,roll);
   return true;
 }
-function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',character='Player',type='roll'}={}){
+function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',character='Player',type='roll',rolls=null,rollMode='normal'}={}){
   const overlay=document.getElementById('dice-overlay');
   const badge=document.getElementById('dice-result-badge');
   const totalEl=document.getElementById('dice-total');
@@ -8403,22 +8645,28 @@ function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',characte
   if(!overlay||!badge||!totalEl||!labelEl) return;
   const rollNumber=Number(natural)||Number(total)||0;
   const sideCount=Number(sides)||20;
-  badge.textContent=String(rollNumber || '?');
+  const d20Rolls=sideCount===20 && Array.isArray(rolls) ? rolls.map(Number).filter(Boolean).slice(0,2) : [];
+  const dualRoll=d20Rolls.length>1 && rollMode && rollMode!=='normal';
+  const keptIndex=dualRoll ? Math.max(0,d20Rolls.findIndex(value=>value===rollNumber)) : -1;
+  badge.innerHTML=dualRoll
+    ? d20Rolls.map((value,index)=>`<span class="dice-pick ${index===keptIndex?'kept':'drop'}">${index===keptIndex?'Keep':'Drop'} ${value}</span>`).join('')
+    : String(rollNumber || '?');
   badge.className='dice-result-badge';
+  if(dualRoll) badge.classList.add('dual');
+  else if(sideCount===20 && dice3DState.d20Model) badge.classList.add('premium');
   if(sideCount===20 && rollNumber===20) badge.classList.add('success');
   if(sideCount===20 && rollNumber===1) badge.classList.add('fail');
   totalEl.textContent='Rolling...';
-  labelEl.textContent=`${character} · ${label || `d${sides}`}`;
-  labelEl.textContent=`${character} - ${label || `d${sideCount}`}`;
+  labelEl.textContent=`${character} - ${dualRoll ? `${ROLL_MODE_LABELS[rollMode]||rollMode} ${d20Rolls.join(' / ')}` : (label || `d${sideCount}`)}`;
   playSfx('rollSuspense',{volume:.25,force:true});
   overlay.classList.remove('show');
   badge.classList.remove('show');
   void overlay.offsetWidth;
   overlay.classList.add('show');
-  renderDice3D({natural:rollNumber,sides:sideCount});
+  renderDice3D({natural:rollNumber,sides:sideCount,rolls:d20Rolls,mode:rollMode});
   diceAnimTimers.forEach(clearTimeout);
   diceAnimTimers=[
-    setTimeout(()=>{ badge.classList.add('show'); totalEl.textContent=`Total ${total || rollNumber}`; },1280),
+    setTimeout(()=>{ badge.classList.add('show'); totalEl.textContent=dualRoll ? `Kept ${rollNumber} - Total ${total || rollNumber}` : `Total ${total || rollNumber}`; },1280),
     setTimeout(()=>{ overlay.classList.remove('show'); badge.classList.remove('show'); clearDice3DMesh(); },2600)
   ];
 }
@@ -8487,13 +8735,15 @@ function handleLiveEffect(effect){
     if(effect.targetCharacterId) applyCharacterPatch(effect.targetCharacterId,{currentHP:effect.currentHP,statuses:effect.statuses});
     playActionAnimation(ch,'spell',effect);
   }
-  if(effect.roll && ['roll','skill'].includes(effect.kind)){
+  if(effect.roll && ['roll','skill','action'].includes(effect.kind)){
     showDiceRollAnimation({
       natural:Number(effect.roll.roll)||0,
       total:Number(effect.roll.total)||Number(effect.roll.roll)||0,
       sides:Number(effect.diceSides)||20,
       label:effect.diceLabel||effect.title||'Roll',
-      character:effect.roll.character||effect.character||'Player'
+      character:effect.roll.character||effect.character||'Player',
+      rolls:effect.roll.rolls,
+      rollMode:effect.roll.rollMode
     });
     setTimeout(()=>showCritOverlay(effect.text,effect.overlayType || 'roll',effect.title || ''),850);
   } else {
