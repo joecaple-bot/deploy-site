@@ -1949,6 +1949,7 @@ let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
 let diceAnimTimers = [];
 let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, d20Model:null, d20Loading:null };
+let dice3DRenderToken = 0;
 let sheetPinned = false;
 let sheetDrag = null;
 let rpToolPinned = false;
@@ -4975,10 +4976,28 @@ function openRPSkillPanel(ch){
 function sheetToolsHtml(){
   return `<div class="sheet-window-tools"><button title="Pin sheet" onclick="event.stopPropagation();toggleSheetPin()">${sheetPinned?'Pinned':'Pin'}</button><button class="sheet-close" onclick="closeSheet()">&times;</button></div>`;
 }
-function prepareSheetWindow(pop,x,y,{keepPosition=false}={}){
+function dockedSheetPosition(pop){
+  const combat=document.getElementById('combat-popout');
+  const combatHeight=combat && !combat.classList.contains('collapsed') ? combat.offsetHeight : 54;
+  const left=24;
+  const top=wrap.clientHeight-pop.offsetHeight-combatHeight-26;
+  const maxX=wrap.clientWidth-pop.offsetWidth-12;
+  const maxY=wrap.clientHeight-pop.offsetHeight-12;
+  return {
+    x:Math.max(12,Math.min(maxX,left)),
+    y:Math.max(12,Math.min(maxY,top))
+  };
+}
+function prepareSheetWindow(pop,x,y,{keepPosition=false,dock=false}={}){
   pop.classList.add('show','resizable');
   pop.classList.toggle('pinned',sheetPinned);
   if(keepPosition || sheetPinned) return;
+  if(dock){
+    const p=dockedSheetPosition(pop);
+    pop.style.left=p.x+'px';
+    pop.style.top=p.y+'px';
+    return;
+  }
   const maxX=wrap.clientWidth-pop.offsetWidth-12;
   const maxY=wrap.clientHeight-pop.offsetHeight-12;
   pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
@@ -6815,7 +6834,7 @@ function showSheet(ch,x,y,{hover=false}={}){
     ${deathControls}
     ${restControls}
     <div class="sheet-actions">${ownerActions}${claimActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
-  prepareSheetWindow(pop,x,y);
+  prepareSheetWindow(pop,x,y,{dock:true});
 }
 function showEnemySheet(enemy,x,y){
   const pop=document.getElementById('sheet-popup');
@@ -6856,7 +6875,7 @@ function showEnemySheet(enemy,x,y){
       <button onclick="adjustEnemyHP('${enemy.uid}',5)">+5 HP</button>
       <button class="danger" onclick="killEnemy('${enemy.uid}')">Kill</button>
     </div>`:''}`;
-  prepareSheetWindow(pop,x,y);
+  prepareSheetWindow(pop,x,y,{dock:true});
 }
 function showIconSheet(icon,x,y){
   if(icon.kind==='chest') return showChestSheet(icon,x,y);
@@ -8603,14 +8622,20 @@ function animateDiceSet(root,items){
 function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
   if(!initDice3D()) return false;
   clearDice3DMesh();
+  const renderToken=++dice3DRenderToken;
   const die=Number(sides)||20;
   const roll=Number(natural)||0;
   const isCrit=die===20 && roll===20;
   const isFail=die===20 && roll===1;
   const d20Rolls=Array.isArray(rolls) ? rolls.map(Number).filter(Boolean).slice(0,2) : [roll];
   if(die===20){
+    const fallback=makeProceduralDiceGroup(die,roll,isCrit,isFail);
+    fallback.userData.fallbackDice=true;
+    setDiceGroup(fallback);
+    animateDiceGroup(fallback,roll);
     loadPremiumD20Model().then(model=>{
-      if(!model || dice3DState.group) return;
+      if(!model || renderToken!==dice3DRenderToken) return;
+      clearDice3DMesh();
       if(d20Rolls.length>1){
         const root=new THREE.Group();
         const keptIndex=Math.max(0,d20Rolls.findIndex(value=>value===roll));
@@ -8624,12 +8649,7 @@ function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
         setDiceGroup(group);
         animateDiceGroup(group,roll);
       }
-    }).catch(()=>{
-      if(dice3DState.group) return;
-      const group=makeProceduralDiceGroup(die,roll,isCrit,isFail);
-      setDiceGroup(group);
-      animateDiceGroup(group,roll);
-    });
+    }).catch(()=>{});
     return true;
   }
   const group=makeProceduralDiceGroup(die,roll,isCrit,isFail);
@@ -8667,7 +8687,7 @@ function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',characte
   diceAnimTimers.forEach(clearTimeout);
   diceAnimTimers=[
     setTimeout(()=>{ badge.classList.add('show'); totalEl.textContent=dualRoll ? `Kept ${rollNumber} - Total ${total || rollNumber}` : `Total ${total || rollNumber}`; },1280),
-    setTimeout(()=>{ overlay.classList.remove('show'); badge.classList.remove('show'); clearDice3DMesh(); },2600)
+    setTimeout(()=>{ dice3DRenderToken++; overlay.classList.remove('show'); badge.classList.remove('show'); clearDice3DMesh(); },2600)
   ];
 }
 function emitLiveEffect(effect){
