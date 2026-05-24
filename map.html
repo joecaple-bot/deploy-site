@@ -7808,6 +7808,17 @@ function rollD20AttackDetail(result,bonus=0){
   const mode=result.rollMode&&result.rollMode!=='normal'&&result.d20Rolls?.length>1 ? `${result.rollMode} [${result.d20Rolls.join(', ')} keep ${result.rolls[0]}]` : `${result.rolls[0]}`;
   return `${mode} ${formatBonus(bonus)}${result.buff?` + ${result.buffRoll} ${result.buff.label}`:''}`;
 }
+function keptD20(result){
+  return Number(result?.rolls?.[0] ?? result?.roll ?? 0);
+}
+function isAttackCrit(result){
+  const kept=keptD20(result);
+  return kept===20 || (result?.rollMode==='advantage' && Array.isArray(result.d20Rolls) && result.d20Rolls.includes(20));
+}
+function isAttackFumble(result){
+  const kept=keptD20(result);
+  return kept===1 || (result?.rollMode==='disadvantage' && Array.isArray(result.d20Rolls) && result.d20Rolls.includes(1));
+}
 function changeStatusRounds(id,status,delta){
   const ch=myCharacters.find(c=>c.id===id);
   if(!ch) return;
@@ -8070,9 +8081,9 @@ function rollCharacterAction(characterId,type,itemId){
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(!target) return showCritOverlay('Choose an enemy target first','roll','Attack');
   markTurnAction(type,characterId);
-  const natural=attack.rolls[0];
-  const critical=natural===20;
-  const fumble=natural===1;
+  const natural=keptD20(attack);
+  const critical=isAttackCrit(attack);
+  const fumble=isAttackFumble(attack);
   const hitTarget=target && !fumble && (critical || attack.total>=target.ac);
   const rolledDamage=damage.total;
   const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) : 0;
@@ -8213,24 +8224,27 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
         const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
         attack=rollWithBuffs(caster,'1d20',atkBonus,'attack');
         const ac=entry.kind==='enemy' ? entry.entity.ac : entry.entity.derived?.AC||10;
-        hit=attack.rolls[0]!==1 && (attack.rolls[0]===20 || attack.total>=ac);
-        amount=hit ? damage.total : 0;
+        const critical=isAttackCrit(attack);
+        const fumble=isAttackFumble(attack);
+        hit=!fumble && (critical || attack.total>=ac);
+        amount=hit ? (critical ? damage.total*2 : damage.total) : 0;
       }
       if(amount>0) affected++;
     } else {
       amount=actionType==='healing' ? damage.total : 0;
       affected++;
     }
-    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,attackTotal:attack?.total,saveTotal:save?.total});
+    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,critical:attack?isAttackCrit(attack):false,fumble:attack?isAttackFumble(attack):false,attackTotal:attack?.total,saveTotal:save?.total});
   }
   const casterName=caster.name||'Caster';
+  const crits=results.filter(result=>result.critical).length;
   const detail=actionType==='damage'
-    ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${item.saveDC?` (DC ${item.saveDC})`:''}`
+    ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}`
     : actionType==='healing'
       ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}`
       : `${effectName} applied to ${affected} target${affected===1?'':'s'}`;
   addChatMessage({kind:type,character:casterName,label:`${item.name} AoE`,detail,total:damage.total,rolls:damage.rolls});
-  const effect={kind:'aoe',text:`${item.name}: ${affected}/${targets.length} affected`,overlayType:'roll',title:`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
+  const effect={kind:'aoe',text:`${item.name}: ${affected}/${targets.length} affected${crits?` (${crits} crit${crits===1?'':'s'})`:''}`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
   playSfx(actionType==='healing'?'heal':actionType==='damage'?(affected?'hit':'miss'):'buff');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(caster,type,effect);
@@ -8285,9 +8299,9 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
   markTurnAction(type,enemy.uid);
   const targetAC=targetCharacter ? target.derived?.AC || 10 : target.ac;
-  const natural=attack.rolls[0];
-  const critical=natural===20;
-  const fumble=natural===1;
+  const natural=keptD20(attack);
+  const critical=isAttackCrit(attack);
+  const fumble=isAttackFumble(attack);
   const hit=!fumble && (critical || attack.total>=targetAC);
   const rolledDamage=damage.total;
   const appliedDamage=hit ? (critical ? rolledDamage*2 : rolledDamage) : 0;
