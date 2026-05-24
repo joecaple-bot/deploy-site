@@ -2092,5 +2092,29 @@
         "name":  "yuan-ti-wizard",
         "path":  "assets/yuan-ti/yuan-ti-wizard.svg",
         "bytes":  1341
+    },
+    {
+        "folder":  "minis",
+        "name":  "Harry Mini",
+        "path":  "assets/minis/Harry Mini.png",
+        "bytes":  107284
+    },
+    {
+        "folder":  "minis",
+        "name":  "Nib Mini",
+        "path":  "assets/minis/Nib Mini.png",
+        "bytes":  144033
+    },
+    {
+        "folder":  "minis",
+        "name":  "Vire Mini",
+        "path":  "assets/minis/Vire Mini.png",
+        "bytes":  240589
+    },
+    {
+        "folder":  "minis",
+        "name":  "Voss Mini",
+        "path":  "assets/minis/Voss Mini.png",
+        "bytes":  89958
     }
 ];
