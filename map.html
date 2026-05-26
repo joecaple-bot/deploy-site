@@ -337,6 +337,18 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #radial-menu.skill-wheel{width:328px;height:auto;pointer-events:auto}
 #radial-menu.rp-tool-window{width:336px;height:auto;min-width:260px;min-height:150px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);resize:both;overflow:auto;pointer-events:auto}
 #radial-menu.rp-tool-window.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
+#radial-menu.sheet-action-menu{width:278px;height:auto;pointer-events:auto}
+#radial-menu.sheet-action-menu.skill-wheel{width:328px}
+#radial-menu.sheet-action-menu .sheet-command-panel{border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,rgba(32,26,18,.96),rgba(10,10,12,.97));box-shadow:0 18px 70px rgba(0,0,0,.58),0 0 22px rgba(202,151,74,.12);padding:10px}
+.sheet-command-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;border-bottom:1px solid rgba(202,151,74,.22);padding-bottom:7px}
+.sheet-command-head b{font-size:12px;color:#fff2d0}
+.sheet-command-head button{font-size:10px;padding:4px 7px}
+.sheet-command-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sheet-command-grid button{min-height:30px;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-command-grid .wide{grid-column:1/-1;text-align:center}
+.sheet-command-grid .advantage{color:#61d889;border-color:rgba(97,216,137,.55)}
+.sheet-command-grid .disadvantage{color:#ff6d6d;border-color:rgba(255,109,109,.55)}
+.sheet-command-note{font-size:10px;color:var(--muted);line-height:1.35;margin-top:8px}
 .radial-center{position:absolute;left:72px;top:72px;width:58px;height:58px;border-radius:50%;border:1px solid rgba(102,167,216,.72);background:rgba(17,20,25,.96);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:var(--shadow)}
 .radial-btn{position:absolute;width:56px;height:56px;border-radius:50%;font-size:10px;line-height:1.1;padding:4px;text-align:center;pointer-events:auto;background:rgba(32,36,43,.97);border-color:rgba(102,167,216,.45)}
 .radial-btn:hover{border-color:rgba(202,168,107,.9);background:#272c34}
@@ -1294,6 +1306,7 @@ const RACE_DEFS = {
 const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled'];
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
+const ACTION_COSTS = ['action','bonus','reaction','free','passive'];
 const TARGET_MODES = ['single','enemies','allies','all'];
 const ROLL_BUFFS = {
   bless:{label:'Bless',die:4,appliesTo:['attack','save'],consume:false,color:'rgba(255,226,112,.9)'},
@@ -1462,19 +1475,34 @@ function hydrateCharacter(raw={}){
 }
 function normalizeActionItem(item={}){
   const inferred=inferActionType(item);
+  const cost=inferActionCost(item);
   return {
     id:item.id || 'a_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name || 'Action',
     die:DAMAGE_DICE.includes(item.die) ? item.die : 'd6',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(item.actionType) ? item.actionType : inferred,
+    actionCost:ACTION_COSTS.includes(item.actionCost) ? item.actionCost : cost,
     targetMode:TARGET_MODES.includes(item.targetMode) ? item.targetMode : 'single',
     aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
+    spellLevel:Math.max(0,Math.min(9,Number(item.spellLevel)||0)),
+    castingTime:item.castingTime||'',
+    range:item.range||'',
+    concentration:!!item.concentration,
+    sourceClass:item.sourceClass||'',
     effect:item.effect || defaultActionEffect(item.name || '', inferred),
     description:item.description||'',
     sourceItemId:item.sourceItemId||''
   };
+}
+function inferActionCost(item={}){
+  const text=`${item.actionCost||''} ${item.castingTime||''} ${item.name||''} ${item.description||''}`.toLowerCase();
+  if(text.includes('bonus')) return 'bonus';
+  if(text.includes('reaction')) return 'reaction';
+  if(text.includes('free')) return 'free';
+  if(text.includes('passive')) return 'passive';
+  return 'action';
 }
 function inferActionType(item={}){
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
@@ -1719,16 +1747,23 @@ function spellSlotControls(character){
   return rows.join('');
 }
 function hydrateActionItem(raw={}){
+  const inferred=inferActionType(raw);
   return {
     id:raw.id || 'act_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Action',
     die:raw.die || 'd6',
     bonus:Number(raw.bonus)||0,
-    actionType:raw.actionType || inferActionType(raw),
+    actionType:ACTION_TYPES.includes(raw.actionType) ? raw.actionType : inferred,
+    actionCost:ACTION_COSTS.includes(raw.actionCost) ? raw.actionCost : inferActionCost(raw),
     targetMode:TARGET_MODES.includes(raw.targetMode) ? raw.targetMode : 'single',
     aoeRadius:Math.max(0,Math.min(240,Number(raw.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||0)),
-    effect:raw.effect || raw.name || '',
+    spellLevel:Math.max(0,Math.min(9,Number(raw.spellLevel)||0)),
+    castingTime:raw.castingTime||'',
+    range:raw.range||'',
+    concentration:!!raw.concentration,
+    sourceClass:raw.sourceClass||'',
+    effect:raw.effect || defaultActionEffect(raw.name||'',inferred),
     description:raw.description || '',
     sourceItemId:raw.sourceItemId || ''
   };
@@ -4976,6 +5011,18 @@ function openRPSkillPanel(ch){
 function sheetToolsHtml(){
   return `<div class="sheet-window-tools"><button title="Pin sheet" onclick="event.stopPropagation();toggleSheetPin()">${sheetPinned?'Pinned':'Pin'}</button><button class="sheet-close" onclick="closeSheet()">&times;</button></div>`;
 }
+function sheetIdentity(kind,id){
+  return `${kind}:${id||''}`;
+}
+function sheetCanReplace(kind,id){
+  const pop=document.getElementById('sheet-popup');
+  if(!sheetPinned || !pop?.classList.contains('show')) return true;
+  const current=pop.dataset.sheetIdentity || '';
+  return !current || current===sheetIdentity(kind,id);
+}
+function setSheetIdentity(pop,kind,id){
+  if(pop) pop.dataset.sheetIdentity=sheetIdentity(kind,id);
+}
 function dockedSheetPosition(pop){
   const combat=document.getElementById('combat-popout');
   const combatHeight=combat && !combat.classList.contains('collapsed') ? combat.offsetHeight : 54;
@@ -4996,17 +5043,20 @@ function prepareSheetWindow(pop,x,y,{keepPosition=false,dock=false}={}){
     const p=dockedSheetPosition(pop);
     pop.style.left=p.x+'px';
     pop.style.top=p.y+'px';
+    if(document.getElementById('radial-menu')?.classList.contains('sheet-action-menu')) requestAnimationFrame(()=>positionSheetActionMenu(document.getElementById('radial-menu')));
     return;
   }
   const maxX=wrap.clientWidth-pop.offsetWidth-12;
   const maxY=wrap.clientHeight-pop.offsetHeight-12;
   pop.style.left=Math.max(12,Math.min(maxX,x+14))+'px';
   pop.style.top=Math.max(12,Math.min(maxY,y+14))+'px';
+  if(document.getElementById('radial-menu')?.classList.contains('sheet-action-menu')) requestAnimationFrame(()=>positionSheetActionMenu(document.getElementById('radial-menu')));
 }
 function closeSheet(){
   const pop=document.getElementById('sheet-popup');
   if(!pop) return;
   pop.classList.remove('show','pinned');
+  delete pop.dataset.sheetIdentity;
   sheetPinned=false;
   sheetHoverPreview=false;
   sheetHoverInside=false;
@@ -5048,6 +5098,7 @@ function moveSheetDrag(e){
   const maxY=wrap.clientHeight-pop.offsetHeight-8;
   pop.style.left=Math.max(8,Math.min(maxX,e.clientX-sheetDrag.wrapLeft-sheetDrag.offsetX))+'px';
   pop.style.top=Math.max(8,Math.min(maxY,e.clientY-sheetDrag.wrapTop-sheetDrag.offsetY))+'px';
+  if(document.getElementById('radial-menu')?.classList.contains('sheet-action-menu')) positionSheetActionMenu(document.getElementById('radial-menu'));
 }
 function endSheetDrag(){ sheetDrag=null; }
 function beginRPToolDrag(e){
@@ -5296,6 +5347,7 @@ function isCurrentTurnActor(id){
   return !combatMode || isDM() || currentTurnId()===id;
 }
 function canUseTurnAction(ch,kind='action'){
+  if(kind==='free'||kind==='passive') return true;
   if(!combatMode || isDM()) return true;
   if(currentTurnId()!==ch?.id){
     showCritOverlay('Wait for your turn','roll','Combat');
@@ -5305,9 +5357,18 @@ function canUseTurnAction(ch,kind='action'){
     showCritOverlay('Action already used','roll','Combat');
     return false;
   }
+  if(kind==='bonus' && turnActionState.bonusActionTaken && turnActionState.actorId===ch.id){
+    showCritOverlay('Bonus action already used','roll','Combat');
+    return false;
+  }
+  if(kind==='reaction' && turnActionState.reactionTaken && turnActionState.actorId===ch.id){
+    showCritOverlay('Reaction already used','roll','Combat');
+    return false;
+  }
   return true;
 }
-function canUseEnemyTurnAction(enemy){
+function canUseEnemyTurnAction(enemy,kind='action'){
+  if(kind==='free'||kind==='passive') return true;
   if(!combatMode || !enemy) return true;
   if(currentTurnId()!==enemy.uid){
     showCritOverlay('Select that enemy turn first','roll','Combat');
@@ -5315,6 +5376,14 @@ function canUseEnemyTurnAction(enemy){
   }
   if(turnActionState.actionTaken && turnActionState.actorId===enemy.uid){
     showCritOverlay('Enemy action already used','roll','Combat');
+    return false;
+  }
+  if(kind==='bonus' && turnActionState.bonusActionTaken && turnActionState.actorId===enemy.uid){
+    showCritOverlay('Enemy bonus action already used','roll','Combat');
+    return false;
+  }
+  if(kind==='reaction' && turnActionState.reactionTaken && turnActionState.actorId===enemy.uid){
+    showCritOverlay('Enemy reaction already used','roll','Combat');
     return false;
   }
   return true;
@@ -6410,8 +6479,9 @@ function updateCombatPopout(){
   if(!title||!body) return;
   const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${prefix}: ${escapeHtml(item.name)}</span>
-    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionType||'damage')} ${escapeHtml(item.die||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(item.die||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
+  const turnUseLabel=id=>turnActionState.actorId===id?`${turnActionState.actionTaken?' · action used':''}${turnActionState.bonusActionTaken?' · bonus used':''}${turnActionState.reactionTaken?' · reaction used':''}`:'';
   const activeEnemy=isDM()&&activeEnemyUid ? enemyByUid(activeEnemyUid) : null;
   if(activeEnemy){
     const weapons=Array.isArray(activeEnemy.weapons)?activeEnemy.weapons:[];
@@ -6419,7 +6489,7 @@ function updateCombatPopout(){
     const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
     const targetCharacter=selectedTargetCharacter();
     const targetLabel=targetCharacter?`${escapeHtml(targetCharacter.name)} AC ${targetCharacter.derived?.AC||'-'} HP ${targetCharacter.currentHP}/${targetCharacter.derived?.HP||targetCharacter.currentHP}`:targetEnemy?`${escapeHtml(targetEnemy.name)} AC ${targetEnemy.ac} HP ${targetEnemy.hp}/${targetEnemy.maxHP}`:'None selected';
-    const turnLabel=combatMode ? (currentTurnId()===activeEnemy.uid ? `Enemy turn${turnActionState.actionTaken&&turnActionState.actorId===activeEnemy.uid?' · action used':''}` : 'Waiting for this enemy turn') : 'Free mode';
+    const turnLabel=combatMode ? (currentTurnId()===activeEnemy.uid ? `Enemy turn${turnUseLabel(activeEnemy.uid)}` : 'Waiting for this enemy turn') : 'Free mode';
     title.textContent=`${activeEnemy.name} actions`;
     body.innerHTML=`
       <div class="combat-meta">${turnLabel}</div>
@@ -6443,7 +6513,7 @@ function updateCombatPopout(){
   const friendly=selectedTargetCharacter();
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
   const moveUsed=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
-  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn · move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${turnActionState.actionTaken&&turnActionState.actorId===ch.id?' · action used':''}` : 'Waiting for turn') : 'Free mode';
+  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn · move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${turnUseLabel(ch.id)}` : 'Waiting for turn') : 'Free mode';
   title.textContent=`${ch.name} actions`;
   if(!weapons.length&&!spells.length){
     body.innerHTML=`<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
@@ -6703,27 +6773,106 @@ function updatePlayersList(){
 /* ===== NEW SECTION: Mini sheet, damage, statuses, dice, turns ===== */
 function hideRadialMenu(){
   const menu=document.getElementById('radial-menu');
-  if(menu) menu.classList.remove('show','skill-wheel','rp-tool-window','pinned');
+  if(menu) menu.classList.remove('show','skill-wheel','rp-tool-window','sheet-action-menu','pinned');
   rpToolDrag=null;
 }
-function showRadialMenu(ch,x,y){
-  hideSheet();
-  const menu=document.getElementById('radial-menu');
-  if(!menu) return;
-  menu.classList.remove('skill-wheel');
+function positionSheetActionMenu(menu){
+  const pop=document.getElementById('sheet-popup');
+  if(!menu || !pop?.classList.contains('show')) return;
+  const sheetX=Number.parseFloat(pop.style.left)||24;
+  const sheetY=Number.parseFloat(pop.style.top)||24;
+  const desiredX=sheetX+pop.offsetWidth+10;
+  const desiredY=sheetY+Math.min(190,Math.max(52,pop.offsetHeight-310));
+  const maxX=wrap.clientWidth-menu.offsetWidth-12;
+  const maxY=wrap.clientHeight-menu.offsetHeight-12;
+  menu.style.left=Math.max(12,Math.min(maxX,desiredX))+'px';
+  menu.style.top=Math.max(12,Math.min(maxY,desiredY))+'px';
+}
+function sheetCommandPanelHtml(ch,variant='main'){
+  const title=escapeHtml(ch?.name||'Character');
   const canUse=canControlCharacter(ch);
-  menu.innerHTML=`
-    <div class="radial-center">${cleanEmoji(ch.icon,'\u{1F9D9}')}</div>
-    <button class="radial-btn" onclick="hideRadialMenu();rollD20('${ch.id}')">d20</button>
-    <button class="radial-btn" onclick="openSkillWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Skills</button>
-    <button class="radial-btn" onclick="openSaveWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Saves</button>
-    <button class="radial-btn" onclick="radialActions('${ch.id}')">Actions</button>
-    <button class="radial-btn" onclick="hideRadialMenu();showSheet(characterById('${ch.id}'),${Math.round(x)},${Math.round(y)})">Sheet</button>
-    <button class="radial-btn" onclick="openRestWheel('${ch.id}',${Math.round(x)},${Math.round(y)})">Rest</button>`;
-  const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
-  menu.style.left=Math.max(6,Math.min(maxX,x-101))+'px';
-  menu.style.top=Math.max(6,Math.min(maxY,y-101))+'px';
-  menu.classList.add('show');
+  const locked=!canUse ? `<div class="sheet-command-note">This character is locked to another player.</div>` : '';
+  if(variant==='rolls'){
+    return `
+      <div class="sheet-command-panel">
+        <div class="sheet-command-head"><b>${title} rolls</b><button onclick="showRadialMenu(characterById('${ch.id}'))">Back</button></div>
+        <div class="sheet-command-grid">
+          <button onclick="rollSimpleDie(4)">d4</button>
+          <button onclick="rollSimpleDie(6)">d6</button>
+          <button onclick="rollSimpleDie(8)">d8</button>
+          <button onclick="rollSimpleDie(12)">d12</button>
+          <button class="wide" onclick="rollD20('${ch.id}')">d20 check</button>
+        </div>
+        ${locked}
+      </div>`;
+  }
+  if(variant==='saves'){
+    return `
+      <div class="sheet-command-panel">
+        <div class="sheet-command-head"><b>${title} saves</b><button onclick="showRadialMenu(characterById('${ch.id}'))">Back</button></div>
+        <div class="sheet-command-grid">
+          ${ABILITIES.map(ab=>`<button onclick="rollSavingThrow('${ch.id}','${ab}')">${ab} Save</button>`).join('')}
+        </div>
+        ${locked}
+      </div>`;
+  }
+  if(variant==='rest'){
+    return `
+      <div class="sheet-command-panel">
+        <div class="sheet-command-head"><b>${title} rest</b><button onclick="showRadialMenu(characterById('${ch.id}'))">Back</button></div>
+        <div class="sheet-command-grid">
+          <button onclick="radialRest('${ch.id}','short')">Short rest</button>
+          <button onclick="radialRest('${ch.id}','long')">Long rest</button>
+        </div>
+        ${locked}
+      </div>`;
+  }
+  const state=normalizeRollState(ch?.rollState||{}).next;
+  return `
+    <div class="sheet-command-panel">
+      <div class="sheet-command-head"><b>${title} commands</b><button onclick="hideRadialMenu()">Hide</button></div>
+      <div class="sheet-command-grid">
+        <button onclick="showSheet(characterById('${ch.id}'),24,24)">Sheet</button>
+        <button onclick="showSheetCommandPanel('${ch.id}','rolls')">Dice rolls</button>
+        <button onclick="showSheetCommandPanel('${ch.id}','skills')">Skills</button>
+        <button onclick="showSheetCommandPanel('${ch.id}','saves')">Saves</button>
+        <button onclick="radialActions('${ch.id}')">Actions</button>
+        <button onclick="showSheetCommandPanel('${ch.id}','rest')">Rest</button>
+        <button class="wide advantage ${state==='advantage'?'roll-toggle on advantage':''}" onclick="setRollState('character','${ch.id}','next','advantage');showSheetCommandPanel('${ch.id}','main')">Advantage next roll</button>
+        <button class="wide disadvantage ${state==='disadvantage'?'roll-toggle on disadvantage':''}" onclick="setRollState('character','${ch.id}','next','disadvantage');showSheetCommandPanel('${ch.id}','main')">Disadvantage next roll</button>
+      </div>
+      ${locked || '<div class="sheet-command-note">Use this as the quick command dock for the pinned sheet.</div>'}
+    </div>`;
+}
+function showSheetCommandPanel(id,variant='main'){
+  const ch=characterById(id);
+  const menu=document.getElementById('radial-menu');
+  if(!ch || !menu) return;
+  if(!sheetCanReplace('character',ch.id)) return;
+  menu.classList.remove('skill-wheel','rp-tool-window','pinned');
+  if(variant==='skills'){
+    const skills=Object.keys(SKILL_DEFS);
+    menu.innerHTML=`
+      <div class="skill-wheel-panel">
+        <div class="skill-wheel-head"><b>${escapeHtml(ch.name)} skills</b><button onclick="showSheetCommandPanel('${id}','main')" style="font-size:10px;padding:4px 7px">Back</button></div>
+        <div class="skill-grid">
+          ${skills.map(skill=>`<button onclick="rollSkillCheck('${id}','${skill}')"><span>${escapeHtml(skillLabel(skill))}</span><span>${formatSigned(skillTotal(ch,skill))}</span></button>`).join('')}
+        </div>
+      </div>`;
+    menu.classList.add('show','skill-wheel','sheet-action-menu');
+  } else {
+    menu.innerHTML=sheetCommandPanelHtml(ch,variant);
+    menu.classList.add('show','sheet-action-menu');
+  }
+  requestAnimationFrame(()=>positionSheetActionMenu(menu));
+}
+function showRadialMenu(ch,x,y){
+  const menu=document.getElementById('radial-menu');
+  if(!ch || !menu || !sheetCanReplace('character',ch.id)) return;
+  if(!document.getElementById('sheet-popup')?.classList.contains('show')){
+    showSheet(ch,x||24,y||24,{hover:false});
+  }
+  showSheetCommandPanel(ch.id,'main');
 }
 function radialActions(id){
   const ch=characterById(id);
@@ -6785,6 +6934,7 @@ function openSkillWheel(id,x,y){
 }
 function showSheet(ch,x,y,{hover=false}={}){
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('character',ch.id)) return;
   pop.classList.remove('enemy');
   sheetHoverPreview=hover;
   const d=ch.derived || calculateDerived(ch);
@@ -6833,11 +6983,13 @@ function showSheet(ch,x,y,{hover=false}={}){
     <div class="sheet-detail"><h4>Inventory</h4><div class="compact-list">${inventoryRows || '<div><span>No inventory yet</span><span></span></div>'}</div></div>
     ${deathControls}
     ${restControls}
-    <div class="sheet-actions">${ownerActions}${claimActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
+  <div class="sheet-actions">${ownerActions}${claimActions}${dmRemoteActions}<button onclick="addToTurnOrder('${ch.id}')">Turn</button></div>`;
+  setSheetIdentity(pop,'character',ch.id);
   prepareSheetWindow(pop,x,y,{dock:true});
 }
 function showEnemySheet(enemy,x,y){
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('enemy',enemy.uid)) return;
   pop.classList.add('enemy');
   sheetHoverPreview=false;
   const dm=isDM();
@@ -6875,12 +7027,14 @@ function showEnemySheet(enemy,x,y){
       <button onclick="adjustEnemyHP('${enemy.uid}',5)">+5 HP</button>
       <button class="danger" onclick="killEnemy('${enemy.uid}')">Kill</button>
     </div>`:''}`;
+  setSheetIdentity(pop,'enemy',enemy.uid);
   prepareSheetWindow(pop,x,y,{dock:true});
 }
 function showIconSheet(icon,x,y){
   if(icon.kind==='chest') return showChestSheet(icon,x,y);
   if(icon.kind==='trader') return showTraderSheet(icon,x,y);
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('icon',icon.uid)) return;
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
@@ -6893,6 +7047,7 @@ function showIconSheet(icon,x,y){
       <button onclick="renameMapIcon('${icon.uid}')">Rename</button>
       <button class="danger" onclick="deleteMapIcon('${icon.uid}')">Remove</button>
     </div>`;
+  setSheetIdentity(pop,'icon',icon.uid);
   prepareSheetWindow(pop,x,y);
 }
 function showChestSheet(chest,x,y){
@@ -6900,6 +7055,7 @@ function showChestSheet(chest,x,y){
   const dm=isDM();
   const loot=chest.opened ? ensureChestLoot(chest) : [];
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('chest',chest.uid)) return;
   pop.classList.remove('enemy');
   pop.innerHTML=`
     <div class="sheet-top">
@@ -6913,6 +7069,7 @@ function showChestSheet(chest,x,y){
       ${!chest.opened?`<button class="primary" onclick="openChest('${chest.uid}')">Open chest</button>`:''}
       ${dm?`<button onclick="setChestLevel('${chest.uid}',1)">Lv1</button><button onclick="setChestLevel('${chest.uid}',2)">Lv2</button><button onclick="setChestLevel('${chest.uid}',3)">Lv3</button><button onclick="resetChestLoot('${chest.uid}')">Reroll</button><button class="danger" onclick="deleteMapIcon('${chest.uid}')">Remove</button>`:''}
     </div>`;
+  setSheetIdentity(pop,'chest',chest.uid);
   prepareSheetWindow(pop,x,y);
 }
 function traderStockCount(trader){
@@ -7066,6 +7223,7 @@ Return JSON only:
 function showTraderSheet(trader,x,y){
   trader=mapIconByUid(trader.uid) || trader;
   Object.assign(trader,hydratePlacedIcon(trader));
+  if(!sheetCanReplace('trader',trader.uid)) return;
   const dm=isDM();
   const ch=getActiveCharacter();
   const stock=ensureTraderStock(trader);
@@ -7090,6 +7248,7 @@ function showTraderSheet(trader,x,y){
     <div class="sheet-actions">
       ${dm?`<button onclick="setTraderLevel('${trader.uid}',1)">Lv1</button><button onclick="setTraderLevel('${trader.uid}',2)">Lv2</button><button onclick="setTraderLevel('${trader.uid}',3)">Lv3</button><button onclick="cycleTraderType('${trader.uid}')">Type</button><button onclick="editTraderDescription('${trader.uid}')">Description</button><button onclick="generateTraderPersonality('${trader.uid}')">AI flavour</button><button onclick="rerollTraderStock('${trader.uid}')">Restock</button><button class="danger" onclick="deleteMapIcon('${trader.uid}')">Remove</button>`:''}
     </div>`;
+  setSheetIdentity(pop,'trader',trader.uid);
   prepareSheetWindow(pop,x,y);
 }
 function enemyByUid(uid){ return placedIcons.find(ic=>ic.uid===uid&&ic.kind==='enemy'); }
@@ -7478,6 +7637,7 @@ function syncEnemyIcon(enemy){
 }
 function showEffectSheet(fx,x,y){
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('effect',fx.id)) return;
   pop.classList.remove('enemy');
   const name=fx.type==='fire'?'Hazard':fx.type[0].toUpperCase()+fx.type.slice(1);
   pop.innerHTML=`
@@ -7493,6 +7653,7 @@ function showEffectSheet(fx,x,y){
       <button onclick="resizeAreaEffect('${fx.id}',${Math.min(220,fx.radius+10)})">Larger</button>
       <button class="danger" onclick="removeAreaEffect('${fx.id}')">Remove</button>
     </div>`;
+  setSheetIdentity(pop,'effect',fx.id);
   prepareSheetWindow(pop,x,y);
 }
 function areaEffectById(id){ return areaEffects.find(fx=>fx.id===id); }
@@ -7520,6 +7681,7 @@ function placeSoundZoneAt(x,y,{announce=false}={}){
 function soundZoneById(id){ return soundZones.find(zone=>zone.id===id); }
 function showSoundZoneSheet(zone,x,y){
   const pop=document.getElementById('sheet-popup');
+  if(!sheetCanReplace('sound',zone.id)) return;
   const type=SOUND_ZONE_TYPES[zone.type] || SOUND_ZONE_TYPES.campfire;
   pop.classList.remove('enemy');
   pop.innerHTML=`
@@ -7537,6 +7699,7 @@ function showSoundZoneSheet(zone,x,y){
       <button onclick="resizeSoundZone('${zone.id}',${Math.min(600,zone.radius+20)})">Larger</button>
       <button class="danger" onclick="removeSoundZone('${zone.id}')">Remove</button>
     </div>`;
+  setSheetIdentity(pop,'sound',zone.id);
   prepareSheetWindow(pop,x,y);
 }
 function resizeSoundZone(id,radius){
@@ -8035,15 +8198,16 @@ function rollCharacterAction(characterId,type,itemId){
   const ch=characterById(characterId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
-  if(!canUseTurnAction(ch,'action')) return;
   const item=(ch[type+'s']||[]).find(x=>x.id===itemId);
   if(!item) return;
+  const actionCost=item.actionCost||inferActionCost(item);
+  if(!canUseTurnAction(ch,actionCost)) return;
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
-  if(isAoeAction(item)){ markTurnAction(type,characterId); return rollAoeAction(ch,'character',type,item,actionType); }
+  if(isAoeAction(item)){ markTurnAction(actionCost,characterId); return rollAoeAction(ch,'character',type,item,actionType); }
   const friendly=selectedTargetCharacter();
   if(actionType==='healing'){
-    markTurnAction(type,characterId);
+    markTurnAction(actionCost,characterId);
     const target=friendly||ch;
     const roll=rollDiceExpression('1'+item.die,item.bonus);
     const before=target.currentHP ?? target.derived.HP;
@@ -8060,7 +8224,7 @@ function rollCharacterAction(characterId,type,itemId){
     return;
   }
   if(actionType==='buff'||actionType==='utility'){
-    markTurnAction(type,characterId);
+    markTurnAction(actionCost,characterId);
     const target=friendly||ch;
     const effectName=item.effect||item.name||'Buff';
     const conc=concentrationSpellName(effectName||item.name);
@@ -8080,7 +8244,7 @@ function rollCharacterAction(characterId,type,itemId){
   const damage=rollDiceExpression('1'+item.die,item.bonus);
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(!target) return showCritOverlay('Choose an enemy target first','roll','Attack');
-  markTurnAction(type,characterId);
+  markTurnAction(actionCost,characterId);
   const natural=keptD20(attack);
   const critical=isAttackCrit(attack);
   const fumble=isAttackFumble(attack);
@@ -8258,15 +8422,16 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(enemyUid);
   if(!enemy) return;
-  if(!canUseEnemyTurnAction(enemy)) return;
   const item=(enemy[type+'s']||[]).find(x=>x.id===itemId);
   if(!item) return;
+  const actionCost=item.actionCost||inferActionCost(item);
+  if(!canUseEnemyTurnAction(enemy,actionCost)) return;
   const actionType=item.actionType||inferActionType(item);
-  if(isAoeAction(item)){ markTurnAction(type,enemy.uid); return rollAoeAction(enemy,'enemy',type,item,actionType); }
+  if(isAoeAction(item)){ markTurnAction(actionCost,enemy.uid); return rollAoeAction(enemy,'enemy',type,item,actionType); }
   const targetCharacter=selectedTargetCharacter();
   const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(actionType==='healing'){
-    markTurnAction(type,enemy.uid);
+    markTurnAction(actionCost,enemy.uid);
     const target=targetEnemy||enemy;
     const roll=rollDiceExpression('1'+item.die,item.bonus);
     const before=target.hp;
@@ -8281,7 +8446,7 @@ function rollEnemyAction(enemyUid,type,itemId){
     return;
   }
   if(actionType==='buff'||actionType==='utility'){
-    markTurnAction(type,enemy.uid);
+    markTurnAction(actionCost,enemy.uid);
     const target=targetEnemy||enemy;
     const effectName=item.effect||item.name||'Buff';
     const updated=addEnemyStatus(target.uid,effectName,10);
@@ -8297,7 +8462,7 @@ function rollEnemyAction(enemyUid,type,itemId){
   const damage=rollDiceExpression('1'+item.die,item.bonus);
   const target=targetCharacter||targetEnemy;
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
-  markTurnAction(type,enemy.uid);
+  markTurnAction(actionCost,enemy.uid);
   const targetAC=targetCharacter ? target.derived?.AC || 10 : target.ac;
   const natural=keptD20(attack);
   const critical=isAttackCrit(attack);
@@ -8990,18 +9155,22 @@ function hasActedThisTurn(id=activeCharacterId){
 }
 function markTurnAction(reason='action',id=activeCharacterId){
   const turnCharacter=getLocalTurnCharacter();
+  const cost=ACTION_COSTS.includes(reason) ? reason : 'action';
+  if(cost==='free'||cost==='passive') return;
   if(!combatMode){
-    turnActionState={actorId:id,reason,at:Date.now(),acted:true,actionTaken:true};
+    turnActionState={actorId:id,reason:cost,at:Date.now(),acted:true,actionTaken:cost==='action',bonusActionTaken:cost==='bonus',reactionTaken:cost==='reaction'};
     return;
   }
   const entity=turnEntityById(id);
   if(!isDM() && (!turnCharacter || turnCharacter.id!==id)) return;
   if(isDM() && currentTurnId()!==id && entity?.isEnemy) return showCritOverlay('Select that enemy turn first','roll','Combat');
   const state=turnActionState.actorId===id ? turnActionState : {actorId:id,movementUsed:0,moved:false};
-  state.reason=reason;
+  state.reason=cost;
   state.at=Date.now();
   state.acted=true;
-  state.actionTaken=true;
+  if(cost==='action') state.actionTaken=true;
+  if(cost==='bonus') state.bonusActionTaken=true;
+  if(cost==='reaction') state.reactionTaken=true;
   turnActionState=state;
   updateFloatingEndTurn();
   updateEndTurnButton();

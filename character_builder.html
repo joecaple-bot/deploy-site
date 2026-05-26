@@ -611,6 +611,14 @@ label,h3{color:#cba86e}
           <button onclick="addSpell()" style="font-size:11px;padding:6px 8px">Add spell</button>
         </div>
         <div class="section-body">
+          <div class="combine-box">
+            <div class="combine-grid">
+              <div><label>Class spellbook</label><select id="spell-catalog-level" onchange="renderSpellCatalogue()"></select></div>
+              <div><label>Available spell</label><select id="spell-catalog-select"></select></div>
+              <button onclick="addSelectedCatalogSpell()">Add selected</button>
+            </div>
+            <div class="combine-preview" id="spell-catalog-preview">Pick a class spell to add it with the right action cost and targeting.</div>
+          </div>
           <div class="item-list" id="spell-list"></div>
         </div>
       </div>
@@ -686,6 +694,7 @@ label,h3{color:#cba86e}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets_manifest.js"></script>
+<script src="spell_data.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
@@ -787,6 +796,7 @@ const RACE_DEFS={
 };
 const DAMAGE_DICE=['d4','d6','d8','d10','d12'];
 const ACTION_TYPES=['damage','healing','buff','utility'];
+const ACTION_COSTS=['action','bonus','reaction','free','passive'];
 const TARGET_MODES=['single','enemies','allies','all'];
 const ITEM_RARITIES=['Common','Uncommon','Rare','Very Rare','Legendary'];
 const EQUIPMENT_SLOTS=['Helmet','Chestplate','Pendant','Bracelet','Ring 1','Ring 2','Boots','Cloak','Gloves','Belt','Shield'];
@@ -961,19 +971,34 @@ function hydrateCharacter(raw={}){
 }
 function normalizeActionItem(item={}){
   const inferred=inferActionType(item);
+  const cost=inferActionCost(item);
   return {
     id:item.id||'a_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name||'New action',
     die:DAMAGE_DICE.includes(item.die)?item.die:'d6',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(item.actionType)?item.actionType:inferred,
+    actionCost:ACTION_COSTS.includes(item.actionCost)?item.actionCost:cost,
     targetMode:TARGET_MODES.includes(item.targetMode)?item.targetMode:'single',
     aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
+    spellLevel:Math.max(0,Math.min(9,Number(item.spellLevel)||0)),
+    castingTime:item.castingTime||'',
+    range:item.range||'',
+    concentration:!!item.concentration,
+    sourceClass:item.sourceClass||'',
     effect:item.effect||defaultActionEffect(item.name||'',inferred),
     description:item.description||'',
     sourceItemId:item.sourceItemId||''
   };
+}
+function inferActionCost(item={}){
+  const text=`${item.actionCost||''} ${item.castingTime||''} ${item.name||''} ${item.description||''}`.toLowerCase();
+  if(text.includes('bonus')) return 'bonus';
+  if(text.includes('reaction')) return 'reaction';
+  if(text.includes('free')) return 'free';
+  if(text.includes('passive')) return 'passive';
+  return 'action';
 }
 function inferActionType(item={}){
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
@@ -1497,6 +1522,7 @@ function renderLive(){
   renderChecklist(ch);
   renderLevelHelper(ch);
   renderSpellSlots(ch);
+  renderSpellCatalogue(ch);
 }
 function readActionItems(type){
   return [...document.querySelectorAll(`[data-${type}-row]`)].map(row=>normalizeActionItem({
@@ -1505,9 +1531,15 @@ function readActionItems(type){
     die:row.querySelector(`[data-${type}-die]`)?.value,
     bonus:row.querySelector(`[data-${type}-bonus]`)?.value,
     actionType:row.querySelector(`[data-${type}-action-type]`)?.value,
+    actionCost:row.querySelector(`[data-${type}-action-cost]`)?.value,
     targetMode:row.querySelector(`[data-${type}-target-mode]`)?.value,
     aoeRadius:row.querySelector(`[data-${type}-aoe-radius]`)?.value,
     saveDC:row.querySelector(`[data-${type}-save-dc]`)?.value,
+    spellLevel:row.querySelector(`[data-${type}-spell-level]`)?.value,
+    castingTime:row.dataset.castingTime||'',
+    range:row.dataset.range||'',
+    concentration:row.dataset.concentration==='1',
+    sourceClass:row.dataset.sourceClass||'',
     effect:row.querySelector(`[data-${type}-effect]`)?.value.trim(),
     description:row.querySelector(`[data-${type}-desc]`)?.value.trim(),
     sourceItemId:row.dataset.sourceItemId||''
@@ -1516,20 +1548,23 @@ function readActionItems(type){
 function renderActionItems(ch=selected()){
   renderActionList('weapon',ch.weapons||[]);
   renderActionList('spell',ch.spells||[]);
+  renderSpellCatalogue(ch);
   renderInventory(ch);
 }
 function renderActionList(type,items){
   const el=document.getElementById(`${type}-list`);
   if(!el) return;
   el.innerHTML=items.map(item=>`
-    <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}">
+    <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}" data-casting-time="${escapeHtml(item.castingTime||'')}" data-range="${escapeHtml(item.range||'')}" data-concentration="${item.concentration?'1':'0'}" data-source-class="${escapeHtml(item.sourceClass||'')}">
       <div><label>${type==='weapon'?'Weapon':'Spell'}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${type==='weapon'?'Longsword':'Fire Bolt'}"></div>
       <div><label>Damage die</label><select data-${type}-die>${DAMAGE_DICE.map(d=>`<option ${d===item.die?'selected':''}>${d}</option>`).join('')}</select></div>
       <div><label>Bonus</label><input data-${type}-bonus type="number" value="${item.bonus}" step="1"></div>
       <button onclick="removeActionItem('${type}','${item.id}')">Remove</button>
       <div><label>Action type</label><select data-${type}-action-type>${ACTION_TYPES.map(t=>`<option value="${t}" ${t===item.actionType?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>Action cost</label><select data-${type}-action-cost>${ACTION_COSTS.map(t=>`<option value="${t}" ${t===item.actionCost?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>Targeting</label><select data-${type}-target-mode>${TARGET_MODES.map(m=>`<option value="${m}" ${m===item.targetMode?'selected':''}>${m}</option>`).join('')}</select></div>
       <div><label>AoE radius</label><input data-${type}-aoe-radius type="number" min="0" max="240" value="${Number(item.aoeRadius)||0}" placeholder="0"></div>
+      ${type==='spell'?`<div><label>Spell level</label><input data-${type}-spell-level type="number" min="0" max="9" value="${Number(item.spellLevel)||0}"></div>`:`<input data-${type}-spell-level type="hidden" value="${Number(item.spellLevel)||0}">`}
       <div><label>Save DC</label><input data-${type}-save-dc type="number" min="0" max="30" value="${Number(item.saveDC)||0}" placeholder="0"></div>
       <div style="grid-column:span 2"><label>Effect / status</label><input data-${type}-effect value="${escapeHtml(item.effect||'')}" placeholder="Bless, Guidance, Bardic Inspiration, Healing"></div>
       <textarea data-${type}-desc placeholder="Range, save DC, effect, damage type">${escapeHtml(item.description||'')}</textarea>
@@ -1604,6 +1639,70 @@ function addSpell(){
   renderActionItems();
   scheduleSave();
 }
+function spellCatalogue(){
+  return Array.isArray(window.MOOVABLES_SPELLS)?window.MOOVABLES_SPELLS:[];
+}
+function spellClassName(ch=selected()){
+  const cls=ch?.class||readClassValue?.()||'';
+  return cls==='Sorceror'?'Sorcerer':cls;
+}
+function availableClassSpells(ch=selected()){
+  const cls=spellClassName(ch);
+  const level=Number(ch?.level)||1;
+  const fullCaster=['Wizard','Cleric','Druid','Bard','Sorcerer','Warlock'].includes(cls);
+  const halfCaster=['Paladin','Ranger','Artificer'].includes(cls);
+  const maxLevel=fullCaster?Math.min(9,Math.max(0,Math.ceil(level/2))):halfCaster?Math.min(5,Math.max(0,Math.ceil((level-1)/4))):0;
+  return spellCatalogue().filter(spell=>(spell.classes||[]).includes(cls) && Number(spell.level)<=maxLevel);
+}
+function spellToActionItem(spell,sourceClass=spellClassName()){
+  return normalizeActionItem({
+    name:spell.name,
+    die:spell.die||'d6',
+    bonus:spell.bonus||0,
+    actionType:spell.actionType||'damage',
+    actionCost:spell.actionCost||'action',
+    targetMode:spell.targetMode||'single',
+    aoeRadius:spell.aoeRadius||0,
+    saveDC:0,
+    spellLevel:spell.level||0,
+    castingTime:spell.castingTime||'',
+    range:spell.range||'',
+    concentration:!!spell.concentration,
+    sourceClass,
+    effect:spell.effect||spell.damageType||spell.name,
+    description:[spell.range&&`Range: ${spell.range}`,spell.castingTime&&`Cast: ${spell.castingTime}`,spell.concentration?'Concentration':'',spell.attackSave,spell.damageHeal,spell.description].filter(Boolean).join(' · ')
+  });
+}
+function renderSpellCatalogue(ch=selected()){
+  const levelSelect=document.getElementById('spell-catalog-level');
+  const spellSelect=document.getElementById('spell-catalog-select');
+  const preview=document.getElementById('spell-catalog-preview');
+  if(!levelSelect||!spellSelect||!preview) return;
+  const cls=spellClassName(ch);
+  const spells=availableClassSpells(ch);
+  const levels=[...new Set(spells.map(s=>Number(s.level)||0))].sort((a,b)=>a-b);
+  const currentLevel=levelSelect.value;
+  levelSelect.innerHTML=levels.map(l=>`<option value="${l}" ${String(l)===currentLevel?'selected':''}>${l===0?'Cantrips':`Level ${l}`}</option>`).join('') || '<option>No class spells</option>';
+  const chosenLevel=Number(levelSelect.value||levels[0]||0);
+  const options=spells.filter(s=>Number(s.level)===chosenLevel);
+  const currentSpell=spellSelect.value;
+  spellSelect.innerHTML=options.map(spell=>`<option value="${escapeAttr(spell.name)}" ${spell.name===currentSpell?'selected':''}>${escapeHtml(spell.name)} · ${escapeHtml(spell.actionCost||'action')}</option>`).join('');
+  const picked=options.find(s=>s.name===spellSelect.value)||options[0];
+  preview.textContent=picked ? `${cls} ${picked.level===0?'cantrip':`level ${picked.level}`} · ${picked.castingTime||'action'} · ${picked.actionType} · ${picked.range||'range varies'}` : `${cls} has no spells available at this level.`;
+  spellSelect.onchange=()=>renderSpellCatalogue(selected());
+}
+function addSelectedCatalogSpell(){
+  syncActionItemsToCharacter();
+  const ch=selected();
+  const name=document.getElementById('spell-catalog-select')?.value;
+  const spell=availableClassSpells(ch).find(s=>s.name===name);
+  if(!spell) return toast('No spell selected');
+  if((ch.spells||[]).some(s=>s.name===spell.name)) return toast('Spell already added');
+  ch.spells.push(spellToActionItem(spell,spellClassName(ch)));
+  renderActionItems(ch);
+  renderLive();
+  scheduleSave();
+}
 function removeActionItem(type,id){
   syncActionItemsToCharacter();
   const ch=selected();
@@ -1654,6 +1753,13 @@ function renderLevelHelper(ch=selected()){
   const subclassInfo=SUBCLASS_DEFS[ch.class];
   const subclassReady=subclassInfo && ch.level>=subclassInfo.level && !ch.subclass;
   const subclassFeatures=subclassInfo?.features?.[ch.level]||[];
+  const nextLevel=Math.min(20,(Number(ch.level)||1)+1);
+  const nextShell=hydrateCharacter({...ch,level:nextLevel});
+  const nextDerived=nextShell.derived || calculateDerived(nextShell);
+  const currentSlots=spellSlotsByLevel(ch.derived?.spellSlots||0);
+  const nextSlots=spellSlotsByLevel(nextDerived.spellSlots||0);
+  const slotGains=SPELL_SLOT_LEVELS.filter(lvl=>(nextSlots[lvl]||0)>(currentSlots[lvl]||0)).map(lvl=>`L${lvl} +${(nextSlots[lvl]||0)-(currentSlots[lvl]||0)}`);
+  const nextClassSpells=availableClassSpells(nextShell).filter(spell=>!(ch.spells||[]).some(s=>s.name===spell.name));
   const classGains=[
     ch.level>=4 && (ch.level-4)%4===0 ? 'Ability Score Improvement or feat' : '',
     ch.level>=5 ? 'Check new class scaling and stronger actions' : '',
@@ -1667,12 +1773,16 @@ function renderLevelHelper(ch=selected()){
       <button onclick="addSuggestedAbility('Level ${ch.level} Feature','Describe the new feature gained at level ${ch.level}.')">Add level feature</button>
       ${cls.spellSlots(ch.level)>0?`<button onclick="addSuggestedSpell('New Spell','d6')">Add spell</button>`:''}
     </div>
+    <div class="suggestion">
+      <div><b>Next level preview: ${nextLevel}</b><span>HP ${ch.derived.HP} -> ${nextDerived.HP}, proficiency +${ch.derived.proficiencyBonus} -> +${nextDerived.proficiencyBonus}${slotGains.length?`, spell slots ${slotGains.join(', ')}`:', no new spell slots'}</span></div>
+      <button onclick="levelUpSelected()">Apply</button>
+    </div>
     <div class="muted">Current path: ${escapeHtml(ch.class)}${ch.subclass?` / ${escapeHtml(ch.subclass)}`:''}. ${subclassInfo?`Subclass choice normally opens at level ${subclassInfo.level}.`: 'Custom classes can use the custom subclass field.'}</div>
     ${subclassReady?`<div class="suggestion"><div><b>Pick a subclass</b><span>This class should choose one now.</span></div><button onclick="focusSubclass()">Choose</button></div>`:''}
     <div class="suggestion-list">
       ${classGains.map(name=>`<div class="suggestion"><div><b>${escapeHtml(name)}</b><span>Suggested level ${ch.level} addition</span></div><button onclick="addSuggestedAbility('${escapeAttr(name)}','Level ${ch.level} ${escapeAttr(ch.class)} feature')">Add</button></div>`).join('') || '<div class="muted">No special milestone at this exact level, but spells, HP, proficiency, and resources still update automatically.</div>'}
       ${suggestions.abilities.slice(0,3).map(name=>`<div class="suggestion"><div><b>${escapeHtml(name)}</b><span>Common ability to track</span></div><button onclick="addSuggestedAbility('${escapeAttr(name)}','Class ability')">Add</button></div>`).join('')}
-      ${suggestions.spells.slice(0,3).map(name=>`<div class="suggestion"><div><b>${escapeHtml(name)}</b><span>Spell suggestion</span></div><button onclick="addSuggestedSpell('${escapeAttr(name)}','d6')">Add</button></div>`).join('')}
+      ${nextClassSpells.slice(0,5).map(spell=>`<div class="suggestion"><div><b>${escapeHtml(spell.name)}</b><span>${escapeHtml(spellClassName(ch))} ${spell.level===0?'cantrip':`level ${spell.level}`} · ${escapeHtml(spell.actionCost)} · ${escapeHtml(spell.actionType)}</span></div><button onclick="addCatalogSpellByName('${escapeAttr(spell.name)}')">Add</button></div>`).join('')}
     </div>`;
 }
 function levelUpSelected(){
@@ -1696,7 +1806,19 @@ function addSuggestedAbility(name,description=''){
 function addSuggestedSpell(name,die='d6'){
   syncActionItemsToCharacter();
   const ch=selected();
-  if(!(ch.spells||[]).some(s=>s.name===name)) ch.spells.push(normalizeActionItem({name,die,bonus:0,description:'Added from level-up helper'}));
+  const catalog=availableClassSpells(ch).find(spell=>spell.name===name) || spellCatalogue().find(spell=>spell.name===name && (spell.classes||[]).includes(spellClassName(ch)));
+  if(!(ch.spells||[]).some(s=>s.name===name)) ch.spells.push(catalog?spellToActionItem(catalog,spellClassName(ch)):normalizeActionItem({name,die,bonus:0,description:'Added from level-up helper'}));
+  renderActionItems(ch);
+  renderLive();
+  scheduleSave();
+}
+function addCatalogSpellByName(name){
+  const ch=selected();
+  const spell=spellCatalogue().find(s=>s.name===name && (s.classes||[]).includes(spellClassName(ch)));
+  if(!spell) return toast('Spell not found for this class');
+  syncActionItemsToCharacter();
+  if((ch.spells||[]).some(s=>s.name===spell.name)) return toast('Spell already added');
+  ch.spells.push(spellToActionItem(spell,spellClassName(ch)));
   renderActionItems(ch);
   renderLive();
   scheduleSave();
