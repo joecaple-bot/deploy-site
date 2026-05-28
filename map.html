@@ -1147,6 +1147,10 @@ h3{
           </div>
         </div>
         <div id="turn-list"></div>
+        <div class="actions dm-only" style="margin-bottom:7px">
+          <button onclick="partyRest('short')" style="font-size:11px;padding:6px 8px">Short rest party</button>
+          <button onclick="partyRest('long')" style="font-size:11px;padding:6px 8px">Long rest party</button>
+        </div>
         <div class="actions" style="margin-bottom:7px">
           <button onclick="cycleTarget(-1)" style="font-size:11px;padding:6px 8px">Prev target</button>
           <button onclick="cycleTarget(1)" style="font-size:11px;padding:6px 8px">Next target</button>
@@ -1466,6 +1470,7 @@ function hydrateCharacter(raw={}){
     abilities:Array.isArray(raw.abilities) ? raw.abilities.map(normalizeTextItem) : [],
     bonusActions:Array.isArray(raw.bonusActions) ? raw.bonusActions.map(normalizeTextItem) : [],
     spellSlotUsage:raw.spellSlotUsage && typeof raw.spellSlotUsage==='object' ? raw.spellSlotUsage : {},
+    featureUsage:raw.featureUsage && typeof raw.featureUsage==='object' ? raw.featureUsage : {},
     owner:raw.owner || myId
   };
   character.derived=calculateDerived(character);
@@ -1474,24 +1479,33 @@ function hydrateCharacter(raw={}){
   return character;
 }
 function normalizeActionItem(item={}){
-  const inferred=inferActionType(item);
+  const overrides=spellControlOverrides(item);
+  const inferred=overrides.actionType||inferActionType(item);
   const cost=inferActionCost(item);
+  const diceCount=Math.max(1,Math.min(20,Number(item.diceCount)||diceCountFromFormula(item.damageFormula)||1));
+  const die=DAMAGE_DICE.includes(item.die) ? item.die : dieFromFormula(item.damageFormula)||'d6';
+  const spellLevel=Math.max(0,Math.min(9,Number(item.spellLevel)||0));
+  const targetMode=overrides.targetMode||item.targetMode;
   return {
     id:item.id || 'a_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name || 'Action',
-    die:DAMAGE_DICE.includes(item.die) ? item.die : 'd6',
+    die,
+    diceCount,
+    damageFormula:validDiceFormula(item.damageFormula)?item.damageFormula:`${diceCount}${die}`,
+    upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
-    actionType:ACTION_TYPES.includes(item.actionType) ? item.actionType : inferred,
+    actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType) ? (overrides.actionType||item.actionType) : inferred,
     actionCost:ACTION_COSTS.includes(item.actionCost) ? item.actionCost : cost,
-    targetMode:TARGET_MODES.includes(item.targetMode) ? item.targetMode : 'single',
-    aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
+    targetMode:TARGET_MODES.includes(targetMode) ? targetMode : 'single',
+    aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(item)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
-    spellLevel:Math.max(0,Math.min(9,Number(item.spellLevel)||0)),
+    spellLevel,
+    castLevel:Math.max(spellLevel,Math.min(9,Number(item.castLevel)||spellLevel)),
     castingTime:item.castingTime||'',
     range:item.range||'',
     concentration:!!item.concentration,
     sourceClass:item.sourceClass||'',
-    effect:item.effect || defaultActionEffect(item.name || '', inferred),
+    effect:overrides.effect || item.effect || defaultActionEffect(item.name || '', inferred),
     description:item.description||'',
     sourceItemId:item.sourceItemId||''
   };
@@ -1503,6 +1517,21 @@ function inferActionCost(item={}){
   if(text.includes('free')) return 'free';
   if(text.includes('passive')) return 'passive';
   return 'action';
+}
+function validDiceFormula(value=''){return /^\d+d(4|6|8|10|12)$/i.test(String(value).trim())}
+function diceCountFromFormula(value=''){const m=String(value).trim().match(/^(\d+)d/i);return m?Number(m[1]):0}
+function dieFromFormula(value=''){const m=String(value).trim().match(/d(4|6|8|10|12)$/i);return m?'d'+m[1]:''}
+function diceFormulaForAction(item={}){
+  return diceFormulaAtLevel(item,Number(item.castLevel)||Number(item.spellLevel)||0);
+}
+function diceFormulaAtLevel(item={},castLevel=0){
+  const base=validDiceFormula(item.damageFormula)?item.damageFormula:`${Math.max(1,Number(item.diceCount)||1)}${DAMAGE_DICE.includes(item.die)?item.die:'d6'}`;
+  if(validDiceFormula(item.upcastDice) && Number(castLevel)>Number(item.spellLevel)){
+    const baseCount=diceCountFromFormula(base), baseDie=dieFromFormula(base);
+    const upCount=diceCountFromFormula(item.upcastDice), upDie=dieFromFormula(item.upcastDice);
+    if(baseDie && baseDie===upDie) return `${baseCount+upCount*(Number(castLevel)-Number(item.spellLevel))}${baseDie}`;
+  }
+  return base;
 }
 function inferActionType(item={}){
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
@@ -1517,11 +1546,50 @@ function defaultActionEffect(name='',type='damage'){
   if(type==='utility') return 'Utility';
   return '';
 }
+function spellControlOverrides(item={}){
+  const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
+  if(text.includes('grease')) return {actionType:'utility',targetMode:'enemies',effect:'Prone',aoeRadius:60};
+  return {};
+}
+function normalizedAoeRadius(item={}){
+  let radius=Math.max(0,Math.min(240,Number(item.aoeRadius)||0));
+  const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''}`.toLowerCase();
+  if(text.includes('cone')) radius=Math.max(radius,60);
+  if(text.includes('10 ft. square')||text.includes('10 ft square')) radius=Math.max(radius,50);
+  return radius;
+}
+function featureDefaults(name=''){
+  const text=String(name).toLowerCase();
+  if(text.includes('action surge')) return {description:'Free feature. Refresh your action this turn.',actionCost:'free',actionType:'utility',effect:'Action Surge'};
+  if(text.includes('second wind')) return {description:'Bonus action. Heal 1d10 + level.',actionCost:'bonus',actionType:'healing',effect:'Second Wind'};
+  if(text.includes('rage')) return {description:'Bonus action. Enter rage for tougher melee turns.',actionCost:'bonus',actionType:'buff',effect:'Rage'};
+  if(text.includes('reckless attack')) return {description:'Free feature. Your next attack gains advantage.',actionCost:'free',actionType:'buff',effect:'Reckless Attack'};
+  if(text.includes('cunning action')) return {description:'Bonus action. Dash, Disengage, or Hide.',actionCost:'bonus',actionType:'utility',effect:'Cunning Action'};
+  if(text.includes('bardic inspiration')) return {description:'Bonus action. Give an ally an inspiration die.',actionCost:'bonus',actionType:'buff',effect:'Bardic Inspiration'};
+  if(text.includes('guidance')) return {description:'Action. Give +1d4 to the next ability/skill check.',actionCost:'action',actionType:'buff',effect:'Guidance'};
+  if(text.includes('bless')) return {description:'Action. Give +1d4 to attacks and saves.',actionCost:'action',actionType:'buff',effect:'Blessed'};
+  if(text.includes('lay on hands')) return {description:'Action. Spend healing points to restore HP.',actionCost:'action',actionType:'healing',effect:'Lay on Hands'};
+  if(text.includes('divine smite')) return {description:'Free feature. Prime smite for a melee hit.',actionCost:'free',actionType:'damage',effect:'Divine Smite'};
+  if(text.includes('sneak attack')) return {description:'Free feature. Prime sneak attack damage for this turn.',actionCost:'free',actionType:'damage',effect:'Sneak Attack'};
+  if(text.includes('flurry of blows')) return {description:'Bonus action. Spend ki for two extra strikes.',actionCost:'bonus',actionType:'damage',effect:'Flurry of Blows'};
+  if(text.includes('patient defense')) return {description:'Bonus action. Spend ki to take a defensive stance.',actionCost:'bonus',actionType:'buff',effect:'Patient Defense'};
+  if(text.includes('stunning strike')) return {description:'Free feature. Mark a hit target for a stun save.',actionCost:'free',actionType:'buff',effect:'Stunned'};
+  if(text.includes('channel divinity')||text.includes('turn undead')) return {description:'Action. Use a divine channel effect.',actionCost:'action',actionType:'utility',effect:name};
+  if(text.includes('wild shape')) return {description:'Action. Transform and track the chosen form.',actionCost:'action',actionType:'buff',effect:'Wild Shape'};
+  return {};
+}
 function normalizeTextItem(item={}){
+  const def=featureDefaults(item.name||'');
+  const type=ACTION_TYPES.includes(item.actionType)?item.actionType:(def.actionType||'utility');
   return {
     id:item.id || 't_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name || 'New ability',
-    description:item.description || ''
+    description:item.description || def.description || '',
+    actionCost:ACTION_COSTS.includes(item.actionCost)?item.actionCost:(def.actionCost||'passive'),
+    actionType:type,
+    effect:item.effect || def.effect || defaultActionEffect(item.name||'',type),
+    targetMode:TARGET_MODES.includes(item.targetMode)?item.targetMode:'single',
+    source:item.source || ''
   };
 }
 function inventoryWeaponProfile(item={}){
@@ -1746,24 +1814,42 @@ function spellSlotControls(character){
   });
   return rows.join('');
 }
+function featureResourceControls(character){
+  const names=[...(character.abilities||[]),...(character.bonusActions||[])].map(a=>a.name).filter(name=>featureUseMax(character,name)>0);
+  const unique=[...new Set(names.map(name=>name.includes(':')?name.split(':')[0]:name))];
+  return unique.map(name=>{
+    const max=featureUseMax(character,name);
+    const used=Math.min(max,Number(character.featureUsage?.[featureUseKey(name)])||0);
+    return `<div class="slot-track"><span>${escapeHtml(name)}</span><b>${used}/${max}</b><button onclick="changeFeatureUse('${character.id}','${escapeAttr(name)}',-1)">-</button><button onclick="changeFeatureUse('${character.id}','${escapeAttr(name)}',1)">+</button></div>`;
+  }).join('');
+}
 function hydrateActionItem(raw={}){
-  const inferred=inferActionType(raw);
+  const overrides=spellControlOverrides(raw);
+  const inferred=overrides.actionType||inferActionType(raw);
+  const diceCount=Math.max(1,Math.min(20,Number(raw.diceCount)||diceCountFromFormula(raw.damageFormula)||1));
+  const die=DAMAGE_DICE.includes(raw.die) ? raw.die : dieFromFormula(raw.damageFormula)||'d6';
+  const spellLevel=Math.max(0,Math.min(9,Number(raw.spellLevel)||0));
+  const targetMode=overrides.targetMode||raw.targetMode;
   return {
     id:raw.id || 'act_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Action',
-    die:raw.die || 'd6',
+    die,
+    diceCount,
+    damageFormula:validDiceFormula(raw.damageFormula)?raw.damageFormula:`${diceCount}${die}`,
+    upcastDice:validDiceFormula(raw.upcastDice)?raw.upcastDice:'',
     bonus:Number(raw.bonus)||0,
-    actionType:ACTION_TYPES.includes(raw.actionType) ? raw.actionType : inferred,
+    actionType:ACTION_TYPES.includes(overrides.actionType||raw.actionType) ? (overrides.actionType||raw.actionType) : inferred,
     actionCost:ACTION_COSTS.includes(raw.actionCost) ? raw.actionCost : inferActionCost(raw),
-    targetMode:TARGET_MODES.includes(raw.targetMode) ? raw.targetMode : 'single',
-    aoeRadius:Math.max(0,Math.min(240,Number(raw.aoeRadius)||0)),
+    targetMode:TARGET_MODES.includes(targetMode) ? targetMode : 'single',
+    aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(raw)),
     saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||0)),
-    spellLevel:Math.max(0,Math.min(9,Number(raw.spellLevel)||0)),
+    spellLevel,
+    castLevel:Math.max(spellLevel,Math.min(9,Number(raw.castLevel)||spellLevel)),
     castingTime:raw.castingTime||'',
     range:raw.range||'',
     concentration:!!raw.concentration,
     sourceClass:raw.sourceClass||'',
-    effect:raw.effect || defaultActionEffect(raw.name||'',inferred),
+    effect:overrides.effect || raw.effect || defaultActionEffect(raw.name||'',inferred),
     description:raw.description || '',
     sourceItemId:raw.sourceItemId || ''
   };
@@ -4010,9 +4096,55 @@ function drawEffectParticles(fx,now,color){
 function getActiveCharacter(){
   if(activeCharacterId){
     const active=characterById(activeCharacterId);
-    if(active && canControlCharacter(active)) return active;
+    if(active && canControlCharacter(active)) return promoteControlledCharacter(active);
   }
+  const controlled=Object.values(allCharactersById()).find(ch=>canControlCharacter(ch));
+  if(controlled) return promoteControlledCharacter(controlled);
+  const recovered=recoverActiveCharacter();
+  if(recovered) return recovered;
   return myCharacters.find(canControlCharacter) || myCharacters[0] || null;
+}
+function recoverActiveCharacter(){
+  if(isDM()) return null;
+  const byId={};
+  const absorb=(ch)=>{
+    if(!ch || !ch.id || isGeneratedDefaultGhost(ch)) return;
+    byId[ch.id]=ch;
+  };
+  myCharacters.forEach(absorb);
+  Object.values(remoteCharacters).forEach(absorb);
+  Object.values(allCharactersById()).forEach(absorb);
+  const candidates=Object.values(byId);
+  if(!candidates.length) return null;
+  const activeCandidate=activeCharacterId ? candidates.find(ch=>ch.id===activeCharacterId || ch.runtimeId===activeCharacterId) : null;
+  const claimedByMe=candidates.find(ch=>characterClaim(ch.id)?.owner===myId);
+  const ownedByMe=candidates.find(ch=>ch.owner===myId || ch.claimedBy===myId || ch.isMe===true);
+  const placed=candidates.filter(ch=>characterX(ch)!=null && characterY(ch)!=null);
+  const candidate=activeCandidate || claimedByMe || ownedByMe || (placed.length===1 ? placed[0] : candidates.length===1 ? candidates[0] : null);
+  if(!candidate) return null;
+
+  const claim=characterClaim(candidate.id);
+  const canRepairClaim=!claim || claim.owner===myId || !wsReady || candidate.owner===myId || candidate.claimedBy===myId || candidate.isMe===true;
+  if(!canRepairClaim) return null;
+  characterClaims[candidate.id]={owner:myId,label:candidate.name||'Player',updatedAt:Date.now()};
+  activeCharacterId=candidate.id;
+  return promoteControlledCharacter({...candidate,owner:myId,claimedBy:myId},true);
+}
+function promoteControlledCharacter(ch,force=false){
+  if(!ch || isDM() || (!force && !canControlCharacter(ch))) return ch;
+  const existing=myCharacters.find(local=>local.id===ch.id);
+  if(existing){
+    existing.owner=myId;
+    existing.claimedBy=myId;
+    activeCharacterId=existing.id;
+    return existing;
+  }
+  const local=hydrateCharacter({...ch,owner:myId,claimedBy:myId});
+  myCharacters.push(local);
+  characterClaims[local.id]={owner:myId,label:local.name||'Player',updatedAt:Date.now()};
+  activeCharacterId=local.id;
+  removeRemoteCharacterCopies(local.id);
+  return local;
 }
 
 function normalizeCharacterClaims(raw={}){
@@ -4159,8 +4291,12 @@ function allCharactersById(){
   const latestRemoteById={};
   for(const ch of Object.values(remoteCharacters)){
     const claim=characterClaim(ch.id);
-    if(claim && ch.owner!==claim.owner) continue;
-    latestRemoteById[ch.id]=ch;
+    if(claim && ch.owner!==claim.owner){
+      if(claim.owner!==myId) continue;
+      latestRemoteById[ch.id]={...ch,owner:myId,claimedBy:myId};
+      continue;
+    }
+    latestRemoteById[ch.id]=claim?.owner===myId ? {...ch,owner:myId,claimedBy:myId} : ch;
   }
   const remoteValues=Object.values(latestRemoteById);
   const remoteCounts=remoteValues.reduce((counts,ch)=>{
@@ -6431,6 +6567,7 @@ function updateActiveSummary(){
       <div class="mini-stat"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
     </div>
     ${spellSlotControls(ch)}
+    ${featureResourceControls(ch)}
     <div class="tracker">
       <span>Damage / heal</span>
       <button onclick="adjustHP('${ch.id}',-1)">-</button>
@@ -6479,7 +6616,11 @@ function updateCombatPopout(){
   if(!title||!body) return;
   const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${prefix}: ${escapeHtml(item.name)}</span>
-    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(item.die||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+  </button>`;
+  const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
+    <span class="action-label">Feature: ${escapeHtml(item.name)}</span>
+    <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} Â· ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
   const turnUseLabel=id=>turnActionState.actorId===id?`${turnActionState.actionTaken?' · action used':''}${turnActionState.bonusActionTaken?' · bonus used':''}${turnActionState.reactionTaken?' · reaction used':''}`:'';
   const activeEnemy=isDM()&&activeEnemyUid ? enemyByUid(activeEnemyUid) : null;
@@ -6509,14 +6650,15 @@ function updateCombatPopout(){
   }
   const weapons=Array.isArray(ch.weapons)?ch.weapons:[];
   const spells=Array.isArray(ch.spells)?ch.spells:[];
+  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>item.actionCost&&item.actionCost!=='passive');
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   const friendly=selectedTargetCharacter();
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
   const moveUsed=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
   const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn · move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${turnUseLabel(ch.id)}` : 'Waiting for turn') : 'Free mode';
   title.textContent=`${ch.name} actions`;
-  if(!weapons.length&&!spells.length){
-    body.innerHTML=`<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons or spells on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
+  if(!weapons.length&&!spells.length&&!features.length){
+    body.innerHTML=`<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons, spells, or active features on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
     return;
   }
   body.innerHTML=`
@@ -6525,6 +6667,7 @@ function updateCombatPopout(){
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
       ${spells.map(s=>actionButtonHtml('Spell',s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
+      ${features.map(f=>featureButtonHtml(f,`useCharacterFeature('${ch.id}','${f.id}')`)).join('')}
     </div>`;
 }
 function buildIconGrid(){
@@ -6816,17 +6959,6 @@ function sheetCommandPanelHtml(ch,variant='main'){
         ${locked}
       </div>`;
   }
-  if(variant==='rest'){
-    return `
-      <div class="sheet-command-panel">
-        <div class="sheet-command-head"><b>${title} rest</b><button onclick="showRadialMenu(characterById('${ch.id}'))">Back</button></div>
-        <div class="sheet-command-grid">
-          <button onclick="radialRest('${ch.id}','short')">Short rest</button>
-          <button onclick="radialRest('${ch.id}','long')">Long rest</button>
-        </div>
-        ${locked}
-      </div>`;
-  }
   const state=normalizeRollState(ch?.rollState||{}).next;
   return `
     <div class="sheet-command-panel">
@@ -6837,7 +6969,6 @@ function sheetCommandPanelHtml(ch,variant='main'){
         <button onclick="showSheetCommandPanel('${ch.id}','skills')">Skills</button>
         <button onclick="showSheetCommandPanel('${ch.id}','saves')">Saves</button>
         <button onclick="radialActions('${ch.id}')">Actions</button>
-        <button onclick="showSheetCommandPanel('${ch.id}','rest')">Rest</button>
         <button class="wide advantage ${state==='advantage'?'roll-toggle on advantage':''}" onclick="setRollState('character','${ch.id}','next','advantage');showSheetCommandPanel('${ch.id}','main')">Advantage next roll</button>
         <button class="wide disadvantage ${state==='disadvantage'?'roll-toggle on disadvantage':''}" onclick="setRollState('character','${ch.id}','next','disadvantage');showSheetCommandPanel('${ch.id}','main')">Disadvantage next roll</button>
       </div>
@@ -6883,21 +7014,18 @@ function radialActions(id){
   document.getElementById('combat-popout')?.classList.remove('collapsed');
 }
 function radialRest(id,type){
-  const ch=characterById(id);
   hideRadialMenu();
-  if(!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Token');
-  if(type==='long') longRest(id);
-  else shortRest(id);
+  return partyRest(type);
 }
 function openRestWheel(id,x,y){
   const ch=characterById(id);
   if(!ch) return;
   const menu=document.getElementById('radial-menu');
   menu.classList.remove('skill-wheel');
-  menu.innerHTML=`<div class="radial-center">REST</div>
+  menu.innerHTML=`<div class="radial-center">DM REST</div>
     <button class="radial-btn" onclick="showRadialMenu(characterById('${id}'),${Math.round(x)},${Math.round(y)})">Back</button>
-    <button class="radial-btn" onclick="radialRest('${id}','short')">Short<br>Rest</button>
-    <button class="radial-btn" onclick="radialRest('${id}','long')">Long<br>Rest</button>`;
+    <button class="radial-btn" onclick="radialRest('${id}','short')">Party<br>Short</button>
+    <button class="radial-btn" onclick="radialRest('${id}','long')">Party<br>Long</button>`;
   const maxX=wrap.clientWidth-210, maxY=wrap.clientHeight-210;
   menu.style.left=Math.max(6,Math.min(maxX,x-101))+'px';
   menu.style.top=Math.max(6,Math.min(maxY,y-101))+'px';
@@ -6954,7 +7082,7 @@ function showSheet(ch,x,y,{hover=false}={}){
   }).join('');
   const death=ch.deathSaves || {success:0,fail:0};
   const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
-  const restControls=ch.isMe ? `<div class="death-row"><button onclick="shortRest('${ch.id}')">Short rest</button><button onclick="longRest('${ch.id}')">Long rest</button></div>` : '';
+  const restControls='';
   const statusList=normalizeStatuses(ch.statuses);
   pop.innerHTML=`
     <div class="sheet-top">
@@ -7787,6 +7915,81 @@ function changeCharacterSpellSlot(id,level,delta){
   syncCharacter(ch);
   scheduleSave();
 }
+function changeFeatureUse(id,name,delta){
+  const ch=characterById(id);
+  if(!ch) return;
+  if(!canControlCharacter(ch)) return showCritOverlay('Only the owner or DM can change feature uses','roll','Locked');
+  const max=featureUseMax(ch,name);
+  if(!max) return;
+  ch.featureUsage=ch.featureUsage||{};
+  const key=featureUseKey(name);
+  ch.featureUsage[key]=Math.max(0,Math.min(max,(Number(ch.featureUsage[key])||0)+delta));
+  updateAllPanels();
+  syncCharacter(ch);
+  scheduleSave();
+}
+function spellSlotsAvailable(character,level){
+  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  return Math.max(0,(slots[level]||0)-(Number(character?.spellSlotUsage?.[level])||0));
+}
+function chooseCastLevel(character,item){
+  const base=Math.max(0,Number(item.spellLevel)||0);
+  if(base<=0) return 0;
+  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  const options=SPELL_SLOT_LEVELS.filter(lvl=>lvl>=base && (slots[lvl]||0)>0 && spellSlotsAvailable(character,lvl)>0);
+  if(!options.length) return 0;
+  const preferred=Math.max(base,Math.min(9,Number(item.castLevel)||base));
+  return options.find(lvl=>lvl>=preferred) || options[0] || base;
+}
+function spendSpellSlot(character,level){
+  if(!level) return true;
+  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  if((slots[level]||0)<=0) return false;
+  character.spellSlotUsage=character.spellSlotUsage||{};
+  const used=Number(character.spellSlotUsage[level])||0;
+  if(used>=slots[level]) return false;
+  character.spellSlotUsage[level]=used+1;
+  return true;
+}
+function featureUseMax(ch,name=''){
+  const text=String(name).toLowerCase();
+  const level=Number(ch?.level)||1;
+  const resourceMax=Number(ch?.derived?.resourceMax)||0;
+  if(text.includes('rage')) return resourceMax || (level>=17?6:level>=12?5:level>=6?4:level>=3?3:2);
+  if(text.includes('bardic inspiration')) return resourceMax || Math.max(1,abilityMod(statsWithRace(ch).CHA||10));
+  if(text.includes('flurry of blows')||text.includes('patient defense')||text.includes('stunning strike')) return resourceMax || level;
+  if(text.includes('channel divinity')||text.includes('turn undead')) return resourceMax || (level>=6?2:1);
+  if(text.includes('wild shape')) return 2;
+  if(text.includes('lay on hands')) return level*5;
+  if(text.includes('action surge')) return level>=17?2:1;
+  if(text.includes('second wind')) return 1;
+  if(text.includes('divine smite')||text.includes('sneak attack')||text.includes('reckless attack')||text.includes('cunning action')) return 0;
+  return 0;
+}
+function featureUseKey(name=''){return String(name||'feature').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'feature'}
+function featureUsesLeft(ch,name=''){
+  const max=featureUseMax(ch,name);
+  if(!max) return Infinity;
+  const used=Number(ch?.featureUsage?.[featureUseKey(name)])||0;
+  return Math.max(0,max-used);
+}
+function spendFeatureUse(ch,name='',amount=1){
+  const max=featureUseMax(ch,name);
+  if(!max) return true;
+  const key=featureUseKey(name);
+  ch.featureUsage=ch.featureUsage||{};
+  const used=Number(ch.featureUsage[key])||0;
+  if(used+amount>max){
+    showCritOverlay(`${name} is out of uses`,'fail','No uses left');
+    return false;
+  }
+  ch.featureUsage[key]=used+amount;
+  return true;
+}
+function clearCharacterFeatureUse(ch,name=''){
+  if(!ch?.featureUsage) return;
+  delete ch.featureUsage[featureUseKey(name)];
+}
 function toggleStatus(id,status){
   const ch=myCharacters.find(c=>c.id===id);
   if(!ch) return;
@@ -7996,11 +8199,13 @@ function changeStatusRounds(id,status,delta){
   scheduleSave();
 }
 function applyCharacterPatch(id,patch={}){
-  let ch=myCharacters.find(c=>c.id===id);
-  if(!ch && remoteCharacters[id]) ch=remoteCharacters[id];
+  let ch=characterById(id);
   if(!ch) return null;
   if(patch.currentHP!=null) ch.currentHP=Math.max(0,Math.min(ch.derived?.HP||patch.currentHP,Number(patch.currentHP)||0));
   if(Array.isArray(patch.statuses)) ch.statuses=normalizeStatuses(patch.statuses);
+  if(patch.spellSlotUsage && typeof patch.spellSlotUsage==='object') ch.spellSlotUsage={...patch.spellSlotUsage};
+  if(patch.featureUsage && typeof patch.featureUsage==='object') ch.featureUsage={...patch.featureUsage};
+  if(patch.deathSaves && typeof patch.deathSaves==='object') ch.deathSaves={...patch.deathSaves};
   updateAllPanels();
   draw();
   scheduleSave();
@@ -8070,21 +8275,68 @@ function concentrationSpellName(name=''){
 function shortRest(id=activeCharacterId){
   const ch=myCharacters.find(c=>c.id===id);
   if(!ch||!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Rest');
-  const heal=Math.max(1,Math.ceil(ch.derived.HP/4));
-  ch.currentHP=Math.min(ch.derived.HP,(ch.currentHP||0)+heal);
-  addChatMessage({kind:'rest',character:ch.name,label:'Short rest',detail:`Recovered ${heal} HP`});
+  applyRestToCharacter(ch,'short');
   updateAllPanels(); syncCharacter(ch); scheduleSave();
 }
 function longRest(id=activeCharacterId){
   const ch=myCharacters.find(c=>c.id===id);
   if(!ch||!canControlCharacter(ch)) return showCritOverlay('Locked','roll','Rest');
-  if(normalizeStatuses(ch.statuses).some(s=>s.name==='Concentrating')) clearConcentration(id,'Long rest ended concentration');
-  ch.currentHP=ch.derived.HP;
-  ch.spellSlotUsage={};
-  ch.deathSaves={success:0,fail:0};
-  ch.statuses=normalizeStatuses(ch.statuses).filter(s=>!['Poisoned','Stunned','Guidance','Blessed','Bardic Inspiration','Concentrating'].includes(s.name));
-  addChatMessage({kind:'rest',character:ch.name,label:'Long rest',detail:'HP and spell slots restored'});
+  applyRestToCharacter(ch,'long');
   updateAllPanels(); syncCharacter(ch); scheduleSave();
+}
+function applyRestToCharacter(ch,type='short'){
+  if(!ch) return null;
+  ch.derived=ch.derived || calculateDerived(ch);
+  if(type==='long'){
+    if(normalizeStatuses(ch.statuses).some(s=>s.name==='Concentrating')) clearConcentration(ch.id,'Long rest ended concentration');
+    ch.currentHP=ch.derived.HP;
+    ch.spellSlotUsage={};
+    ch.featureUsage={};
+    ch.deathSaves={success:0,fail:0};
+    ch.statuses=normalizeStatuses(ch.statuses).filter(s=>!['Poisoned','Stunned','Guidance','Blessed','Bardic Inspiration','Concentrating','Invisible'].includes(s.name));
+    return ch;
+  }
+  const heal=Math.max(1,Math.ceil(ch.derived.HP/4));
+  ch.currentHP=Math.min(ch.derived.HP,(ch.currentHP||0)+heal);
+  ['Second Wind','Action Surge','Flurry of Blows','Patient Defense','Stunning Strike','Channel Divinity','Wild Shape','Bardic Inspiration'].forEach(name=>clearCharacterFeatureUse(ch,name));
+  return ch;
+}
+function restPatchForCharacter(ch){
+  return {
+    id:ch.id,
+    currentHP:ch.currentHP,
+    statuses:normalizeStatuses(ch.statuses),
+    spellSlotUsage:{...(ch.spellSlotUsage||{})},
+    featureUsage:{...(ch.featureUsage||{})},
+    deathSaves:{...(ch.deathSaves||{success:0,fail:0})}
+  };
+}
+function applyPartyRestPatches(patches=[]){
+  for(const patch of patches){
+    if(!patch?.id) continue;
+    applyCharacterPatch(patch.id,patch);
+  }
+  updateAllPanels();
+  draw();
+  scheduleSave();
+}
+function partyRest(type='short',broadcastChange=true){
+  if(!isDM()) return requireDM();
+  const characters=Object.values(allCharactersById()).filter(ch=>ch && ch.id && !ch.isEnemy && !isGeneratedDefaultGhost(ch));
+  if(!characters.length) return showCritOverlay('No party members found','roll','Rest');
+  pushDMUndo(type==='long'?'long rest party':'short rest party');
+  const patches=[];
+  for(const character of characters){
+    const ch=characterById(character.id) || character;
+    applyRestToCharacter(ch,type);
+    patches.push(restPatchForCharacter(ch));
+  }
+  const label=type==='long'?'Long rest':'Short rest';
+  const detail=type==='long'?'Party HP, slots, features, and death saves restored':'Party recovers HP and short-rest features';
+  addChatMessage({kind:'rest',character:'DM',label,detail});
+  applyPartyRestPatches(patches);
+  if(broadcastChange) broadcast({type:'partyRest',restType:type,patches,label,detail});
+  showCritOverlay(`${label}: party updated`,'roll','Rest');
 }
 function markDeathSave(id,type){
   const ch=myCharacters.find(c=>c.id===id);
@@ -8194,6 +8446,41 @@ function rollSimpleDie(sides){
   setTimeout(()=>showCritOverlay(effect.text,effect.overlayType,effect.title),850);
   emitLiveEffect({kind:'roll',...effect,roll:{roll:result.rolls[0],mod:0,total:result.total,character:ch?.name || 'Player',rolls:result.d20Rolls,rollMode:result.rollMode},diceSides:sides,diceLabel:effect.title||`d${sides}`});
 }
+function hasStatusNamed(entity,name){
+  return normalizeStatuses(entity?.statuses||[]).some(s=>s.name===name);
+}
+function removeStatusNamed(entity,name){
+  if(!entity) return entity;
+  entity.statuses=normalizeStatuses(entity.statuses||[]).filter(s=>s.name!==name);
+  return entity;
+}
+function sneakAttackFormula(ch){
+  return `${Math.max(1,Math.ceil((Number(ch?.level)||1)/2))}d6`;
+}
+function applyDamageRiders(ch,target,critical=false){
+  const riders=[];
+  if(hasStatusNamed(ch,'Sneak Attack ready')){
+    const formula=sneakAttackFormula(ch);
+    const roll=rollDiceExpression(formula,0);
+    const amount=critical ? roll.total*2 : roll.total;
+    riders.push({name:'Sneak Attack',formula,roll,amount});
+    removeStatusNamed(ch,'Sneak Attack ready');
+  }
+  if(hasStatusNamed(ch,'Divine Smite ready')){
+    const slot=chooseCastLevel(ch,{name:'Divine Smite',spellLevel:1,castLevel:1}) || 1;
+    const spent=spendSpellSlot(ch,slot);
+    if(spent){
+      const formula=`${Math.max(2,slot+1)}d8`;
+      const roll=rollDiceExpression(formula,0);
+      const amount=critical ? roll.total*2 : roll.total;
+      riders.push({name:`Divine Smite L${slot}`,formula,roll,amount});
+    }
+    removeStatusNamed(ch,'Divine Smite ready');
+  }
+  if(!riders.length) return {total:0,detail:'',riders};
+  const total=riders.reduce((sum,r)=>sum+r.amount,0);
+  return {total,riders,detail:riders.map(r=>`${r.name} ${r.formula} [${r.roll.rolls.join(', ')}]${critical?' x2':''} = ${r.amount}`).join(' + ')};
+}
 function rollCharacterAction(characterId,type,itemId){
   const ch=characterById(characterId);
   if(!ch) return;
@@ -8204,53 +8491,65 @@ function rollCharacterAction(characterId,type,itemId){
   if(!canUseTurnAction(ch,actionCost)) return;
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
-  if(isAoeAction(item)){ markTurnAction(actionCost,characterId); return rollAoeAction(ch,'character',type,item,actionType); }
+  const castLevel=type==='spell' ? chooseCastLevel(ch,item) : 0;
+  if(type==='spell' && Number(item.spellLevel)>0){
+    if(!castLevel) return showCritOverlay('No spell slot available','fail','Spell slots');
+    if(!spendSpellSlot(ch,castLevel)) return showCritOverlay(`No L${castLevel} slots left`,'fail','Spell slots');
+  }
+  const castItem=type==='spell' ? {...item,castLevel} : item;
+  if(isAoeAction(castItem)){ markTurnAction(actionCost,characterId); syncCharacter(ch); return rollAoeAction(ch,'character',type,castItem,actionType); }
   const friendly=selectedTargetCharacter();
   if(actionType==='healing'){
     markTurnAction(actionCost,characterId);
     const target=friendly||ch;
-    const roll=rollDiceExpression('1'+item.die,item.bonus);
+    const roll=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
     const before=target.currentHP ?? target.derived.HP;
     const after=Math.min(target.derived.HP,before+roll.total);
     campaignStat('healingDone',Math.max(0,after-before));
     applyCharacterPatch(target.id,{currentHP:after});
-    addChatMessage({kind:'heal',character:ch.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
-    const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${item.die} ${formatBonus(item.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
+    addChatMessage({kind:'heal',character:ch.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})${castLevel?` using L${castLevel}`:''}`,total:roll.total,rolls:roll.rolls});
+    const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${diceFormulaForAction(castItem)} ${formatBonus(castItem.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx('heal');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
     playActionAnimation(ch,'spell',effect);
     emitLiveEffect(effect);
+    syncCharacter(ch);
     updateCombatPopout();
     return;
   }
   if(actionType==='buff'||actionType==='utility'){
     markTurnAction(actionCost,characterId);
     const target=friendly||ch;
-    const effectName=item.effect||item.name||'Buff';
+    const effectName=castItem.effect||item.name||'Buff';
     const conc=concentrationSpellName(effectName||item.name);
     const casterAfter=conc ? setConcentration(ch.id,effectName) : ch;
     const statusMeta=conc ? {sourceId:ch.id,sourceSpell:effectName,concentration:true} : {};
     const updated=actionType==='buff' ? addCharacterStatus(target.id,effectName,10,statusMeta) : target;
-    addChatMessage({kind:actionType,character:ch.name,label:item.name,detail:`${effectName} applied to ${target.name}`});
+    addChatMessage({kind:actionType,character:ch.name,label:item.name,detail:`${effectName} applied to ${target.name}${castLevel?` using L${castLevel}`:''}`});
     const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:effectName,kind:actionType,characterId:ch.id,targetCharacterId:target.id,currentHP:updated?.currentHP, statuses:updated?.statuses||target.statuses,casterStatuses:casterAfter?.statuses||ch.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx(actionType==='buff'?'buff':'spell');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
     playActionAnimation(ch,'spell',effect);
     emitLiveEffect(effect);
+    syncCharacter(ch);
     updateCombatPopout();
     return;
   }
   const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack');
-  const damage=rollDiceExpression('1'+item.die,item.bonus);
+  const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
-  if(!target) return showCritOverlay('Choose an enemy target first','roll','Attack');
+  if(!target){
+    if(type==='spell' && castLevel) changeCharacterSpellSlot(ch.id,castLevel,-1);
+    return showCritOverlay('Choose an enemy target first','roll','Attack');
+  }
   markTurnAction(actionCost,characterId);
   const natural=keptD20(attack);
   const critical=isAttackCrit(attack);
   const fumble=isAttackFumble(attack);
   const hitTarget=target && !fumble && (critical || attack.total>=target.ac);
   const rolledDamage=damage.total;
-  const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) : 0;
+  const riderResult=hitTarget ? applyDamageRiders(ch,target,critical) : {total:0,detail:'',riders:[]};
+  const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) + riderResult.total : 0;
   const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   const hpBefore=target ? target.hp : null;
   let hpAfter=target ? target.hp : null;
@@ -8271,7 +8570,7 @@ function rollCharacterAction(characterId,type,itemId){
     kind:type,
     character:ch.name,
     label:item.name,
-    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,ch.derived.attackBonus)}] - Damage ${rolledDamage} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]${critical?` x2 = ${appliedDamage}`:''}${backfireDamage?` - Nat 1 backfire ${backfireDamage} to ${ch.name}`:''}`,
+    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,ch.derived.attackBonus)}] - Damage ${rolledDamage} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]${critical?` x2`:''}${riderResult.detail?` + ${riderResult.detail}`:''} = ${appliedDamage||rolledDamage}${castLevel?` using L${castLevel}`:''}${backfireDamage?` - Nat 1 backfire ${backfireDamage} to ${ch.name}`:''}`,
     total:appliedDamage||attack.total,
     rolls:damage.rolls
   });
@@ -8280,14 +8579,14 @@ function rollCharacterAction(characterId,type,itemId){
       kind:'target',
       character:'Table',
       label:`${hitTarget?'Hit':'Miss'} ${target.name}`,
-      detail:`Attack ${attack.total} (${rollD20AttackDetail(attack,ch.derived.attackBonus)}) vs AC ${target.ac}${hitTarget?` - ${appliedDamage} damage, HP ${target.hp}/${target.maxHP}`:backfireDamage?` - Nat 1, ${ch.name} takes ${backfireDamage}`:''}`
+      detail:`Attack ${attack.total} (${rollD20AttackDetail(attack,ch.derived.attackBonus)}) vs AC ${target.ac}${hitTarget?` - ${appliedDamage} damage${riderResult.detail?` (${riderResult.detail})`:''}, HP ${target.hp}/${target.maxHP}`:backfireDamage?` - Nat 1, ${ch.name} takes ${backfireDamage}`:''}`
     });
   }
   const effect=critical
     ? {text:`${ch.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Double damage'}
     : fumble
       ? {text:`${ch.name} fumbles and takes ${backfireDamage}`,overlayType:'fail',title:'Backfire'}
-      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${item.die} ${formatBonus(item.bonus)}`};
+      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${diceFormulaForAction(item)} ${formatBonus(item.bonus)}`};
   playSfx(critical?'nat20':fumble?'nat1':hitTarget?'hit':'miss');
   if(hitTarget && target?.hp<=0) playSfx('enemyDown');
   showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:ch.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
@@ -8316,9 +8615,160 @@ function rollCharacterAction(characterId,type,itemId){
   };
   playActionAnimation(ch,type,actionPayload);
   emitLiveEffect(actionPayload);
+  syncCharacter(ch);
   updateActiveSummary();
   updateCombatPopout();
   draw();
+  scheduleSave();
+}
+function useCharacterFeature(characterId,itemId){
+  const ch=characterById(characterId);
+  if(!ch) return;
+  if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
+  const item=[...(ch.abilities||[]),...(ch.bonusActions||[])].find(x=>x.id===itemId);
+  if(!item) return;
+  const actionCost=item.actionCost||'passive';
+  if(actionCost==='passive') return showCritOverlay(item.description||'Passive feature','roll',item.name);
+  if(!canUseTurnAction(ch,actionCost)) return;
+  const name=String(item.name||'').toLowerCase();
+  const friendly=selectedTargetCharacter();
+  const enemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
+  const selfTarget=ch;
+  const target=friendly||selfTarget;
+  const finish=(effect)=>{
+    playSfx(effect.kind==='heal'?'heal':effect.kind==='buff'?'buff':'spell');
+    showCritOverlay(effect.text,effect.overlayType||'roll',effect.title||item.name);
+    playActionAnimation(ch,'spell',effect);
+    emitLiveEffect(effect);
+    syncCharacter(ch);
+    updateActiveSummary();
+    updateCombatPopout();
+    draw();
+    scheduleSave();
+  };
+  const baseEffect={characterId:ch.id,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:item.actionType||'utility'};
+  if(name.includes('action surge')){
+    if(!spendFeatureUse(ch,'Action Surge')) return;
+    const state=turnActionState.actorId===ch.id ? {...turnActionState} : {actorId:ch.id,movementUsed:0,moved:false};
+    state.actionTaken=false;
+    state.acted=!!(state.bonusActionTaken||state.reactionTaken||state.moved);
+    state.reason='Action Surge';
+    state.at=Date.now();
+    turnActionState=state;
+    broadcast({type:'turnAction',turnActionState});
+    addChatMessage({kind:'feature',character:ch.name,label:'Action Surge',detail:'Action refreshed for this turn'});
+    return finish({...baseEffect,kind:'feature',text:`${ch.name} surges and regains an action`,title:'Action refreshed'});
+  }
+  markTurnAction(actionCost,characterId);
+  if(name.includes('second wind')){
+    if(!spendFeatureUse(ch,'Second Wind')) return;
+    const roll=rollDiceExpression('1d10',Number(ch.level)||1);
+    const before=ch.currentHP ?? ch.derived.HP;
+    const after=Math.min(ch.derived.HP,before+roll.total);
+    applyCharacterPatch(ch.id,{currentHP:after});
+    addChatMessage({kind:'heal',character:ch.name,label:'Second Wind',detail:`Heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
+    return finish({...baseEffect,kind:'heal',text:`Second Wind: ${ch.name} heals ${roll.total}`,title:`1d10 + ${ch.level}`,currentHP:after,targetCharacterId:ch.id});
+  }
+  if(name.includes('lay on hands')){
+    const pool=Math.max(1,(Number(ch.level)||1)*5);
+    const left=featureUsesLeft(ch,'Lay on Hands');
+    const amount=Math.max(1,Math.min(left,pool,Number(prompt(`Lay on Hands HP to spend (${left}/${pool} left)`,'5'))||5));
+    if(!spendFeatureUse(ch,'Lay on Hands',amount)) return;
+    const before=target.currentHP ?? target.derived.HP;
+    const after=Math.min(target.derived.HP,before+amount);
+    applyCharacterPatch(target.id,{currentHP:after});
+    addChatMessage({kind:'heal',character:ch.name,label:'Lay on Hands',detail:`${target.name} heals ${amount} HP (${before} -> ${after})`});
+    return finish({...baseEffect,kind:'heal',text:`Lay on Hands: ${target.name} heals ${amount}`,title:`${amount} HP`,targetCharacterId:target.id,currentHP:after});
+  }
+  if(name.includes('rage')){
+    if(!spendFeatureUse(ch,'Rage')) return;
+    const updated=addCharacterStatus(ch.id,'Rage',10,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Rage',detail:'Rage active. Track melee bonus and resistance.'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} enters Rage`,title:'Rage',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  if(name.includes('reckless attack')){
+    const state=normalizeRollState(ch.rollState||{});
+    state.next='advantage';
+    ch.rollState=state;
+    persistRollStateActor(ch);
+    const updated=addCharacterStatus(ch.id,'Reckless',1,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Reckless Attack',detail:'Next attack has advantage. Incoming attacks should be treated as advantaged.'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} attacks recklessly`,title:'Next attack advantage',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  if(name.includes('cunning action')){
+    const choice=prompt('Cunning Action: Dash, Disengage, or Hide','Dash')||'Dash';
+    addChatMessage({kind:'feature',character:ch.name,label:'Cunning Action',detail:choice});
+    return finish({...baseEffect,kind:'feature',text:`Cunning Action: ${choice}`,title:'Bonus action'});
+  }
+  if(name.includes('bardic inspiration')){
+    if(!spendFeatureUse(ch,'Bardic Inspiration')) return;
+    const updated=addCharacterStatus(target.id,'Bardic Inspiration',10,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Bardic Inspiration',detail:`${target.name} gains an inspiration die for a future roll`});
+    return finish({...baseEffect,kind:'buff',text:`${target.name} is inspired`,title:'Bardic Inspiration',targetCharacterId:target.id,statuses:updated?.statuses});
+  }
+  if(name.includes('guidance')){
+    const updated=addCharacterStatus(target.id,'Guidance',10,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Guidance',detail:`${target.name} gains +1d4 on the next ability/skill check`});
+    return finish({...baseEffect,kind:'buff',text:`Guidance: ${target.name}`,title:'+1d4 next check',targetCharacterId:target.id,statuses:updated?.statuses});
+  }
+  if(name.includes('bless')){
+    const updated=addCharacterStatus(target.id,'Blessed',10,{sourceId:ch.id,sourceFeature:item.name,concentration:true});
+    setConcentration(ch.id,'Bless');
+    addChatMessage({kind:'buff',character:ch.name,label:'Bless',detail:`${target.name} gains +1d4 on attacks and saves`});
+    return finish({...baseEffect,kind:'buff',text:`Bless: ${target.name}`,title:'+1d4 attacks/saves',targetCharacterId:target.id,statuses:updated?.statuses});
+  }
+  if(name.includes('patient defense')){
+    if(!spendFeatureUse(ch,'Patient Defense')) return;
+    const updated=addCharacterStatus(ch.id,'Patient Defense',1,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Patient Defense',detail:'Defensive stance active this round'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} takes Patient Defense`,title:'Defense',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  if(name.includes('stunning strike')){
+    if(!spendFeatureUse(ch,'Stunning Strike')) return;
+    if(!enemy) return showCritOverlay('Choose an enemy target first','roll','Stunning Strike');
+    const updated=addEnemyStatus(enemy.uid,'Stunned',1);
+    addChatMessage({kind:'buff',character:ch.name,label:'Stunning Strike',detail:`${enemy.name} marked stunned pending save/adjudication`});
+    return finish({...baseEffect,kind:'buff',text:`Stunning Strike: ${enemy.name}`,title:'Stunned',targetUid:enemy.uid,tx:enemy.x,ty:enemy.y,statuses:updated?.statuses});
+  }
+  if(name.includes('flurry of blows')){
+    if(!spendFeatureUse(ch,'Flurry of Blows')) return;
+    addChatMessage({kind:'feature',character:ch.name,label:'Flurry of Blows',detail:'Spend ki and make two extra unarmed strikes'});
+    return finish({...baseEffect,kind:'feature',text:`${ch.name} uses Flurry of Blows`,title:'Two extra strikes'});
+  }
+  if(name.includes('divine smite')){
+    const updated=addCharacterStatus(ch.id,'Divine Smite ready',1,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Divine Smite',detail:'Smite primed for the next melee hit. Spend a slot manually.'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} primes Divine Smite`,title:'Smite ready',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  if(name.includes('sneak attack')){
+    const updated=addCharacterStatus(ch.id,'Sneak Attack ready',1,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Sneak Attack',detail:'Damage rider primed for this turn if conditions are met'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} readies Sneak Attack`,title:'Sneak Attack',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  if(name.includes('channel divinity')||name.includes('turn undead')){
+    if(!spendFeatureUse(ch,'Channel Divinity')) return;
+    const effectName=name.includes('turn undead')?'Turn Undead':'Channel Divinity';
+    addChatMessage({kind:'feature',character:ch.name,label:effectName,detail:item.description||'Divine feature used'});
+    return finish({...baseEffect,kind:'feature',text:`${ch.name}: ${effectName}`,title:effectName});
+  }
+  if(name.includes('wild shape')){
+    if(!spendFeatureUse(ch,'Wild Shape')) return;
+    const updated=addCharacterStatus(ch.id,'Wild Shape',10,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Wild Shape',detail:'Form active. Use DM ruling/stat notes for the chosen beast.'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} uses Wild Shape`,title:'Wild Shape',targetCharacterId:ch.id,statuses:updated?.statuses});
+  }
+  const actionType=item.actionType||'utility';
+  let updated=target;
+  if(actionType==='buff'){
+    updated=addCharacterStatus(target.id,item.effect||item.name,10,{sourceId:ch.id,sourceFeature:item.name});
+  }
+  addChatMessage({kind:actionType,character:ch.name,label:item.name,detail:item.description||`${item.actionCost||'feature'} used on ${target.name}`});
+  const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:item.effect||item.name,kind:actionType,characterId:ch.id,targetCharacterId:target.id,currentHP:updated?.currentHP,statuses:updated?.statuses||target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
+  playSfx(actionType==='buff'?'buff':'spell');
+  showCritOverlay(effect.text,effect.overlayType,effect.title);
+  playActionAnimation(ch,'spell',effect);
+  emitLiveEffect(effect);
+  updateCombatPopout();
   scheduleSave();
 }
 function addEnemyStatus(uid,status,rounds=10){
@@ -8370,9 +8820,8 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   const radius=Number(item.aoeRadius)||40;
   const center=aoeCenter(caster,item);
   const targets=aoeTargetsFor(casterKind,item.targetMode,center,radius,actionType);
-  if(!targets.length) return showCritOverlay('No targets in area','roll','AoE');
   if(isDM()) pushDMUndo('area action');
-  const damage=rollDiceExpression('1'+item.die,item.bonus);
+  const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
   const effectName=item.effect||item.name||'Effect';
   const results=[];
   let affected=0;
@@ -8403,12 +8852,12 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   const casterName=caster.name||'Caster';
   const crits=results.filter(result=>result.critical).length;
   const detail=actionType==='damage'
-    ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}`
+    ? (targets.length ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}` : `Area cast. No targets inside radius ${radius}px.`)
     : actionType==='healing'
-      ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}`
-      : `${effectName} applied to ${affected} target${affected===1?'':'s'}`;
+      ? (targets.length ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}` : `Area cast. No allies inside radius ${radius}px.`)
+      : (targets.length ? `${effectName} applied to ${affected} target${affected===1?'':'s'}` : `${effectName} area placed. No targets inside radius ${radius}px.`);
   addChatMessage({kind:type,character:casterName,label:`${item.name} AoE`,detail,total:damage.total,rolls:damage.rolls});
-  const effect={kind:'aoe',text:`${item.name}: ${affected}/${targets.length} affected${crits?` (${crits} crit${crits===1?'':'s'})`:''}`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
+  const effect={kind:'aoe',text:targets.length?`${item.name}: ${affected}/${targets.length} affected${crits?` (${crits} crit${crits===1?'':'s'})`:''}`:`${item.name}: area cast`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
   playSfx(actionType==='healing'?'heal':actionType==='damage'?(affected?'hit':'miss'):'buff');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(caster,type,effect);
@@ -8433,7 +8882,7 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(actionType==='healing'){
     markTurnAction(actionCost,enemy.uid);
     const target=targetEnemy||enemy;
-    const roll=rollDiceExpression('1'+item.die,item.bonus);
+    const roll=rollDiceExpression(diceFormulaForAction(item),item.bonus);
     const before=target.hp;
     target.hp=Math.min(target.maxHP,target.hp+roll.total);
     addChatMessage({kind:'heal',character:enemy.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${target.hp})`,total:roll.total,rolls:roll.rolls});
@@ -8459,7 +8908,7 @@ function rollEnemyAction(enemyUid,type,itemId){
     return;
   }
   const attack=rollWithBuffs(enemy,'1d20',enemy.attackBonus||0,'attack');
-  const damage=rollDiceExpression('1'+item.die,item.bonus);
+  const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
   const target=targetCharacter||targetEnemy;
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
   markTurnAction(actionCost,enemy.uid);
@@ -9172,6 +9621,7 @@ function markTurnAction(reason='action',id=activeCharacterId){
   if(cost==='bonus') state.bonusActionTaken=true;
   if(cost==='reaction') state.reactionTaken=true;
   turnActionState=state;
+  broadcast({type:'turnAction',turnActionState});
   updateFloatingEndTurn();
   updateEndTurnButton();
 }
@@ -10020,6 +10470,10 @@ function connectWS(){
           turnActionState=msg.turnActionState||{};
           updateAllPanels();
           scheduleSave();
+        } else if(msg.type==='partyRest'){
+          applyPartyRestPatches(Array.isArray(msg.patches)?msg.patches:[]);
+          addChatMessage({kind:'rest',character:'DM',label:msg.label || (msg.restType==='long'?'Long rest':'Short rest'),detail:msg.detail || 'Party rest applied'});
+          showCritOverlay(`${msg.label || 'Party rest'} applied`,'roll','Rest');
         } else if(msg.type==='tradeOffer'){
           const offer=normalizeTradeOffer(msg.offer);
           if(offer && canHandleTradeOffer(offer)){
@@ -10072,6 +10526,9 @@ function ensureDefaultCharacter(force=false){
 }
 function escapeHtml(value){
   return String(value ?? '').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]));
+}
+function escapeAttr(value){
+  return escapeHtml(value).replace(/`/g,'&#096;');
 }
 function campaignQuery(){
   return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID);

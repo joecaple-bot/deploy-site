@@ -165,6 +165,30 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .suggestion{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:8px;background:#111419}
 .suggestion b{display:block;font-size:12px}
 .suggestion span{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+.level-modal-overlay{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);padding:22px}
+.level-modal-overlay.show{display:flex}
+.level-modal{width:min(1040px,96vw);max-height:92vh;overflow:auto;border:1px solid rgba(202,168,107,.72);border-radius:16px;background:linear-gradient(145deg,rgba(29,20,12,.98),rgba(9,8,7,.98));box-shadow:0 30px 120px rgba(0,0,0,.75),0 0 42px rgba(255,145,45,.16);padding:18px}
+.level-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid rgba(202,168,107,.28);padding-bottom:12px;margin-bottom:14px}
+.level-modal-head h2{font-size:28px;color:#ffe8a8;text-shadow:0 0 18px rgba(255,145,45,.24)}
+.level-modal-head p{margin-top:4px}
+.level-modal-close{width:34px;height:34px}
+.level-modal-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:12px}
+.level-choice-panel{border:1px solid rgba(202,168,107,.36);border-radius:12px;background:rgba(9,8,7,.58);padding:12px}
+.level-choice-panel h3{color:#ffe8a8;margin-bottom:8px}
+.level-choice-list{display:grid;gap:7px}
+.level-choice{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:flex-start;border:1px solid rgba(202,168,107,.24);border-radius:10px;background:rgba(255,255,255,.035);padding:9px}
+.level-choice input[type="radio"],.level-choice input[type="checkbox"]{width:auto;margin-top:2px}
+.level-choice b{display:block;font-size:13px}
+.level-choice span{display:block;font-size:11px;color:var(--muted);line-height:1.35;margin-top:2px}
+.level-spell-list{display:grid;grid-template-columns:1fr 1fr;gap:7px;max-height:310px;overflow:auto}
+.level-spell-list .level-choice{min-height:74px}
+.level-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;border-top:1px solid rgba(202,168,107,.22);padding-top:12px}
+.level-modal-actions button{padding:10px 14px}
+.level-summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.level-summary-card{border:1px solid rgba(202,168,107,.32);border-radius:10px;background:rgba(202,168,107,.08);padding:10px}
+.level-summary-card b{display:block;font-size:20px;color:#fff2d0}
+.level-summary-card span{font-size:10px;color:var(--muted);text-transform:uppercase}
+@media(max-width:900px){.level-modal-grid,.level-summary-strip,.level-spell-list{grid-template-columns:1fr}.level-modal{padding:14px}.level-modal-head h2{font-size:22px}}
 .skills-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .skill-row{display:grid;grid-template-columns:1fr auto auto 58px;gap:6px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:8px;background:#111419}
 .skill-row b{font-size:12px}
@@ -551,6 +575,13 @@ label,h3{color:#cba86e}
         </div>
       </div>
 
+      <div class="section" data-builder-section="identity">
+        <div class="panel-head"><h3>Level Up Helper</h3></div>
+        <div class="section-body">
+          <div class="level-panel" id="level-helper"></div>
+        </div>
+      </div>
+
       <div class="section" data-builder-section="notes">
         <div class="panel-head"><h3>Character Notes</h3></div>
         <div class="section-body">
@@ -578,13 +609,6 @@ label,h3{color:#cba86e}
         <div class="section-body">
           <div class="derived" id="derived"></div>
           <div class="pill-row" id="traits" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-      <div class="section" data-builder-section="traits">
-        <div class="panel-head"><h3>Level Up Helper</h3></div>
-        <div class="section-body">
-          <div class="level-panel" id="level-helper"></div>
         </div>
       </div>
 
@@ -691,6 +715,7 @@ label,h3{color:#cba86e}
   </main>
 </div>
 <div id="toast"></div>
+<div id="level-up-overlay" class="level-modal-overlay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets_manifest.js"></script>
@@ -807,6 +832,7 @@ let selectedId=null;
 let selectedIcon='🧙';
 let selectedTokenArt='';
 let saveTimer=null;
+let levelUpDraft=null;
 let cloudClient=null;
 let cloudReady=false;
 let applyingCloudState=false;
@@ -961,6 +987,7 @@ function hydrateCharacter(raw={}){
     abilities:Array.isArray(raw.abilities)?raw.abilities.map(normalizeTextItem):[],
     bonusActions:Array.isArray(raw.bonusActions)?raw.bonusActions.map(normalizeTextItem):[],
     spellSlotUsage:raw.spellSlotUsage&&typeof raw.spellSlotUsage==='object'?raw.spellSlotUsage:{},
+    featureUsage:raw.featureUsage&&typeof raw.featureUsage==='object'?raw.featureUsage:{},
     accountOwnerUserId:raw.accountOwnerUserId||'',
     owner:raw.owner||BUILDER_PLAYER_ID
   };
@@ -970,24 +997,33 @@ function hydrateCharacter(raw={}){
   return character;
 }
 function normalizeActionItem(item={}){
-  const inferred=inferActionType(item);
+  const overrides=spellControlOverrides(item);
+  const inferred=overrides.actionType||inferActionType(item);
   const cost=inferActionCost(item);
+  const diceCount=Math.max(1,Math.min(20,Number(item.diceCount)||diceCountFromFormula(item.damageFormula)||1));
+  const die=DAMAGE_DICE.includes(item.die)?item.die:dieFromFormula(item.damageFormula)||'d6';
+  const spellLevel=Math.max(0,Math.min(9,Number(item.spellLevel)||0));
+  const targetMode=overrides.targetMode||item.targetMode;
   return {
     id:item.id||'a_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name||'New action',
-    die:DAMAGE_DICE.includes(item.die)?item.die:'d6',
+    die,
+    diceCount,
+    damageFormula:validDiceFormula(item.damageFormula)?item.damageFormula:`${diceCount}${die}`,
+    upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
-    actionType:ACTION_TYPES.includes(item.actionType)?item.actionType:inferred,
+    actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType)?(overrides.actionType||item.actionType):inferred,
     actionCost:ACTION_COSTS.includes(item.actionCost)?item.actionCost:cost,
-    targetMode:TARGET_MODES.includes(item.targetMode)?item.targetMode:'single',
-    aoeRadius:Math.max(0,Math.min(240,Number(item.aoeRadius)||0)),
+    targetMode:TARGET_MODES.includes(targetMode)?targetMode:'single',
+    aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(item)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
-    spellLevel:Math.max(0,Math.min(9,Number(item.spellLevel)||0)),
+    spellLevel,
+    castLevel:Math.max(spellLevel,Math.min(9,Number(item.castLevel)||spellLevel)),
     castingTime:item.castingTime||'',
     range:item.range||'',
     concentration:!!item.concentration,
     sourceClass:item.sourceClass||'',
-    effect:item.effect||defaultActionEffect(item.name||'',inferred),
+    effect:overrides.effect||item.effect||defaultActionEffect(item.name||'',inferred),
     description:item.description||'',
     sourceItemId:item.sourceItemId||''
   };
@@ -1000,6 +1036,9 @@ function inferActionCost(item={}){
   if(text.includes('passive')) return 'passive';
   return 'action';
 }
+function validDiceFormula(value=''){return /^\d+d(4|6|8|10|12)$/i.test(String(value).trim())}
+function diceCountFromFormula(value=''){const m=String(value).trim().match(/^(\d+)d/i);return m?Number(m[1]):0}
+function dieFromFormula(value=''){const m=String(value).trim().match(/d(4|6|8|10|12)$/i);return m?'d'+m[1]:''}
 function inferActionType(item={}){
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
   if(/heal|cure|restor|word/.test(text)) return 'healing';
@@ -1012,6 +1051,18 @@ function defaultActionEffect(name='',type='damage'){
   if(type==='healing') return 'Healing';
   if(type==='utility') return 'Utility';
   return '';
+}
+function spellControlOverrides(item={}){
+  const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
+  if(text.includes('grease')) return {actionType:'utility',targetMode:'enemies',effect:'Prone',aoeRadius:60};
+  return {};
+}
+function normalizedAoeRadius(item={}){
+  let radius=Math.max(0,Math.min(240,Number(item.aoeRadius)||0));
+  const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''}`.toLowerCase();
+  if(text.includes('cone')) radius=Math.max(radius,60);
+  if(text.includes('10 ft. square')||text.includes('10 ft square')) radius=Math.max(radius,50);
+  return radius;
 }
 function normalizeInventoryItem(item={}){
   const statBonuses={};
@@ -1044,7 +1095,18 @@ function canMakeInventoryWeapon(item={}){
   return !!inventoryWeaponProfile(item);
 }
 function normalizeTextItem(item={}){
-  return {id:item.id||'t_'+Date.now()+Math.random().toString(36).slice(2,7),name:item.name||'New ability',description:item.description||''};
+  const def=FEATURE_LIBRARY[item.name]||{};
+  const type=ACTION_TYPES.includes(item.actionType)?item.actionType:(def.actionType||'utility');
+  return {
+    id:item.id||'t_'+Date.now()+Math.random().toString(36).slice(2,7),
+    name:item.name||'New ability',
+    description:item.description||def.description||'',
+    actionCost:ACTION_COSTS.includes(item.actionCost)?item.actionCost:(def.actionCost||'passive'),
+    actionType:type,
+    effect:item.effect||def.effect||defaultActionEffect(item.name||'',type),
+    targetMode:TARGET_MODES.includes(item.targetMode)?item.targetMode:(def.targetMode||'single'),
+    source:item.source||''
+  };
 }
 function ensureSupabaseClient(){
   if(!window.supabase||!SUPABASE_URL||!SUPABASE_PUBLIC_KEY) return null;
@@ -1529,6 +1591,7 @@ function readActionItems(type){
     id:row.dataset.id,
     name:row.querySelector(`[data-${type}-name]`)?.value.trim(),
     die:row.querySelector(`[data-${type}-die]`)?.value,
+    diceCount:row.querySelector(`[data-${type}-dice-count]`)?.value,
     bonus:row.querySelector(`[data-${type}-bonus]`)?.value,
     actionType:row.querySelector(`[data-${type}-action-type]`)?.value,
     actionCost:row.querySelector(`[data-${type}-action-cost]`)?.value,
@@ -1536,6 +1599,8 @@ function readActionItems(type){
     aoeRadius:row.querySelector(`[data-${type}-aoe-radius]`)?.value,
     saveDC:row.querySelector(`[data-${type}-save-dc]`)?.value,
     spellLevel:row.querySelector(`[data-${type}-spell-level]`)?.value,
+    castLevel:row.querySelector(`[data-${type}-cast-level]`)?.value,
+    upcastDice:row.dataset.upcastDice||'',
     castingTime:row.dataset.castingTime||'',
     range:row.dataset.range||'',
     concentration:row.dataset.concentration==='1',
@@ -1555,8 +1620,9 @@ function renderActionList(type,items){
   const el=document.getElementById(`${type}-list`);
   if(!el) return;
   el.innerHTML=items.map(item=>`
-    <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}" data-casting-time="${escapeHtml(item.castingTime||'')}" data-range="${escapeHtml(item.range||'')}" data-concentration="${item.concentration?'1':'0'}" data-source-class="${escapeHtml(item.sourceClass||'')}">
+    <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}" data-casting-time="${escapeHtml(item.castingTime||'')}" data-range="${escapeHtml(item.range||'')}" data-concentration="${item.concentration?'1':'0'}" data-source-class="${escapeHtml(item.sourceClass||'')}" data-upcast-dice="${escapeHtml(item.upcastDice||'')}">
       <div><label>${type==='weapon'?'Weapon':'Spell'}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${type==='weapon'?'Longsword':'Fire Bolt'}"></div>
+      <div><label>Dice count</label><input data-${type}-dice-count type="number" min="1" max="20" value="${Number(item.diceCount)||1}"></div>
       <div><label>Damage die</label><select data-${type}-die>${DAMAGE_DICE.map(d=>`<option ${d===item.die?'selected':''}>${d}</option>`).join('')}</select></div>
       <div><label>Bonus</label><input data-${type}-bonus type="number" value="${item.bonus}" step="1"></div>
       <button onclick="removeActionItem('${type}','${item.id}')">Remove</button>
@@ -1564,7 +1630,7 @@ function renderActionList(type,items){
       <div><label>Action cost</label><select data-${type}-action-cost>${ACTION_COSTS.map(t=>`<option value="${t}" ${t===item.actionCost?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>Targeting</label><select data-${type}-target-mode>${TARGET_MODES.map(m=>`<option value="${m}" ${m===item.targetMode?'selected':''}>${m}</option>`).join('')}</select></div>
       <div><label>AoE radius</label><input data-${type}-aoe-radius type="number" min="0" max="240" value="${Number(item.aoeRadius)||0}" placeholder="0"></div>
-      ${type==='spell'?`<div><label>Spell level</label><input data-${type}-spell-level type="number" min="0" max="9" value="${Number(item.spellLevel)||0}"></div>`:`<input data-${type}-spell-level type="hidden" value="${Number(item.spellLevel)||0}">`}
+      ${type==='spell'?`<div><label>Spell level</label><input data-${type}-spell-level type="number" min="0" max="9" value="${Number(item.spellLevel)||0}"></div><div><label>Cast at slot</label><input data-${type}-cast-level type="number" min="${Number(item.spellLevel)||0}" max="9" value="${Number(item.castLevel)||Number(item.spellLevel)||0}"></div>`:`<input data-${type}-spell-level type="hidden" value="${Number(item.spellLevel)||0}"><input data-${type}-cast-level type="hidden" value="${Number(item.castLevel)||0}">`}
       <div><label>Save DC</label><input data-${type}-save-dc type="number" min="0" max="30" value="${Number(item.saveDC)||0}" placeholder="0"></div>
       <div style="grid-column:span 2"><label>Effect / status</label><input data-${type}-effect value="${escapeHtml(item.effect||'')}" placeholder="Bless, Guidance, Bardic Inspiration, Healing"></div>
       <textarea data-${type}-desc placeholder="Range, save DC, effect, damage type">${escapeHtml(item.description||'')}</textarea>
@@ -1584,7 +1650,12 @@ function readTextItems(type){
   return [...document.querySelectorAll(`[data-${type}-row]`)].map(row=>normalizeTextItem({
     id:row.dataset.id,
     name:row.querySelector(`[data-${type}-name]`)?.value.trim(),
-    description:row.querySelector(`[data-${type}-desc]`)?.value.trim()
+    description:row.querySelector(`[data-${type}-desc]`)?.value.trim(),
+    actionCost:row.dataset.actionCost||'',
+    actionType:row.dataset.actionType||'',
+    effect:row.dataset.effect||'',
+    targetMode:row.dataset.targetMode||'',
+    source:row.dataset.source||''
   })).filter(item=>item.name);
 }
 function renderTextItems(type,items){
@@ -1592,7 +1663,7 @@ function renderTextItems(type,items){
   if(!el) return;
   const label=type==='ability'?'Ability':'Bonus action';
   el.innerHTML=(items||[]).map(item=>`
-    <div class="item-row" data-${type}-row data-id="${item.id}">
+    <div class="item-row" data-${type}-row data-id="${item.id}" data-action-cost="${escapeHtml(item.actionCost||'passive')}" data-action-type="${escapeHtml(item.actionType||'utility')}" data-effect="${escapeHtml(item.effect||'')}" data-target-mode="${escapeHtml(item.targetMode||'single')}" data-source="${escapeHtml(item.source||'')}">
       <div><label>${label}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${label} name"></div>
       <div style="grid-column:span 2"><label>Notes</label><input data-${type}-desc value="${escapeHtml(item.description||'')}" placeholder="Uses, trigger, range, effect"></div>
       <button onclick="removeTextItem('${type}','${item.id}')">Remove</button>
@@ -1646,18 +1717,42 @@ function spellClassName(ch=selected()){
   const cls=ch?.class||readClassValue?.()||'';
   return cls==='Sorceror'?'Sorcerer':cls;
 }
-function availableClassSpells(ch=selected()){
+function maxSpellLevelForCharacter(ch=selected()){
   const cls=spellClassName(ch);
   const level=Number(ch?.level)||1;
-  const fullCaster=['Wizard','Cleric','Druid','Bard','Sorcerer','Warlock'].includes(cls);
-  const halfCaster=['Paladin','Ranger','Artificer'].includes(cls);
-  const maxLevel=fullCaster?Math.min(9,Math.max(0,Math.ceil(level/2))):halfCaster?Math.min(5,Math.max(0,Math.ceil((level-1)/4))):0;
+  const fullCaster=['Wizard','Cleric','Druid','Bard','Sorcerer'].includes(cls);
+  if(fullCaster) return Math.min(9,Math.max(1,Math.ceil(level/2)));
+  if(cls==='Warlock') return Math.min(5,Math.max(1,Math.ceil(level/2)));
+  if(cls==='Artificer') return Math.min(5,Math.max(1,Math.floor((level+3)/4)));
+  if(['Paladin','Ranger'].includes(cls)) return level<2 ? 0 : Math.min(5,Math.max(1,Math.floor((level+3)/4)));
+  return 0;
+}
+function availableClassSpells(ch=selected()){
+  const cls=spellClassName(ch);
+  const maxLevel=maxSpellLevelForCharacter(ch);
   return spellCatalogue().filter(spell=>(spell.classes||[]).includes(cls) && Number(spell.level)<=maxLevel);
+}
+function sortedLevelUpSpellChoices(spells=[],currentMax=0,nextMax=0){
+  return [...spells].sort((a,b)=>{
+    const aLevel=Number(a.level)||0;
+    const bLevel=Number(b.level)||0;
+    const aNew=aLevel>currentMax ? 1 : 0;
+    const bNew=bLevel>currentMax ? 1 : 0;
+    if(aNew!==bNew) return bNew-aNew;
+    const aTop=aLevel===nextMax ? 1 : 0;
+    const bTop=bLevel===nextMax ? 1 : 0;
+    if(aTop!==bTop) return bTop-aTop;
+    if(aLevel!==bLevel) return bLevel-aLevel;
+    return String(a.name).localeCompare(String(b.name));
+  });
 }
 function spellToActionItem(spell,sourceClass=spellClassName()){
   return normalizeActionItem({
     name:spell.name,
     die:spell.die||'d6',
+    diceCount:spell.diceCount||diceCountFromFormula(spell.damageFormula)||1,
+    damageFormula:spell.damageFormula||'',
+    upcastDice:spell.upcastDice||'',
     bonus:spell.bonus||0,
     actionType:spell.actionType||'damage',
     actionCost:spell.actionCost||'action',
@@ -1665,6 +1760,7 @@ function spellToActionItem(spell,sourceClass=spellClassName()){
     aoeRadius:spell.aoeRadius||0,
     saveDC:0,
     spellLevel:spell.level||0,
+    castLevel:spell.level||0,
     castingTime:spell.castingTime||'',
     range:spell.range||'',
     concentration:!!spell.concentration,
@@ -1746,6 +1842,304 @@ function syncSkillsToCharacter(){const ch=selected(); if(ch) ch.skills=readSkill
 function topSkills(ch){
   return Object.keys(SKILL_DEFS).map(skill=>[skill,skillTotal(ch,skill)]).sort((a,b)=>b[1]-a[1]).slice(0,4);
 }
+const COMMON_FEATS=['Ability Score Improvement','Alert','Lucky','War Caster','Tough','Mobile','Resilient','Sentinel','Sharpshooter','Great Weapon Master','Magic Initiate','Healer'];
+const SPELLS_KNOWN_BY_CLASS={
+  Bard:{1:4,2:5,3:6,4:7,5:8,6:9,7:10,8:11,9:12,10:14,11:15,12:15,13:16,14:18,15:19,16:19,17:20,18:22,19:22,20:22},
+  Sorcerer:{1:2,2:3,3:4,4:5,5:6,6:7,7:8,8:9,9:10,10:11,11:12,12:12,13:13,14:13,15:14,16:14,17:15,18:15,19:15,20:15},
+  Warlock:{1:2,2:3,3:4,4:5,5:6,6:7,7:8,8:9,9:10,10:10,11:11,12:11,13:12,14:12,15:13,16:13,17:14,18:14,19:15,20:15},
+  Ranger:{1:0,2:2,3:3,4:3,5:4,6:4,7:5,8:5,9:6,10:6,11:7,12:7,13:8,14:8,15:9,16:9,17:10,18:10,19:11,20:11}
+};
+function featureChoice(name,ch,nextLevel){
+  const clean=String(name||'').trim();
+  const def=FEATURE_LIBRARY[clean]||{};
+  return normalizeTextItem({
+    name:clean,
+    description:def.description || `Level ${nextLevel} ${ch.class} feature. Add the exact table text or usage notes here.`,
+    actionCost:def.actionCost || 'passive',
+    actionType:def.actionType || 'utility',
+    effect:def.effect || clean,
+    targetMode:def.targetMode || 'single',
+    source:`${ch.class} ${nextLevel}`
+  });
+}
+function featureChoiceLabel(feature){
+  const active=feature.actionCost && !['passive'].includes(feature.actionCost);
+  return `${active?'Map action':'Sheet trait'} · ${feature.actionCost||'passive'} · ${feature.actionType||'utility'}`;
+}
+const FEATURE_LIBRARY={
+  Rage:{description:'Bonus action. Enter rage for tougher melee turns. Track the bonus damage and resistance at the table.',actionCost:'bonus',actionType:'buff',effect:'Rage',targetMode:'single'},
+  'Unarmored Defense':{description:'Passive. Your AC can use Constitution while not wearing armor.',actionCost:'passive',actionType:'utility',effect:'Unarmored Defense',targetMode:'single'},
+  'Fast Movement':{description:'Passive. Your movement speed increases while not wearing heavy armor.',actionCost:'passive',actionType:'utility',effect:'Fast Movement',targetMode:'single'},
+  'Feral Instinct':{description:'Passive. Improved initiative and awareness at the start of combat.',actionCost:'passive',actionType:'utility',effect:'Feral Instinct',targetMode:'single'},
+  'Reckless Attack':{description:'Free choice on your first melee attack this turn. Gain advantage, but attacks against you have advantage until your next turn.',actionCost:'free',actionType:'buff',effect:'Reckless Attack',targetMode:'single'},
+  'Danger Sense':{description:'Passive. Advantage on many Dexterity saves against effects you can see.',actionCost:'passive',actionType:'utility',effect:'Danger Sense',targetMode:'single'},
+  'Brutal Critical':{description:'Passive. Add extra weapon damage dice when you score a critical hit.',actionCost:'passive',actionType:'utility',effect:'Brutal Critical',targetMode:'single'},
+  'Primal Path feature':{description:'Subclass feature. Pick your path, then write the exact path feature here so it is visible during play.',actionCost:'passive',actionType:'utility',effect:'Primal Path',targetMode:'single'},
+  'Second Wind':{description:'Bonus action. Regain a small burst of HP once per rest.',actionCost:'bonus',actionType:'healing',effect:'Second Wind',targetMode:'single'},
+  'Action Surge':{description:'Free feature. Take one additional action on your turn once per rest.',actionCost:'free',actionType:'utility',effect:'Action Surge',targetMode:'single'},
+  'Extra Attack':{description:'Passive. Attack more than once when taking the Attack action.',actionCost:'passive',actionType:'utility',effect:'Extra Attack',targetMode:'single'},
+  'Bardic Inspiration':{description:'Bonus action. Give an ally an inspiration die for a future roll.',actionCost:'bonus',actionType:'buff',effect:'Bardic Inspiration',targetMode:'single'},
+  'Cunning Action':{description:'Bonus action. Dash, Disengage, or Hide.',actionCost:'bonus',actionType:'utility',effect:'Cunning Action',targetMode:'single'},
+  'Sneak Attack':{description:'Passive damage rider when you have advantage or an ally near the target.',actionCost:'passive',actionType:'damage',effect:'Sneak Attack',targetMode:'single'},
+  'Channel Divinity':{description:'Action. Spend a divine channel use for your domain or Turn Undead effect.',actionCost:'action',actionType:'utility',effect:'Channel Divinity',targetMode:'single'},
+  'Turn Undead':{description:'Action. Force nearby undead to flee if they fail the save.',actionCost:'action',actionType:'buff',effect:'Turn Undead',targetMode:'enemies'},
+  'Wild Shape':{description:'Action or bonus action by subclass. Transform using a Wild Shape use.',actionCost:'action',actionType:'utility',effect:'Wild Shape',targetMode:'single'},
+  'Lay on Hands':{description:'Action. Spend points from your healing pool to restore HP or cure disease/poison.',actionCost:'action',actionType:'healing',effect:'Lay on Hands',targetMode:'single'},
+  'Divine Smite':{description:'On hit. Spend a spell slot to add radiant damage to a melee hit.',actionCost:'free',actionType:'damage',effect:'Divine Smite',targetMode:'single'},
+  'Flurry of Blows':{description:'Bonus action. Spend ki to make two unarmed strikes after attacking.',actionCost:'bonus',actionType:'damage',effect:'Flurry of Blows',targetMode:'single'},
+  'Patient Defense':{description:'Bonus action. Spend ki to Dodge.',actionCost:'bonus',actionType:'buff',effect:'Patient Defense',targetMode:'single'},
+  'Stunning Strike':{description:'On hit. Spend ki to force a Constitution save or stun the target.',actionCost:'free',actionType:'buff',effect:'Stunned',targetMode:'single'}
+};
+const CLASS_LEVEL_FEATURES={
+  Barbarian:{1:['Rage','Unarmored Defense'],2:['Reckless Attack','Danger Sense'],3:['Primal Path feature'],5:['Extra Attack','Fast Movement'],7:['Feral Instinct'],9:['Brutal Critical']},
+  Fighter:{1:['Fighting Style','Second Wind'],2:['Action Surge'],3:['Martial Archetype feature'],5:['Extra Attack'],9:['Indomitable']},
+  Rogue:{1:['Sneak Attack','Expertise'],2:['Cunning Action'],3:['Roguish Archetype feature'],5:['Uncanny Dodge'],7:['Evasion']},
+  Cleric:{1:['Divine Domain feature'],2:['Channel Divinity','Turn Undead'],5:['Destroy Undead'],10:['Divine Intervention']},
+  Bard:{1:['Bardic Inspiration'],2:['Jack of All Trades','Song of Rest'],3:['Expertise','Bard College feature'],5:['Font of Inspiration']},
+  Druid:{2:['Wild Shape','Druid Circle feature'],5:['Stronger wild shapes and 3rd-level spell access']},
+  Monk:{1:['Martial Arts'],2:['Ki','Flurry of Blows','Patient Defense'],3:['Monastic Tradition feature'],5:['Extra Attack','Stunning Strike']},
+  Paladin:{1:['Divine Sense','Lay on Hands'],2:['Fighting Style','Divine Smite'],3:['Sacred Oath feature'],5:['Extra Attack']},
+  Ranger:{1:['Favored Foe'],2:['Fighting Style'],3:['Ranger Archetype feature'],5:['Extra Attack']},
+  Sorcerer:{1:['Sorcerous Origin feature'],2:['Font of Magic'],3:['Metamagic'],5:['3rd-level spell access']},
+  Warlock:{1:['Otherworldly Patron feature'],2:['Eldritch Invocations'],3:['Pact Boon'],5:['Stronger pact magic']},
+  Artificer:{1:['Magical Tinkering'],2:['Infuse Item'],3:['Specialist feature'],5:['Specialist improvement']}
+};
+const SUBCLASS_LEVEL_FEATURES={
+  Barbarian:{
+    Berserker:{3:['Frenzy'],6:['Mindless Rage'],10:['Intimidating Presence'],14:['Retaliation']},
+    'Totem Warrior':{3:['Totem Spirit'],6:['Aspect of the Beast'],10:['Spirit Walker'],14:['Totemic Attunement']},
+    Zealot:{3:['Divine Fury','Warrior of the Gods'],6:['Fanatical Focus'],10:['Zealous Presence'],14:['Rage Beyond Death']}
+  },
+  Fighter:{
+    Champion:{3:['Improved Critical'],7:['Remarkable Athlete'],10:['Additional Fighting Style'],15:['Superior Critical'],18:['Survivor']},
+    'Battle Master':{3:['Combat Superiority','Student of War'],7:['Know Your Enemy'],10:['Improved Combat Superiority'],15:['Relentless']},
+    'Eldritch Knight':{3:['Weapon Bond','Eldritch Knight spellcasting'],7:['War Magic'],10:['Eldritch Strike'],15:['Arcane Charge']}
+  },
+  Rogue:{
+    Thief:{3:['Fast Hands','Second-Story Work'],9:['Supreme Sneak'],13:['Use Magic Device'],17:["Thief's Reflexes"]},
+    Assassin:{3:['Assassinate','Bonus Proficiencies'],9:['Infiltration Expertise'],13:['Impostor'],17:['Death Strike']},
+    'Arcane Trickster':{3:['Mage Hand Legerdemain','Arcane Trickster spellcasting'],9:['Magical Ambush'],13:['Versatile Trickster'],17:['Spell Thief']}
+  },
+  Cleric:{
+    'Life Domain':{1:['Disciple of Life','Life Domain spells'],2:['Preserve Life'],6:['Blessed Healer'],8:['Divine Strike'],17:['Supreme Healing']},
+    'Light Domain':{1:['Warding Flare','Light Domain spells'],2:['Radiance of the Dawn'],6:['Improved Flare'],8:['Potent Spellcasting'],17:['Corona of Light']},
+    'War Domain':{1:['War Priest','War Domain spells'],2:['Guided Strike'],6:["War God's Blessing"],8:['Divine Strike'],17:['Avatar of Battle']}
+  },
+  Wizard:{Evocation:{2:['Sculpt Spells'],6:['Potent Cantrip'],10:['Empowered Evocation'],14:['Overchannel']},Abjuration:{2:['Arcane Ward'],6:['Projected Ward'],10:['Improved Abjuration'],14:['Spell Resistance']},Divination:{2:['Portent'],6:['Expert Divination'],10:['The Third Eye'],14:['Greater Portent']},Necromancy:{2:['Grim Harvest'],6:['Undead Thralls'],10:['Inured to Undeath'],14:['Command Undead']}}
+};
+function subclassFeatureNames(cls,subclass,level){
+  if(!cls||!subclass) return [];
+  return SUBCLASS_LEVEL_FEATURES[cls]?.[subclass]?.[level] || [];
+}
+function spellcastingAbilityForClass(cls){
+  return {Wizard:'INT',Artificer:'INT',Cleric:'WIS',Druid:'WIS',Ranger:'WIS',Bard:'CHA',Paladin:'CHA',Sorcerer:'CHA',Warlock:'CHA'}[cls]||'INT';
+}
+function preparedSpellCap(ch){
+  const cls=spellClassName(ch);
+  const ability=spellcastingAbilityForClass(cls);
+  const mod=Math.max(1,abilityMod(statsWithRace(ch)[ability]||10));
+  const level=Number(ch.level)||1;
+  if(['Wizard','Cleric','Druid','Artificer'].includes(cls)) return Math.max(1,level+mod);
+  if(cls==='Paladin') return Math.max(1,Math.floor(level/2)+mod);
+  return SPELLS_KNOWN_BY_CLASS[cls]?.[level] || (ch.spells||[]).length;
+}
+function spellBudgetForLevelUp(ch,nextShell){
+  const cls=spellClassName(ch);
+  const currentKnown=(ch.spells||[]).filter(s=>Number(s.spellLevel)>0 || s.actionType!=='utility').length;
+  const currentCap=preparedSpellCap(ch);
+  const nextCap=preparedSpellCap(nextShell);
+  let learn=0, mode='prepare';
+  if(cls==='Wizard'){ learn=2; mode='learn'; }
+  else if(SPELLS_KNOWN_BY_CLASS[cls]){ learn=Math.max(0,(SPELLS_KNOWN_BY_CLASS[cls][nextShell.level]||0)-(SPELLS_KNOWN_BY_CLASS[cls][ch.level]||currentKnown)); mode='learn'; }
+  else { learn=Math.max(0,nextCap-currentCap); mode='prepare'; }
+  return {mode,learn,preparedCap:nextCap,currentPrepared:(ch.spells||[]).length};
+}
+function levelUpMilestones(ch,nextLevel){
+  const subclassInfo=SUBCLASS_DEFS[ch.class];
+  const subclassFeatures=subclassFeatureNames(ch.class,ch.subclass,nextLevel);
+  const genericSubclassFeatures=subclassInfo?.features?.[nextLevel]||[];
+  const extraAttackClasses=['Fighter','Barbarian','Paladin','Ranger','Monk'];
+  const exact=CLASS_LEVEL_FEATURES[ch.class]?.[nextLevel]||[];
+  const fallback=exact.length?[]:[
+    nextLevel===5 && extraAttackClasses.includes(ch.class) ? 'Extra Attack' : '',
+    ...(CLASS_DEFS[ch.class]?.abilities||[]).filter((_,i)=>i<=Math.floor(nextLevel/5))
+  ];
+  const names=[...exact,...fallback,...(subclassFeatures.length?subclassFeatures:genericSubclassFeatures)].filter(Boolean);
+  return names.map(name=>featureChoice(name,ch,nextLevel));
+}
+function openLevelUpModal(){
+  commitForm();
+  const ch=selected();
+  if(!ch) return;
+  if((Number(ch.level)||1)>=20) return toast('Already level 20');
+  const nextLevel=Math.min(20,(Number(ch.level)||1)+1);
+  const cls=classDefFor(ch);
+  const stats=statsWithRace(ch);
+  const con=abilityMod(stats.CON);
+  const nextShell=hydrateCharacter({...ch,level:nextLevel,overrides:{...(ch.overrides||{}),maxHP:''}});
+  const oldHP=ch.derived?.HP||calculateDerived(ch).HP;
+  const averageHP=nextShell.derived.HP;
+  const maxHP=Math.max(nextLevel,oldHP+cls.hitDie+con);
+  const minHP=Math.max(nextLevel,oldHP+1+con);
+  const rollHP=Math.max(nextLevel,oldHP+Math.max(1,Math.floor(Math.random()*cls.hitDie)+1)+con);
+  const currentMax=maxSpellLevelForCharacter(ch);
+  const nextMax=maxSpellLevelForCharacter(nextShell);
+  const spellChoices=sortedLevelUpSpellChoices(
+    availableClassSpells(nextShell).filter(spell=>!(ch.spells||[]).some(s=>s.name===spell.name)),
+    currentMax,
+    nextMax
+  );
+  const spellBudget=spellBudgetForLevelUp(ch,nextShell);
+  levelUpDraft={characterId:ch.id,nextLevel,oldHP,averageHP,maxHP,minHP,rollHP,currentMax,spellChoices,spellBudget,suggestions:levelUpMilestones(ch,nextLevel)};
+  renderLevelUpModal();
+}
+function closeLevelUpModal(){
+  document.getElementById('level-up-overlay')?.classList.remove('show');
+  levelUpDraft=null;
+}
+function renderLevelUpModal(){
+  const overlay=document.getElementById('level-up-overlay');
+  const ch=selected();
+  const draft=levelUpDraft;
+  if(!overlay||!ch||!draft) return;
+  const nextShell=hydrateCharacter({...ch,level:draft.nextLevel});
+  const nextDerived=nextShell.derived;
+  const subclassInfo=SUBCLASS_DEFS[ch.class];
+  const needsSubclass=subclassInfo && draft.nextLevel>=subclassInfo.level && !ch.subclass;
+  const asiLevel=[4,8,12,16,19].includes(draft.nextLevel);
+  const nextMax=maxSpellLevelForCharacter(nextShell);
+  const spellRows=(draft.spellChoices||[]).slice(0,80).map(spell=>`
+    <label class="level-choice">
+      <input type="checkbox" data-level-spell value="${escapeAttr(spell.name)}" ${Number(spell.level)>draft.currentMax?'checked':''} onchange="enforceLevelSpellBudget()">
+      <span><b>${escapeHtml(spell.name)}</b><span>${spell.level===0?'Cantrip':`Level ${spell.level}`} · ${escapeHtml(spell.actionCost||'action')} · ${escapeHtml(spell.actionType||'utility')} · ${escapeHtml(spell.range||'range varies')}</span></span>
+    </label>`).join('');
+  const budget=draft.spellBudget||{learn:0,preparedCap:0,mode:'prepare'};
+  const asiControls=asiLevel?`
+    <label><span class="tiny">Feat / ASI</span><select id="level-feat">
+      ${COMMON_FEATS.map(feat=>`<option value="${escapeAttr(feat)}">${escapeHtml(feat)}</option>`).join('')}
+    </select></label>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px">
+      <label><span class="tiny">ASI point 1</span><select id="level-asi-one">${ABILITIES.map(ab=>`<option value="${ab}">${ab}</option>`).join('')}</select></label>
+      <label><span class="tiny">ASI point 2</span><select id="level-asi-two">${ABILITIES.map(ab=>`<option value="${ab}">${ab}</option>`).join('')}</select></label>
+    </div>
+    <input id="level-feat-note" placeholder="Feat notes, or ASI reason / house rule">
+    <p class="muted">Pick Ability Score Improvement for +1/+1, or choose a feat to add it as a usable sheet feature.</p>`:'';
+  overlay.innerHTML=`
+    <div class="level-modal">
+      <div class="level-modal-head">
+        <div>
+          <h2>${escapeHtml(ch.name)} levels up</h2>
+          <p class="muted">Level ${ch.level} -> ${draft.nextLevel} ${escapeHtml(ch.race)} ${escapeHtml(ch.subclass?`${ch.subclass} `:'')}${escapeHtml(ch.class)}</p>
+        </div>
+        <button class="level-modal-close" onclick="closeLevelUpModal()">x</button>
+      </div>
+      <div class="level-summary-strip">
+        <div class="level-summary-card"><b>${draft.oldHP} -> ${draft.averageHP}</b><span>Average HP</span></div>
+        <div class="level-summary-card"><b>+${nextDerived.proficiencyBonus}</b><span>Proficiency</span></div>
+        <div class="level-summary-card"><b>${nextDerived.spellSlots}</b><span>Spell slots</span></div>
+        <div class="level-summary-card"><b>${nextDerived.resourceMax}</b><span>${escapeHtml(nextDerived.resourceName)}</span></div>
+      </div>
+      <div class="level-modal-grid">
+        <div class="level-choice-panel">
+          <h3>Hit Points</h3>
+          <div class="level-choice-list">
+            <label class="level-choice"><input type="radio" name="level-hp" value="${draft.averageHP}" checked><span><b>Take average</b><span>${draft.oldHP} -> ${draft.averageHP}</span></span></label>
+            <label class="level-choice"><input type="radio" name="level-hp" value="${draft.maxHP}"><span><b>Take max</b><span>${draft.oldHP} -> ${draft.maxHP}</span></span></label>
+            <label class="level-choice"><input type="radio" name="level-hp" value="${draft.rollHP}"><span><b>Rolled option</b><span>${draft.oldHP} -> ${draft.rollHP}</span></span></label>
+            <label class="level-choice"><input type="radio" name="level-hp" value="custom"><span><b>Custom HP</b><span><input id="level-custom-hp" type="number" min="${draft.minHP}" max="999" value="${draft.averageHP}"></span></span></label>
+          </div>
+        </div>
+        <div class="level-choice-panel">
+          <h3>Milestones</h3>
+          <div class="level-choice-list">
+            ${needsSubclass?`<label><span class="tiny">Subclass</span><select id="level-subclass">${subclassInfo.options.map(opt=>`<option value="${escapeAttr(opt)}">${escapeHtml(opt)}</option>`).join('')}<option value="custom">Custom subclass</option></select></label><input id="level-custom-subclass" placeholder="Custom subclass name">`:''}
+            ${asiControls}
+            ${draft.suggestions.map(feature=>`<label class="level-choice"><input type="checkbox" data-level-feature value="${escapeAttr(feature.name)}" checked><span><b>${escapeHtml(feature.name)}</b><span>${escapeHtml(featureChoiceLabel(feature))}<br>${escapeHtml(feature.description||'')}</span></span></label>`).join('') || '<div class="muted">No class milestone at this level. HP and resources still improve.</div>'}
+          </div>
+        </div>
+        <div class="level-choice-panel" style="grid-column:1/-1">
+          <h3>Prepare new spells</h3>
+          <p class="muted" id="level-spell-budget" style="margin-bottom:8px">${draft.spellChoices.length?`${budget.mode==='learn'?'Learn':'Prepare'} up to ${budget.learn||0} new spell${budget.learn===1?'':'s'} now. Prepared/known cap after level-up: ${budget.preparedCap}. Class-legal spells up to level ${nextMax}.`:'This class has no new spell choices from the catalogue at this level.'}</p>
+          <div class="level-spell-list">${spellRows || '<div class="muted">No spell picks available.</div>'}</div>
+        </div>
+      </div>
+      <div class="level-modal-actions">
+        <button onclick="closeLevelUpModal()">Cancel</button>
+        <button class="primary" onclick="applyLevelUpModal()">Confirm level up</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  enforceLevelSpellBudget();
+}
+function enforceLevelSpellBudget(){
+  const draft=levelUpDraft;
+  if(!draft) return;
+  const max=Number(draft.spellBudget?.learn)||0;
+  const boxes=[...document.querySelectorAll('[data-level-spell]')];
+  const checked=boxes.filter(box=>box.checked);
+  if(max>0 && checked.length>max){
+    checked.slice(max).forEach(box=>box.checked=false);
+    toast(`Pick up to ${max} spell${max===1?'':'s'} for this level`);
+  }
+  boxes.forEach(box=>{ box.disabled=max<=0 && !box.checked; });
+  const label=document.getElementById('level-spell-budget');
+  if(label && max>0) label.textContent=`${draft.spellBudget.mode==='learn'?'Learn':'Prepare'} ${boxes.filter(box=>box.checked).length}/${max} new spell${max===1?'':'s'} now. Prepared/known cap after level-up: ${draft.spellBudget.preparedCap}.`;
+}
+function applyLevelUpModal(){
+  const ch=selected();
+  const draft=levelUpDraft;
+  if(!ch||!draft) return;
+  syncTextItemsToCharacter();
+  syncActionItemsToCharacter();
+  const hpChoice=document.querySelector('input[name="level-hp"]:checked')?.value;
+  const hp=hpChoice==='custom'?Number(document.getElementById('level-custom-hp')?.value)||draft.averageHP:Number(hpChoice)||draft.averageHP;
+  document.getElementById('level').value=draft.nextLevel;
+  document.getElementById('manual-hp').value=Math.max(draft.minHP,hp);
+  const featureNames=[...document.querySelectorAll('[data-level-feature]:checked')].map(input=>input.value);
+  if(document.getElementById('level-subclass')){
+    const chosen=document.getElementById('level-subclass').value;
+    const custom=document.getElementById('level-custom-subclass')?.value.trim();
+    document.getElementById('subclass').value=chosen==='custom'?'Custom':chosen;
+    document.getElementById('custom-subclass').value=chosen==='custom'?custom:'';
+    const finalSubclass=chosen==='custom'?(custom||'Custom'):chosen;
+    subclassFeatureNames(ch.class,finalSubclass,draft.nextLevel).forEach(name=>{
+      if(!featureNames.includes(name)) featureNames.push(name);
+    });
+  }
+  const feat=document.getElementById('level-feat')?.value;
+  const featNote=document.getElementById('level-feat-note')?.value.trim();
+  if(feat==='Ability Score Improvement'){
+    const one=document.getElementById('level-asi-one')?.value||'STR';
+    const two=document.getElementById('level-asi-two')?.value||one;
+    ch.stats=normalizeStats(ch.stats);
+    ch.stats[one]=Math.min(30,(Number(ch.stats[one])||10)+1);
+    ch.stats[two]=Math.min(30,(Number(ch.stats[two])||10)+1);
+    for(const ab of ABILITIES){
+      const input=document.getElementById('stat-'+ab);
+      if(input) input.value=ch.stats[ab];
+    }
+    featureNames.push(`Ability Score Improvement: +1 ${one}, +1 ${two}${featNote?` (${featNote})`:''}`);
+  } else if(feat) featureNames.push(featNote?`${feat}: ${featNote}`:feat);
+  for(const name of featureNames){
+    const existing=(draft.suggestions||[]).find(f=>f.name===name);
+    const item=existing || normalizeTextItem({name,description:`Level ${draft.nextLevel} choice`,source:`Level ${draft.nextLevel}`});
+    if(!(ch.abilities||[]).some(a=>a.name===item.name)) ch.abilities.push(item);
+  }
+  const maxSpells=Number(draft.spellBudget?.learn)||0;
+  const selectedSpells=[...document.querySelectorAll('[data-level-spell]:checked')].map(input=>input.value).slice(0,maxSpells||0);
+  for(const name of selectedSpells){
+    const spell=draft.spellChoices.find(s=>s.name===name);
+    if(spell && !(ch.spells||[]).some(s=>s.name===spell.name)) ch.spells.push(spellToActionItem(spell,spellClassName(ch)));
+  }
+  ch.level=draft.nextLevel;
+  ch.currentHP=Math.max(Math.max(draft.minHP,hp),Number(ch.currentHP)||0);
+  renderTextItems('ability',ch.abilities);
+  renderActionItems(ch);
+  closeLevelUpModal();
+  renderLive();
+  saveSelected();
+  toast(`Level ${draft.nextLevel} applied`);
+}
 function renderLevelHelper(ch=selected()){
   const el=document.getElementById('level-helper');
   if(!el) return;
@@ -1759,13 +2153,18 @@ function renderLevelHelper(ch=selected()){
   const currentSlots=spellSlotsByLevel(ch.derived?.spellSlots||0);
   const nextSlots=spellSlotsByLevel(nextDerived.spellSlots||0);
   const slotGains=SPELL_SLOT_LEVELS.filter(lvl=>(nextSlots[lvl]||0)>(currentSlots[lvl]||0)).map(lvl=>`L${lvl} +${(nextSlots[lvl]||0)-(currentSlots[lvl]||0)}`);
-  const nextClassSpells=availableClassSpells(nextShell).filter(spell=>!(ch.spells||[]).some(s=>s.name===spell.name));
-  const classGains=[
+  const nextClassSpells=sortedLevelUpSpellChoices(
+    availableClassSpells(nextShell).filter(spell=>!(ch.spells||[]).some(s=>s.name===spell.name)),
+    maxSpellLevelForCharacter(ch),
+    maxSpellLevelForCharacter(nextShell)
+  );
+  const classGainNames=[
     ch.level>=4 && (ch.level-4)%4===0 ? 'Ability Score Improvement or feat' : '',
     ch.level>=5 ? 'Check new class scaling and stronger actions' : '',
     ...(CLASS_DEFS[ch.class]?.abilities||[]).filter((_,i)=>i<=Math.floor(ch.level/5)),
     ...subclassFeatures
   ].filter(Boolean);
+  const classGains=classGainNames.map(name=>featureChoice(name,ch,ch.level));
   const suggestions=LEVEL_UP_SUGGESTIONS[ch.class]||{abilities:['New class feature'],spells:[]};
   el.innerHTML=`
     <div class="level-actions">
@@ -1780,16 +2179,13 @@ function renderLevelHelper(ch=selected()){
     <div class="muted">Current path: ${escapeHtml(ch.class)}${ch.subclass?` / ${escapeHtml(ch.subclass)}`:''}. ${subclassInfo?`Subclass choice normally opens at level ${subclassInfo.level}.`: 'Custom classes can use the custom subclass field.'}</div>
     ${subclassReady?`<div class="suggestion"><div><b>Pick a subclass</b><span>This class should choose one now.</span></div><button onclick="focusSubclass()">Choose</button></div>`:''}
     <div class="suggestion-list">
-      ${classGains.map(name=>`<div class="suggestion"><div><b>${escapeHtml(name)}</b><span>Suggested level ${ch.level} addition</span></div><button onclick="addSuggestedAbility('${escapeAttr(name)}','Level ${ch.level} ${escapeAttr(ch.class)} feature')">Add</button></div>`).join('') || '<div class="muted">No special milestone at this exact level, but spells, HP, proficiency, and resources still update automatically.</div>'}
+      ${classGains.map(feature=>`<div class="suggestion"><div><b>${escapeHtml(feature.name)}</b><span>${escapeHtml(featureChoiceLabel(feature))} - ${escapeHtml(feature.description||'Suggested feature')}</span></div><button onclick="addSuggestedFeature('${escapeAttr(feature.name)}')">Add</button></div>`).join('') || '<div class="muted">No special milestone at this exact level, but spells, HP, proficiency, and resources still update automatically.</div>'}
       ${suggestions.abilities.slice(0,3).map(name=>`<div class="suggestion"><div><b>${escapeHtml(name)}</b><span>Common ability to track</span></div><button onclick="addSuggestedAbility('${escapeAttr(name)}','Class ability')">Add</button></div>`).join('')}
       ${nextClassSpells.slice(0,5).map(spell=>`<div class="suggestion"><div><b>${escapeHtml(spell.name)}</b><span>${escapeHtml(spellClassName(ch))} ${spell.level===0?'cantrip':`level ${spell.level}`} · ${escapeHtml(spell.actionCost)} · ${escapeHtml(spell.actionType)}</span></div><button onclick="addCatalogSpellByName('${escapeAttr(spell.name)}')">Add</button></div>`).join('')}
     </div>`;
 }
 function levelUpSelected(){
-  const input=document.getElementById('level');
-  input.value=Math.min(20,(Number(input.value)||1)+1);
-  renderLive();
-  scheduleSave();
+  openLevelUpModal();
 }
 function focusSubclass(){
   document.getElementById('subclass').focus();
@@ -1799,6 +2195,15 @@ function addSuggestedAbility(name,description=''){
   syncTextItemsToCharacter();
   const ch=selected();
   if(!(ch.abilities||[]).some(a=>a.name===name)) ch.abilities.push(normalizeTextItem({name,description}));
+  renderTextItems('ability',ch.abilities);
+  renderLive();
+  scheduleSave();
+}
+function addSuggestedFeature(name){
+  syncTextItemsToCharacter();
+  const ch=selected();
+  const feature=featureChoice(name,ch,ch.level);
+  if(!(ch.abilities||[]).some(a=>a.name===feature.name)) ch.abilities.push(feature);
   renderTextItems('ability',ch.abilities);
   renderLive();
   scheduleSave();
