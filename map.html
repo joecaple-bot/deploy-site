@@ -1311,7 +1311,7 @@ const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspir
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
 const ACTION_COSTS = ['action','bonus','reaction','free','passive'];
-const TARGET_MODES = ['single','enemies','allies','all'];
+const TARGET_MODES = ['single','enemies','allies','all','cone'];
 const ROLL_BUFFS = {
   bless:{label:'Bless',die:4,appliesTo:['attack','save'],consume:false,color:'rgba(255,226,112,.9)'},
   guidance:{label:'Guidance',die:4,appliesTo:['check'],consume:true,color:'rgba(111,220,255,.9)'},
@@ -1549,6 +1549,7 @@ function defaultActionEffect(name='',type='damage'){
 function spellControlOverrides(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
   if(text.includes('grease')) return {actionType:'utility',targetMode:'enemies',effect:'Prone',aoeRadius:60};
+  if(text.includes('burning hands') || text.includes('cone')) return {actionType:'damage',targetMode:'cone',aoeRadius:Math.max(30,Number(item.aoeRadius)||0)};
   return {};
 }
 function normalizedAoeRadius(item={}){
@@ -1776,6 +1777,13 @@ function addInventoryItem(ch,item){
   const existing=ch.inventory.find(x=>x.name===incoming.name && x.rarity===incoming.rarity && x.slot===incoming.slot && !x.acBonus && !incoming.acBonus);
   if(existing) existing.qty=Math.max(1,Number(existing.qty)||1)+Math.max(1,Number(incoming.qty)||1);
   else ch.inventory.push(incoming);
+}
+function snapshotCharacterLootState(ch){
+  return ch ? {
+    id:ch.id,
+    gold:Math.max(0,Number(ch.gold)||0),
+    inventory:Array.isArray(ch.inventory)?ch.inventory.map(normalizeInventoryItem):[]
+  } : null;
 }
 function spellSlotsByLevel(total=0){
   const slots={};
@@ -4320,12 +4328,19 @@ function selectedTargetCharacter(){
 function isAoeAction(item){
   return item && item.targetMode && item.targetMode!=='single' && Number(item.aoeRadius)>0;
 }
+function isConeAction(item={}){
+  const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''}`.toLowerCase();
+  return item.targetMode==='cone' || text.includes('cone') || text.includes('burning hands');
+}
 function entityPoint(entity){
   return {x:characterX(entity) ?? entity?.x ?? null,y:characterY(entity) ?? entity?.y ?? null};
 }
 function dist(a,b){
   const dx=Number(a.x)-Number(b.x), dy=Number(a.y)-Number(b.y);
   return Math.sqrt(dx*dx+dy*dy);
+}
+function angleDelta(a,b){
+  return Math.atan2(Math.sin(a-b),Math.cos(a-b));
 }
 function aoeCenter(caster,item){
   const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
@@ -4353,6 +4368,46 @@ function aoeTargetsFor(casterKind,mode,center,radius,actionType){
     const p=entityPoint(entry.entity);
     return p.x!=null && dist(center,p)<=radius;
   });
+}
+function coneTargetsFor(caster,casterKind,mode,origin,aim,radius,actionType){
+  const allChars=Object.values(allCharactersById()).filter(ch=>entityPoint(ch).x!=null);
+  const enemies=placedIcons.filter(ic=>ic.kind==='enemy' && ic.hp>0);
+  let pools=[];
+  if(mode==='allies') pools=casterKind==='character' ? allChars.map(ch=>({kind:'character',entity:ch})) : enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+  else if(mode==='enemies') pools=casterKind==='character' ? enemies.map(enemy=>({kind:'enemy',entity:enemy})) : allChars.map(ch=>({kind:'character',entity:ch}));
+  else pools=[...allChars.map(ch=>({kind:'character',entity:ch})),...enemies.map(enemy=>({kind:'enemy',entity:enemy}))];
+  if(mode==='cone') pools=[...allChars.map(ch=>({kind:'character',entity:ch})),...enemies.map(enemy=>({kind:'enemy',entity:enemy}))];
+  if(actionType==='healing') pools=casterKind==='character' ? allChars.map(ch=>({kind:'character',entity:ch})) : enemies.map(enemy=>({kind:'enemy',entity:enemy}));
+  const casterId=caster.id||caster.uid;
+  const facing=Math.atan2(Number(aim.y)-Number(origin.y),Number(aim.x)-Number(origin.x));
+  const spread=Math.PI/5;
+  return pools.filter(entry=>{
+    const id=entry.kind==='enemy'?entry.entity.uid:entry.entity.id;
+    if(id===casterId) return false;
+    const p=entityPoint(entry.entity);
+    if(p.x==null) return false;
+    const d=dist(origin,p);
+    if(d<=0 || d>radius) return false;
+    return Math.abs(angleDelta(Math.atan2(p.y-origin.y,p.x-origin.x),facing))<=spread;
+  });
+}
+function splitDamagePool(total,count){
+  count=Math.max(0,Number(count)||0);
+  if(!count) return [];
+  total=Math.max(0,Math.floor(Number(total)||0));
+  const base=Math.floor(total/count);
+  let remainder=total%count;
+  return Array.from({length:count},()=>base+(remainder-->0?1:0));
+}
+function coneTemplateFrom(origin,aim,radius){
+  const angle=Math.atan2(Number(aim.y)-Number(origin.y),Number(aim.x)-Number(origin.x));
+  return {
+    kind:'cone',
+    x1:Number(origin.x)||0,
+    y1:Number(origin.y)||0,
+    x2:(Number(origin.x)||0)+Math.cos(angle)*radius,
+    y2:(Number(origin.y)||0)+Math.sin(angle)*radius
+  };
 }
 
 function drawPlayers(){
@@ -7517,21 +7572,63 @@ function addLootToCharacter(ch,item,sourceName='loot'){
     return;
   }
   ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
-  ch.inventory.push(normalizeInventoryItem({...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7)}));
+  addInventoryItem(ch,{...item,id:'i_'+Date.now()+Math.random().toString(36).slice(2,7),qty:1});
   addChatMessage({kind:'loot',character:ch.name,label:`Looted ${item.name}`,detail:`From ${sourceName}`});
   noteLootFound(ch,item,sourceName);
+}
+function removeLootFromSource(source,itemId){
+  if(!source || !itemId) return null;
+  const loot=Array.isArray(source.loot) ? source.loot.map(normalizeLootEntry) : [];
+  const item=loot.find(x=>x.id===itemId);
+  if(!item) return null;
+  source.loot=loot.filter(x=>x.id!==itemId);
+  source.lootGenerated=true;
+  return item;
+}
+function lootSourceSnapshot(kind,source){
+  if(!source) return null;
+  return {
+    kind,
+    uid:source.uid,
+    loot:Array.isArray(source.loot)?source.loot.map(normalizeLootEntry):[],
+    lootGenerated:source.lootGenerated===true,
+    opened:source.opened===true
+  };
+}
+function applyLootSourceSnapshot(source={}){
+  if(!source?.uid) return null;
+  const target=source.kind==='enemy' ? enemyByUid(source.uid) : mapIconByUid(source.uid);
+  if(!target) return null;
+  target.loot=Array.isArray(source.loot)?source.loot.map(normalizeLootEntry):[];
+  target.lootGenerated=source.lootGenerated===true;
+  if(source.kind==='chest') target.opened=source.opened===true;
+  draw();
+  scheduleSave();
+  return target;
+}
+function broadcastLootClaim(kind,source,ch,item){
+  broadcast({
+    type:'lootClaim',
+    lootKind:kind,
+    itemId:item?.id,
+    item:normalizeLootEntry(item||{}),
+    source:lootSourceSnapshot(kind,source),
+    character:snapshotCharacterLootState(ch),
+    characterName:ch?.name||'Player',
+    sourceName:source?.name||source?.label||kind
+  });
 }
 function takeEnemyLoot(uid,itemId){
   const enemy=enemyByUid(uid);
   const ch=getActiveCharacter();
   if(!enemy || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Loot');
   const loot=ensureEnemyLoot(enemy);
-  const item=loot.find(x=>x.id===itemId);
-  if(!item) return;
+  const item=removeLootFromSource(enemy,itemId);
+  if(!item) return showCritOverlay('Already taken','roll','Loot');
   addLootToCharacter(ch,item,enemy.name);
-  enemy.loot=loot.filter(x=>x.id!==itemId);
   syncCharacter(ch);
   broadcast({type:'iconUpdate',icon:enemy});
+  broadcastLootClaim('enemy',enemy,ch,item);
   showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
   updateAllPanels();
   scheduleSave();
@@ -7552,12 +7649,12 @@ function takeChestLoot(uid,itemId){
   const ch=getActiveCharacter();
   if(!chest || chest.kind!=='chest' || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Loot');
   const loot=ensureChestLoot(chest);
-  const item=loot.find(x=>x.id===itemId);
-  if(!item) return;
+  const item=removeLootFromSource(chest,itemId);
+  if(!item) return showCritOverlay('Already taken','roll','Loot');
   addLootToCharacter(ch,item,chest.name||'chest');
-  chest.loot=loot.filter(x=>x.id!==itemId);
   syncCharacter(ch);
   broadcast({type:'iconUpdate',icon:chest});
+  broadcastLootClaim('chest',chest,ch,item);
   showChestSheet(chest,worldToScreen(chest.x,chest.y).x,worldToScreen(chest.x,chest.y).y);
   updateAllPanels();
   scheduleSave();
@@ -8202,6 +8299,8 @@ function applyCharacterPatch(id,patch={}){
   let ch=characterById(id);
   if(!ch) return null;
   if(patch.currentHP!=null) ch.currentHP=Math.max(0,Math.min(ch.derived?.HP||patch.currentHP,Number(patch.currentHP)||0));
+  if(patch.gold!=null) ch.gold=Math.max(0,Number(patch.gold)||0);
+  if(Array.isArray(patch.inventory)) ch.inventory=patch.inventory.map(normalizeInventoryItem);
   if(Array.isArray(patch.statuses)) ch.statuses=normalizeStatuses(patch.statuses);
   if(patch.spellSlotUsage && typeof patch.spellSlotUsage==='object') ch.spellSlotUsage={...patch.spellSlotUsage};
   if(patch.featureUsage && typeof patch.featureUsage==='object') ch.featureUsage={...patch.featureUsage};
@@ -8818,17 +8917,37 @@ function applyAttackBackfire(attacker,attackerKind,amount){
 }
 function rollAoeAction(caster,casterKind,type,item,actionType){
   const radius=Number(item.aoeRadius)||40;
+  const cone=isConeAction(item);
   const center=aoeCenter(caster,item);
-  const targets=aoeTargetsFor(casterKind,item.targetMode,center,radius,actionType);
+  const origin=entityPoint(caster);
+  if(cone && !center.target && !(templateDraft?.kind==='cone')){
+    return showCritOverlay('Choose a target direction first','roll','Cone attack');
+  }
+  const aim=templateDraft?.kind==='cone'
+    ? {x:Number(templateDraft.x2)||center.x,y:Number(templateDraft.y2)||center.y}
+    : center;
+  const targets=cone
+    ? coneTargetsFor(caster,casterKind,item.targetMode,origin,aim,radius,actionType)
+    : aoeTargetsFor(casterKind,item.targetMode,center,radius,actionType);
   if(isDM()) pushDMUndo('area action');
   const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
+  const splitDamage=cone && actionType==='damage';
+  const splitAmounts=splitDamagePool(damage.total,targets.length);
   const effectName=item.effect||item.name||'Effect';
   const results=[];
   let affected=0;
-  for(const entry of targets){
+  for(const [index,entry] of targets.entries()){
     let amount=0, hit=true, saved=false, attack=null, save=null;
     if(actionType==='damage'){
-      if(item.saveDC){
+      if(splitDamage){
+        amount=splitAmounts[index]||0;
+        if(item.saveDC){
+          const saveBonus=entry.kind==='character' ? abilityMod(statsWithRace(entry.entity).DEX) : 0;
+          save=rollDiceExpression('1d20',saveBonus);
+          saved=save.total>=item.saveDC;
+          if(saved) amount=Math.floor(amount/2);
+        }
+      } else if(item.saveDC){
         const saveBonus=entry.kind==='character' ? abilityMod(statsWithRace(entry.entity).DEX) : 0;
         save=rollDiceExpression('1d20',saveBonus);
         saved=save.total>=item.saveDC;
@@ -8852,12 +8971,17 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   const casterName=caster.name||'Caster';
   const crits=results.filter(result=>result.critical).length;
   const detail=actionType==='damage'
-    ? (targets.length ? `${damage.total} potential damage to ${affected}/${targets.length} target${targets.length===1?'':'s'}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}` : `Area cast. No targets inside radius ${radius}px.`)
+    ? (targets.length ? `${damage.total} ${splitDamage?'rolled and split between':'potential damage to'} ${affected}/${targets.length} target${targets.length===1?'':'s'}${splitDamage?`: ${results.map(result=>`${result.name} ${result.damage}`).join(', ')}`:''}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}` : `${cone?'Cone':'Area'} cast. No targets inside radius ${radius}px.`)
     : actionType==='healing'
       ? (targets.length ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}` : `Area cast. No allies inside radius ${radius}px.`)
       : (targets.length ? `${effectName} applied to ${affected} target${affected===1?'':'s'}` : `${effectName} area placed. No targets inside radius ${radius}px.`);
-  addChatMessage({kind:type,character:casterName,label:`${item.name} AoE`,detail,total:damage.total,rolls:damage.rolls});
-  const effect={kind:'aoe',text:targets.length?`${item.name}: ${affected}/${targets.length} affected${crits?` (${crits} crit${crits===1?'':'s'})`:''}`:`${item.name}: area cast`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`Radius ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:center.x,ty:center.y,aoeRadius:radius,aoeResults:results};
+  addChatMessage({kind:type,character:casterName,label:`${item.name} ${cone?'Cone':'AoE'}`,detail,total:damage.total,rolls:damage.rolls});
+  const template=cone ? coneTemplateFrom(origin,aim,radius) : null;
+  if(template){
+    templateDraft=template;
+    setTimeout(()=>{ if(templateDraft?.x1===template.x1 && templateDraft?.x2===template.x2) templateDraft=null; draw(); },2200);
+  }
+  const effect={kind:'aoe',text:targets.length?`${item.name}: ${splitDamage?`${damage.total} split`: `${affected}/${targets.length} affected`}${crits?` (${crits} crit${crits===1?'':'s'})`:''}`:`${item.name}: ${cone?'cone':'area'} cast`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`${cone?'Cone':'Radius'} ${radius}px`,characterId:caster.id||caster.uid,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:aim.x,ty:aim.y,aoeRadius:radius,aoeShape:cone?'cone':'circle',template,aoeResults:results};
   playSfx(actionType==='healing'?'heal':actionType==='damage'?(affected?'hit':'miss'):'buff');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(caster,type,effect);
@@ -9357,6 +9481,10 @@ function handleLiveEffect(effect){
   }
   if(effect.kind==='aoe'){
     const ch=characterById(effect.characterId) || enemyByUid(effect.characterId) || {position:{x:effect.x,y:effect.y},x:effect.x,y:effect.y};
+    if(effect.template){
+      templateDraft={...effect.template};
+      setTimeout(()=>{ if(templateDraft?.x1===effect.template.x1 && templateDraft?.x2===effect.template.x2) templateDraft=null; draw(); },2200);
+    }
     (effect.aoeResults||[]).forEach(result=>{
       if(result.kind==='enemy'){
         const target=enemyByUid(result.id);
@@ -10383,6 +10511,18 @@ function connectWS(){
         } else if(msg.type==='iconUpdate'){
           const i=placedIcons.findIndex(ic=>ic.uid===msg.icon.uid);
           if(i>=0) placedIcons[i]=hydratePlacedIcon(msg.icon);
+          draw();
+          scheduleSave();
+        } else if(msg.type==='lootClaim'){
+          applyLootSourceSnapshot(msg.source||{});
+          if(msg.character?.id){
+            applyCharacterPatch(msg.character.id,{
+              gold:msg.character.gold,
+              inventory:Array.isArray(msg.character.inventory)?msg.character.inventory:[]
+            });
+          }
+          addChatMessage({kind:'loot',character:msg.characterName||'Player',label:`Took ${lootEntryLabel(msg.item||{})}`,detail:`From ${msg.sourceName||'loot'}`});
+          updateAllPanels();
           draw();
           scheduleSave();
         } else if(msg.type==='iconDelete'){
