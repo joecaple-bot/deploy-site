@@ -303,9 +303,14 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .effect-controls button.sel{border-color:rgba(102,167,216,.75);background:rgba(102,167,216,.18)}
 .player-chip{display:flex;align-items:center;gap:7px;font-size:12px;padding:6px 7px;border-radius:var(--radius);margin-bottom:5px;border:1px solid var(--line)}
 .player-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-#modal-overlay,#confirm-overlay,#enemy-modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.62);z-index:100;align-items:center;justify-content:center;padding:16px}
-#modal-overlay.show,#confirm-overlay.show,#enemy-modal-overlay.show{display:flex}
+#modal-overlay,#confirm-overlay,#enemy-modal-overlay,#dm-item-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.62);z-index:100;align-items:center;justify-content:center;padding:16px}
+#modal-overlay.show,#confirm-overlay.show,#enemy-modal-overlay.show,#dm-item-overlay.show{display:flex}
 #modal{width:min(760px,96vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+#dm-item-modal{width:min(760px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(180deg,rgba(30,24,17,.98),rgba(9,10,12,.98));border:1px solid rgba(202,168,107,.52);border-radius:12px;box-shadow:var(--shadow),0 0 0 1px rgba(255,225,160,.08) inset}
+.dm-item-preview{border:1px solid rgba(202,168,107,.35);border-radius:10px;background:rgba(0,0,0,.22);padding:10px;min-height:104px;color:#dbc9a6;font-size:12px;line-height:1.55}
+.dm-item-preview b{display:block;color:#fff1cd;font:800 16px Georgia,'Times New Roman',serif;margin-bottom:4px}
+.dm-item-preview span{display:inline-flex;margin:0 5px 5px 0;padding:3px 7px;border:1px solid rgba(202,168,107,.34);border-radius:999px;background:rgba(202,168,107,.08);font-size:10px;color:#ffe6b0}
+.dm-item-weapon-fields{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .modal-top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
 .modal-top h2{font-size:17px;font-weight:700}
 .modal-body{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;padding:16px 18px}
@@ -687,10 +692,10 @@ h3{
   position:absolute;
   z-index:152;
 }
-#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay{
+#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay,#dm-item-overlay{
   position:absolute;
 }
-#sheet-popup,#radial-menu,#floating-end-turn,#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay{
+#sheet-popup,#radial-menu,#floating-end-turn,#crit-overlay,#initiative-overlay,#modal-overlay,#confirm-overlay,#enemy-modal-overlay,#dm-item-overlay{
   z-index:150;
 }
 #map3d-layer{
@@ -1080,6 +1085,93 @@ h3{
         </div>
       </div>
 
+      <div id="dm-item-overlay">
+        <div id="dm-item-modal">
+          <div class="modal-top">
+            <h2>Give Item to Player</h2>
+            <button class="ghost" onclick="closeDMGiveItemModal()" aria-label="Close">Close</button>
+          </div>
+          <div class="modal-body">
+            <section>
+              <div class="form-grid">
+                <div class="span-2">
+                  <label>Recipient</label>
+                  <select id="dm-item-character"></select>
+                </div>
+                <div>
+                  <label>Item type</label>
+                  <select id="dm-item-type" onchange="syncDMGiveItemForm()">
+                    <option value="quest">Quest item</option>
+                    <option value="weapon">Weapon</option>
+                    <option value="armor">Armor / gear</option>
+                    <option value="consumable">Consumable</option>
+                    <option value="generic">Generic item</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Rarity</label>
+                  <select id="dm-item-rarity"></select>
+                </div>
+                <div class="span-2">
+                  <label>Name</label>
+                  <input id="dm-item-name" placeholder="Sealed letter, cursed key, Moonlit Rapier">
+                </div>
+                <div>
+                  <label>Quantity</label>
+                  <input id="dm-item-qty" type="number" min="1" max="99" value="1">
+                </div>
+                <div>
+                  <label>Equipment slot</label>
+                  <select id="dm-item-slot"></select>
+                </div>
+                <div class="dm-item-weapon-fields span-2" id="dm-item-weapon-fields">
+                  <div>
+                    <label>Damage die</label>
+                    <select id="dm-item-die">
+                      <option value="">None</option>
+                      <option>d4</option><option>d6</option><option>d8</option><option>d10</option><option>d12</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Weapon bonus</label>
+                    <input id="dm-item-damage-bonus" type="number" min="-5" max="10" value="0">
+                  </div>
+                </div>
+                <div>
+                  <label>AC bonus</label>
+                  <input id="dm-item-ac" type="number" min="0" max="10" value="0">
+                </div>
+                <div>
+                  <label>Granted ability</label>
+                  <input id="dm-item-ability" placeholder="Unlocks the vault door">
+                </div>
+                <div class="span-2">
+                  <label>Bonus action / use</label>
+                  <input id="dm-item-bonus-action" placeholder="Once per session, reveal a hidden passage">
+                </div>
+                <div class="span-2">
+                  <label>Description</label>
+                  <textarea id="dm-item-description" placeholder="DM-authored item notes, quest context, hidden properties, or table-facing flavour."></textarea>
+                </div>
+              </div>
+            </section>
+            <section>
+              <div class="panel-head"><h3>Preview</h3></div>
+              <div id="dm-item-preview" class="dm-item-preview"></div>
+              <div class="hdiv"></div>
+              <div class="hint">
+                <div>Use this for quest rewards, custom weapons, clues, keys, letters, relics, or one-off story items.</div>
+                <div>Weapon items can later be converted into usable attacks from the character sheet popup.</div>
+              </div>
+            </section>
+          </div>
+          <div id="modal-btns">
+            <button onclick="closeDMGiveItemModal()">Cancel</button>
+            <button class="primary" onclick="confirmDMGiveItem()">Give item</button>
+          </div>
+        </div>
+      </div>
+
       <div id="map-library-overlay">
         <div id="map-library">
           <div class="modal-top">
@@ -1138,6 +1230,12 @@ h3{
           <button onclick="centerActiveCharacter()" style="font-size:11px;padding:5px 8px">Ping</button>
         </div>
         <div id="active-summary"></div>
+
+        <div class="hdiv dm-only"></div>
+        <div class="panel-head dm-only">
+          <h3>DM rewards</h3>
+        </div>
+        <button class="full-btn primary dm-only" onclick="openDMGiveItemModal()">Give item to player</button>
 
         <div class="hdiv"></div>
         <div class="panel-head">
@@ -1653,6 +1751,9 @@ function normalizeTextItem(item={}){
   };
 }
 function inventoryWeaponProfile(item={}){
+  if(item.damageDie && DAMAGE_DICE.includes(item.damageDie)){
+    return {die:item.damageDie,bonus:Number(item.damageBonus)||0};
+  }
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
   if(!/(sword|blade|dagger|axe|mace|club|hammer|spear|javelin|bow|crossbow|staff|wand|rapier|scimitar|halberd|glaive|pike|flail|whip|sickle|sling|dart)/.test(text)) return null;
   let die='d6';
@@ -1783,17 +1884,23 @@ function useCharacterConsumable(characterId,itemId){
 function normalizeInventoryItem(item={}){
   const statBonuses={};
   for(const ab of ABILITIES) statBonuses[ab]=Number(item.statBonuses?.[ab])||0;
+  const itemType=['generic','weapon','armor','quest','consumable'].includes(item.itemType) ? item.itemType : 'generic';
   return {
     id:item.id || 'i_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:item.name || 'Item',
     qty:Math.max(1,Number(item.qty)||1),
     rarity:ITEM_RARITIES.includes(item.rarity) ? item.rarity : 'Common',
+    itemType,
+    questItem:item.questItem===true || itemType==='quest',
     slot:EQUIPMENT_SLOTS.includes(item.slot) ? item.slot : '',
     acBonus:Number(item.acBonus)||0,
     statBonuses,
+    damageDie:DAMAGE_DICE.includes(item.damageDie) ? item.damageDie : '',
+    damageBonus:Number(item.damageBonus)||0,
     ability:item.ability || '',
     bonusAction:item.bonusAction || '',
-    description:item.description || ''
+    description:item.description || '',
+    source:item.source || ''
   };
 }
 function normalizeLootEntry(item={}){
@@ -1833,7 +1940,8 @@ function decrementInventoryById(ch,itemId,qty=1){
 function addInventoryItem(ch,item){
   ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
   const incoming=normalizeInventoryItem(item);
-  const existing=ch.inventory.find(x=>x.name===incoming.name && x.rarity===incoming.rarity && x.slot===incoming.slot && !x.acBonus && !incoming.acBonus);
+  const stackable=!incoming.acBonus && !incoming.damageDie && !incoming.questItem && !['weapon','armor','quest'].includes(incoming.itemType);
+  const existing=stackable ? ch.inventory.find(x=>x.name===incoming.name && x.rarity===incoming.rarity && x.slot===incoming.slot && !x.acBonus && !x.damageDie && !x.questItem) : null;
   if(existing) existing.qty=Math.max(1,Number(existing.qty)||1)+Math.max(1,Number(incoming.qty)||1);
   else ch.inventory.push(incoming);
 }
@@ -1843,6 +1951,96 @@ function snapshotCharacterLootState(ch){
     gold:Math.max(0,Number(ch.gold)||0),
     inventory:Array.isArray(ch.inventory)?ch.inventory.map(normalizeInventoryItem):[]
   } : null;
+}
+function dmGrantableCharacters(){
+  return Object.values(allCharactersById())
+    .filter(ch=>ch?.id && !isGeneratedDefaultGhost(ch))
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+}
+function openDMGiveItemModal(){
+  if(!isDM()) return requireDM();
+  const overlay=document.getElementById('dm-item-overlay');
+  const characterSelect=document.getElementById('dm-item-character');
+  const raritySelect=document.getElementById('dm-item-rarity');
+  const slotSelect=document.getElementById('dm-item-slot');
+  if(!overlay || !characterSelect || !raritySelect || !slotSelect) return;
+  const chars=dmGrantableCharacters();
+  characterSelect.innerHTML=chars.length
+    ? chars.map(ch=>`<option value="${escapeHtml(ch.id)}">${escapeHtml(ch.name||'Character')} L${Number(ch.level)||1}${ch.owner===myId?' (you)':ch.owner&&ch.owner!=='unclaimed'?' (claimed)':''}</option>`).join('')
+    : '<option value="">No characters found</option>';
+  if(activeCharacterId && chars.some(ch=>ch.id===activeCharacterId)) characterSelect.value=activeCharacterId;
+  raritySelect.innerHTML=ITEM_RARITIES.map(r=>`<option>${escapeHtml(r)}</option>`).join('');
+  raritySelect.value='Common';
+  slotSelect.innerHTML='<option value="">Inventory only</option>'+EQUIPMENT_SLOTS.map(slot=>`<option>${escapeHtml(slot)}</option>`).join('');
+  document.getElementById('dm-item-type').value='quest';
+  document.getElementById('dm-item-name').value='';
+  document.getElementById('dm-item-qty').value='1';
+  document.getElementById('dm-item-slot').value='';
+  document.getElementById('dm-item-die').value='';
+  document.getElementById('dm-item-damage-bonus').value='0';
+  document.getElementById('dm-item-ac').value='0';
+  document.getElementById('dm-item-ability').value='';
+  document.getElementById('dm-item-bonus-action').value='';
+  document.getElementById('dm-item-description').value='';
+  syncDMGiveItemForm();
+  overlay.classList.add('show');
+}
+function closeDMGiveItemModal(){
+  document.getElementById('dm-item-overlay')?.classList.remove('show');
+}
+function readDMGiveItemForm(){
+  const type=document.getElementById('dm-item-type')?.value || 'quest';
+  return normalizeInventoryItem({
+    itemType:type,
+    questItem:type==='quest',
+    name:document.getElementById('dm-item-name')?.value.trim() || (type==='quest'?'Quest Item':'Custom Item'),
+    rarity:document.getElementById('dm-item-rarity')?.value || 'Common',
+    qty:document.getElementById('dm-item-qty')?.value || 1,
+    slot:document.getElementById('dm-item-slot')?.value || '',
+    acBonus:document.getElementById('dm-item-ac')?.value || 0,
+    damageDie:type==='weapon' ? (document.getElementById('dm-item-die')?.value || '') : '',
+    damageBonus:type==='weapon' ? (document.getElementById('dm-item-damage-bonus')?.value || 0) : 0,
+    ability:document.getElementById('dm-item-ability')?.value.trim() || '',
+    bonusAction:document.getElementById('dm-item-bonus-action')?.value.trim() || '',
+    description:document.getElementById('dm-item-description')?.value.trim() || '',
+    source:'DM grant'
+  });
+}
+function syncDMGiveItemForm(){
+  const type=document.getElementById('dm-item-type')?.value || 'quest';
+  const weaponFields=document.getElementById('dm-item-weapon-fields');
+  if(weaponFields) weaponFields.style.display=type==='weapon'?'grid':'none';
+  if(type==='weapon' && !document.getElementById('dm-item-die')?.value) document.getElementById('dm-item-die').value='d6';
+  const item=readDMGiveItemForm();
+  const preview=document.getElementById('dm-item-preview');
+  if(preview){
+    const tags=[item.rarity,item.itemType,item.slot, item.damageDie?`${item.damageDie} ${formatBonus(item.damageBonus)}`:'', item.acBonus?`AC +${item.acBonus}`:'', item.qty>1?`x${item.qty}`:''].filter(Boolean);
+    preview.innerHTML=`<b>${escapeHtml(item.name)}</b>${tags.map(t=>`<span>${escapeHtml(t)}</span>`).join('')}<div>${escapeHtml(item.description || 'No description yet.')}</div>${item.ability?`<div><strong>Ability:</strong> ${escapeHtml(item.ability)}</div>`:''}${item.bonusAction?`<div><strong>Use:</strong> ${escapeHtml(item.bonusAction)}</div>`:''}`;
+  }
+}
+function confirmDMGiveItem(){
+  if(!isDM()) return requireDM();
+  const characterId=document.getElementById('dm-item-character')?.value;
+  const ch=characterById(characterId);
+  if(!ch) return showCritOverlay('Choose a player first','roll','DM item');
+  const item=readDMGiveItemForm();
+  if(!item.name || item.name==='Item') return showCritOverlay('Name the item first','roll','DM item');
+  pushDMUndo('Give item');
+  addInventoryItem(ch,item);
+  const snapshot=snapshotCharacterLootState(ch);
+  addChatMessage({kind:'loot',character:'DM',label:`Gave ${item.name}`,detail:`To ${ch.name}`});
+  broadcast({
+    type:'dmGrantItem',
+    character:snapshot,
+    item,
+    characterName:ch.name
+  });
+  updateAllPanels();
+  updateCombatPopout();
+  draw();
+  scheduleSave();
+  closeDMGiveItemModal();
+  showCritOverlay(`${ch.name} receives ${item.name}`,'success','DM item');
 }
 function spellSlotsByLevel(total=0){
   const slots={};
@@ -10884,6 +11082,18 @@ function connectWS(){
           updateAllPanels();
           draw();
           scheduleSave();
+        } else if(msg.type==='dmGrantItem'){
+          if(msg.character?.id){
+            applyCharacterPatch(msg.character.id,{
+              gold:msg.character.gold,
+              inventory:Array.isArray(msg.character.inventory)?msg.character.inventory:[]
+            });
+          }
+          addChatMessage({kind:'loot',character:'DM',label:`Gave ${lootEntryLabel(msg.item||{})}`,detail:`To ${msg.characterName||'player'}`});
+          updateAllPanels();
+          updateCombatPopout();
+          draw();
+          scheduleSave();
         } else if(msg.type==='iconDelete'){
           placedIcons=placedIcons.filter(ic=>ic.uid!==msg.uid);
           if(selectedTargetUid===msg.uid) selectedTargetUid=null;
@@ -11186,6 +11396,10 @@ initAudioControls();
 initSoundZoneControls();
 setScenePreset(scenePreset);
 updateRoleUI();
+document.querySelectorAll('#dm-item-modal input,#dm-item-modal select,#dm-item-modal textarea').forEach(el=>{
+  el.addEventListener('input',syncDMGiveItemForm);
+  el.addEventListener('change',syncDMGiveItemForm);
+});
 loadState();
 ensureDefaultCharacter();
 ensureDefaultEnemies();
