@@ -247,8 +247,16 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-meta{font-size:10px;color:#d9c59b;margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .combat-meta button{border-color:rgba(202,168,107,.35);background:rgba(13,16,20,.7)}
 .combat-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:visible}
-.combat-actions button{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:8px 9px;text-align:left;min-width:0;overflow:visible;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32);transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;z-index:1}
-.combat-actions button .action-label{display:block;overflow:hidden;text-overflow:ellipsis}
+.combat-actions button{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:7px 9px;text-align:left;min-width:0;overflow:visible;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32);transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;z-index:1}
+.combat-actions button .action-label{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.combat-actions button .action-label-text{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.spell-icon{display:inline-grid;place-items:center;flex:0 0 var(--icon-size,22px);width:var(--icon-size,22px);height:var(--icon-size,22px);border:1px solid rgba(255,213,130,.44);border-radius:7px;background-color:rgba(255,190,96,.12);background-repeat:no-repeat;box-shadow:0 0 12px rgba(255,162,48,.16),0 0 0 1px rgba(0,0,0,.35) inset;color:#ffd98a;font-size:12px;line-height:1;text-shadow:0 1px 4px #000}
+.spell-icon.weapon{background:radial-gradient(circle at 42% 36%,rgba(255,232,170,.35),rgba(126,86,32,.32) 48%,rgba(8,9,12,.9));color:#ffe5ac}
+.spell-icon.feature{background:radial-gradient(circle at 45% 35%,rgba(126,211,255,.36),rgba(82,55,150,.32) 50%,rgba(8,9,12,.9));color:#d9f1ff}
+.spell-icon.fallback{font-weight:900}
+.spell-icon img{width:100%;height:100%;display:block;border-radius:inherit;object-fit:cover}
+.combat-actions .action-spell-icon{--icon-size:55px;border-radius:12px}
+.combat-actions .action-spell-icon+.action-label-text{font-size:13px}
 .combat-actions button .action-full{display:none;position:absolute;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);width:max-content;max-width:270px;white-space:normal;line-height:1.3;padding:8px 10px;border:1px solid rgba(255,221,151,.62);border-radius:8px;background:linear-gradient(180deg,rgba(30,25,18,.98),rgba(11,13,16,.98));box-shadow:0 14px 34px rgba(0,0,0,.55);color:#fff2d0;pointer-events:none}
 .combat-actions button .action-full b{display:block;font-size:12px;margin-bottom:3px}
 .combat-actions button .action-full small{display:block;color:#d9c59b;font-size:10px}
@@ -319,6 +327,24 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .ability{font-size:10px;border:1px solid var(--line);border-radius:999px;padding:4px 7px;color:#efe7d3;background:rgba(202,168,107,.09)}
 #modal-btns{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 16px}
 #modal-btns button{font-size:12px;padding:7px 14px}
+#map-library-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.68);z-index:130;align-items:center;justify-content:center;padding:16px}
+#map-library-overlay.show{display:flex}
+#map-library{width:min(980px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(180deg,rgba(30,24,17,.98),rgba(9,10,12,.98));border:1px solid rgba(202,168,107,.5);border-radius:14px;box-shadow:0 28px 120px rgba(0,0,0,.72),0 0 0 1px rgba(255,225,160,.08) inset}
+.map-library-body{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;padding:16px 18px}
+.map-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.map-card{position:relative;min-height:122px;overflow:hidden;border:1px solid rgba(202,168,107,.38);border-radius:12px;background:#090b0f;box-shadow:0 12px 34px rgba(0,0,0,.32);cursor:pointer;text-align:left;padding:0}
+.map-card:hover{border-color:rgba(255,190,96,.8);box-shadow:0 0 24px rgba(255,154,51,.2),0 12px 34px rgba(0,0,0,.38);transform:translateY(-1px)}
+.map-card.active{border-color:#ffc45f;box-shadow:0 0 0 1px rgba(255,196,95,.55),0 0 26px rgba(255,160,45,.28)}
+.map-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.78;filter:saturate(.9) contrast(1.05)}
+.map-card span{position:absolute;left:8px;right:8px;bottom:8px;padding:7px 8px;border-radius:8px;background:linear-gradient(180deg,rgba(19,13,7,.78),rgba(5,5,6,.9));color:#ffe8b7;font:800 12px Georgia,'Times New Roman',serif;text-shadow:0 1px 5px #000}
+.map-card small{display:block;color:#c7ad74;font:600 10px Inter,Segoe UI,sans-serif;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.map-library-panel{border:1px solid rgba(202,168,107,.28);border-radius:12px;background:rgba(7,8,10,.72);padding:12px;display:flex;flex-direction:column;gap:10px}
+.map-library-panel h3{font-size:13px;color:#ffe8b7;margin-bottom:2px}
+.map-library-panel code{display:block;word-break:break-all;color:#d6c4a1;background:rgba(0,0,0,.28);border:1px solid rgba(202,168,107,.18);border-radius:8px;padding:8px;font-size:11px}
+.map-path-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.map-path-row input{height:34px}
+.map-helper{font-size:11px;color:#aa9a83;line-height:1.45}
+.map-current-pill{border:1px solid rgba(255,190,96,.36);border-radius:12px;background:linear-gradient(135deg,rgba(255,151,45,.13),rgba(0,0,0,.18));padding:10px;color:#f8dfaa}
 #confirm-box{background:var(--panel);border-radius:10px;border:1px solid var(--line);padding:20px;width:300px;box-shadow:var(--shadow)}
 #confirm-box h2{font-size:15px;margin-bottom:8px}
 #confirm-box p{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:14px}
@@ -768,6 +794,7 @@ h3{
 <body>
 <div id="app">
   <div id="toolbar">
+    <button class="dm-only" onclick="openMapLibrary()">Maps</button>
     <button class="dm-only" onclick="document.getElementById('img-input').click()">Upload map</button>
     <input type="file" id="img-input" accept="image/*" style="display:none">
     <button class="dm-only" onclick="useHostedMapFromPrompt()">Hosted map</button>
@@ -1053,6 +1080,36 @@ h3{
         </div>
       </div>
 
+      <div id="map-library-overlay">
+        <div id="map-library">
+          <div class="modal-top">
+            <h2>Map Library</h2>
+            <button class="ghost" onclick="closeMapLibrary()" aria-label="Close">Close</button>
+          </div>
+          <div class="map-library-body">
+            <div>
+              <div class="section-title">Hosted maps</div>
+              <div id="map-library-grid" class="map-library-grid"></div>
+            </div>
+            <div class="map-library-panel">
+              <div class="map-current-pill">
+                <b>Current map</b>
+                <div id="map-current-label" class="map-helper">No map selected</div>
+              </div>
+              <h3>Use Git-hosted map</h3>
+              <div class="map-path-row">
+                <input id="hosted-map-path" placeholder="maps/undercity_battlemap.webp">
+                <button onclick="useHostedMapFromLibrary()">Use</button>
+              </div>
+              <button onclick="document.getElementById('img-input').click()">Upload local map</button>
+              <button class="ghost" onclick="copyCurrentMapPath()">Copy current path</button>
+              <code id="map-current-path">No hosted path yet.</code>
+              <div class="map-helper">Best flow: put maps in the repo under <b>maps/</b>, then choose them here. Hosted maps are easier to switch, lighter for Supabase, and everyone loads the same scene.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="confirm-overlay">
         <div id="confirm-box">
           <h2>Hard reset?</h2>
@@ -1185,6 +1242,8 @@ h3{
 <script src="vendor/three.min.js?v=124-models"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
+<script src="assets/spell-icons/spell_icon_atlas.js"></script>
+<script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
 <script src="assets_manifest.js"></script>
 <script src="assets_3d_manifest.js?v=glb-gltf"></script>
 <script>
@@ -1307,7 +1366,7 @@ const RACE_DEFS = {
   Tabaxi:{mods:{DEX:2,CHA:1},traits:['Feline Agility','Cat Claws','Darkvision']},
   Triton:{mods:{STR:1,CON:1,CHA:1},traits:['Amphibious','Control Air and Water','Guardians of the Depths']}
 };
-const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled'];
+const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled','Slipped'];
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
 const ACTION_COSTS = ['action','bonus','reaction','free','passive'];
@@ -1548,7 +1607,7 @@ function defaultActionEffect(name='',type='damage'){
 }
 function spellControlOverrides(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
-  if(text.includes('grease')) return {actionType:'utility',targetMode:'enemies',effect:'Prone',aoeRadius:60};
+  if(text.includes('grease')) return {actionType:'utility',targetMode:'all',effect:'Slipped',aoeRadius:70};
   if(text.includes('burning hands') || text.includes('cone')) return {actionType:'damage',targetMode:'cone',aoeRadius:Math.max(30,Number(item.aoeRadius)||0)};
   return {};
 }
@@ -1943,11 +2002,15 @@ function hydratePlacedIcon(raw={}){
 function hydrateAreaEffect(raw={}){
   return {
     id:raw.id || 'fx_'+Date.now()+Math.random().toString(36).slice(2,7),
-    type:['poison','fire','water'].includes(raw.type) ? raw.type : 'poison',
+    type:['poison','fire','water','grease'].includes(raw.type) ? raw.type : 'poison',
     x:Number(raw.x)||0,
     y:Number(raw.y)||0,
     radius:Math.max(10,Number(raw.radius)||60),
-    createdAt:Number(raw.createdAt)||Date.now()
+    createdAt:Number(raw.createdAt)||Date.now(),
+    saveDC:Math.max(0,Number(raw.saveDC)||0),
+    casterId:raw.casterId || '',
+    casterName:raw.casterName || '',
+    spellName:raw.spellName || ''
   };
 }
 function hydrateSoundZone(raw={}){
@@ -2005,10 +2068,22 @@ const animatedFogLoopEndPad = 0.05;
 let mapImg = null;
 let mapImageData = '';
 let mapUrl = '';
+let mapLabel = '';
 let mapRevision = 0;
 let mapWorldWidth = 1280;
 let mapWorldHeight = 720;
 let mapWorldLocked = false;
+const HOSTED_MAP_LIBRARY = [
+  {name:'Town Map 1',url:'maps/map1.png'},
+  {name:'Town Map 2',url:'maps/map2.png'},
+  {name:'Town Map 3',url:'maps/map3.png'},
+  {name:'Town Map 4',url:'maps/map4.png'},
+  {name:'Town Map 5',url:'maps/map5.png'},
+  {name:'Town Map 6',url:'maps/map6.png'},
+  {name:'Camp Map',url:'maps/Camp_Map.png'},
+  {name:'Ocean Map',url:'maps/Ocean_Map.png'},
+  {name:'Undercity Battlemap',url:'maps/undercity_battlemap.webp'}
+];
 const RP_BOARD_PRESETS = {
   tavern:{id:'tavern',label:'Warm Tavern',src:'assets/rp/rp_table.png',mood:{rgb:[255,139,42],hue:'0deg',glow:.85,smokeOpacity:.16,warm:.18}},
   arcane:{id:'arcane',label:'Arcane Table',src:'assets/rp/boards/arcane_table.png',mood:{rgb:[157,107,255],hue:'72deg',glow:.72,smokeOpacity:.18,warm:.08}},
@@ -2063,6 +2138,7 @@ let userRole = localStorage.getItem(roleKey()) || 'player';
 let selectedTargetUid = null;
 let activeEnemyUid = null;
 let pendingModalSave = null;
+let pendingGreasePlacement = null;
 let dragTarget = null;
 let dragOffX = 0, dragOffY = 0;
 let isDragging = false;
@@ -2196,6 +2272,7 @@ function pushDMUndo(label='DM action'){
     label,
     mapImageData,
     mapUrl,
+    mapLabel,
     mapRevision,
     mapWorldWidth,
     mapWorldHeight,
@@ -2218,6 +2295,7 @@ function undoLastDMAction(){
   placedIcons=snap.placedIcons.map(hydratePlacedIcon);
   mapImageData=snap.mapImageData||'';
   mapUrl=snap.mapUrl||'';
+  mapLabel=snap.mapLabel||hostedMapLabel(mapUrl);
   mapRevision=Number(snap.mapRevision)||0;
   if(Number(snap.mapWorldWidth) && Number(snap.mapWorldHeight)) setMapWorldSize(snap.mapWorldWidth,snap.mapWorldHeight,false);
   fogRevision=Number(snap.fogRevision)||0;
@@ -4025,7 +4103,8 @@ function drawAreaEffects(){
   const colors={
       poison:['rgba(80,210,90,.22)','rgba(80,210,90,.72)'],
       fire:['rgba(255,95,40,.24)','rgba(255,160,60,.78)'],
-      water:['rgba(65,160,255,.22)','rgba(120,210,255,.74)']
+      water:['rgba(65,160,255,.22)','rgba(120,210,255,.74)'],
+      grease:['rgba(40,45,35,.34)','rgba(210,210,145,.72)']
     }[fx.type] || ['rgba(255,255,255,.16)','rgba(255,255,255,.5)'];
     const r=fx.radius+pulse*7;
     const g=ctx.createRadialGradient(fx.x,fx.y,0,fx.x,fx.y,r);
@@ -4038,7 +4117,7 @@ function drawAreaEffects(){
     ctx.fill();
     ctx.strokeStyle=colors[1];
     ctx.lineWidth=2;
-    ctx.setLineDash(fx.type==='water'?[7,6]:fx.type==='poison'?[2,6]:[10,4]);
+    ctx.setLineDash(fx.type==='water'?[7,6]:fx.type==='poison'?[2,6]:fx.type==='grease'?[4,5]:[10,4]);
     ctx.beginPath();
     ctx.arc(fx.x,fx.y,fx.radius,0,Math.PI*2);
     ctx.stroke();
@@ -4046,7 +4125,7 @@ function drawAreaEffects(){
     ctx.font='700 11px Inter, Segoe UI, sans-serif';
     ctx.fillStyle=colors[1];
     ctx.textAlign='center';
-    ctx.fillText(fx.type==='fire'?'Hazard':fx.type[0].toUpperCase()+fx.type.slice(1),fx.x,fx.y-fx.radius-14);
+    ctx.fillText(fx.type==='fire'?'Hazard':fx.type==='grease'?'Grease':fx.type[0].toUpperCase()+fx.type.slice(1),fx.x,fx.y-fx.radius-14);
     drawEffectParticles(fx,now,colors[1]);
   }
   ctx.restore();
@@ -4331,6 +4410,9 @@ function isAoeAction(item){
 function isConeAction(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''}`.toLowerCase();
   return item.targetMode==='cone' || text.includes('cone') || text.includes('burning hands');
+}
+function isGreaseAction(item={}){
+  return `${item.name||''} ${item.effect||''} ${item.description||''}`.toLowerCase().includes('grease');
 }
 function entityPoint(entity){
   return {x:characterX(entity) ?? entity?.x ?? null,y:characterY(entity) ?? entity?.y ?? null};
@@ -5614,6 +5696,192 @@ function recordTurnMovement(ch,fromX,fromY,toX,toY){
   updateFloatingEndTurn();
   updateEndTurnButton();
 }
+function greaseSaveBonusFor(entry){
+  if(entry?.kind==='character') return abilityMod(statsWithRace(entry.entity).DEX);
+  return Number(entry?.entity?.dexSaveBonus || entry?.entity?.saveBonus || 0) || 0;
+}
+function entryLabel(entry){
+  return entry?.entity?.name || (entry?.kind==='enemy'?'Enemy':'Character');
+}
+function applyStatusToEntry(entry,status,rounds=10,meta={}){
+  if(!entry?.entity) return null;
+  if(entry.kind==='enemy') return addEnemyStatus(entry.entity.uid,status,rounds,meta);
+  const updated=addCharacterStatus(entry.entity.id,status,rounds,meta);
+  if(updated){
+    if(myCharacters.some(c=>c.id===updated.id)) syncCharacter(updated);
+    else broadcast({type:'characterState',character:updated,characterClaims});
+  }
+  return updated;
+}
+function removeStatusFromEntry(entry,status){
+  if(!entry?.entity) return;
+  removeStatusNamed(entry.entity,status);
+  if(entry.kind==='enemy') broadcast({type:'iconUpdate',icon:entry.entity});
+  else {
+    const updated=applyCharacterPatch(entry.entity.id,{statuses:entry.entity.statuses});
+    if(updated){
+      if(myCharacters.some(c=>c.id===updated.id)) syncCharacter(updated);
+      else broadcast({type:'characterState',character:updated,characterClaims});
+    }
+  }
+}
+function greaseEntriesInZone(zone){
+  const center={x:zone.x,y:zone.y};
+  const chars=Object.values(allCharactersById()).filter(ch=>entityPoint(ch).x!=null).map(entity=>({kind:'character',entity}));
+  const enemies=placedIcons.filter(ic=>ic.kind==='enemy' && ic.hp>0).map(entity=>({kind:'enemy',entity}));
+  return [...chars,...enemies].filter(entry=>dist(center,entityPoint(entry.entity))<=zone.radius);
+}
+function greaseZonesAt(point){
+  if(!point || point.x==null || point.y==null) return [];
+  return areaEffects.filter(fx=>fx.type==='grease' && dist(fx,point)<=fx.radius);
+}
+function rollGreaseSlipSave(entry,zone,{reason='enters'}={}){
+  if(!entry?.entity || hasStatusNamed(entry.entity,'Slipped')) return false;
+  const dc=Number(zone.saveDC)||12;
+  const bonus=greaseSaveBonusFor(entry);
+  const save=rollDiceExpression('1d20',bonus);
+  const slipped=save.total<dc;
+  if(slipped){
+    applyStatusToEntry(entry,'Slipped',10,{sourceSpell:zone.spellName||'Grease',sourceId:zone.casterId,saveDC:dc});
+  }
+  addChatMessage({
+    kind:'save',
+    character:entryLabel(entry),
+    label:`Grease ${reason} save`,
+    detail:`DEX save ${save.total} [${save.rolls[0]} ${formatBonus(bonus)}] vs DC ${dc} - ${slipped?'slipped':'kept footing'}`,
+    total:save.total,
+    rolls:save.rolls
+  });
+  showCritOverlay(`${entryLabel(entry)} ${slipped?'slips in the grease':'keeps footing'}`,slipped?'fail':'success','Grease');
+  return slipped;
+}
+function checkGreaseEntryForEntity(entity,kind='character',fromPoint=null){
+  const to=entityPoint(entity);
+  if(to.x==null) return;
+  const beforeZones=fromPoint ? greaseZonesAt(fromPoint).map(z=>z.id) : [];
+  const entry={kind,entity};
+  for(const zone of greaseZonesAt(to)){
+    if(beforeZones.includes(zone.id)) continue;
+    rollGreaseSlipSave(entry,zone,{reason:'entry'});
+  }
+}
+function castGreaseArea(caster,casterKind,item,center,radius){
+  const saveDC=Number(item.saveDC)||Number(caster?.derived?.spellSaveDC)||12;
+  const zone=hydrateAreaEffect({
+    type:'grease',
+    x:Number(center.x)||0,
+    y:Number(center.y)||0,
+    radius,
+    saveDC,
+    casterId:caster.id||caster.uid||'',
+    casterName:caster.name||'Caster',
+    spellName:item.name||'Grease'
+  });
+  areaEffects.push(zone);
+  const entries=greaseEntriesInZone(zone).filter(entry=>(entry.entity.id||entry.entity.uid)!==(caster.id||caster.uid));
+  let slipped=0;
+  for(const entry of entries) if(rollGreaseSlipSave(entry,zone,{reason:'cast'})) slipped++;
+  addChatMessage({kind:'spell',character:caster.name||'Caster',label:'Grease area placed',detail:`${radius}px slippery radius, DEX DC ${saveDC}. ${slipped}/${entries.length} slipped.`});
+  const effect={kind:'aoe',text:`Grease: ${slipped}/${entries.length} slipped`,overlayType:slipped?'fail':'roll',title:`Slippery DC ${saveDC}`,characterId:caster.id||caster.uid,actionType:'spell',x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:zone.x,ty:zone.y,aoeRadius:radius,aoeShape:'circle',aoeResults:[]};
+  playSfx('spell');
+  playActionAnimation(caster,'spell',effect);
+  emitLiveEffect(effect);
+  updateCombatPopout();
+  draw();
+  scheduleSave();
+}
+function showGreaseCastChoice(characterId,type,itemId){
+  const ch=characterById(characterId);
+  const item=(ch?.[type+'s']||[]).find(x=>x.id===itemId);
+  if(!ch || !item) return;
+  const target=selectedTargetUid ? enemyByUid(selectedTargetUid) || selectedTargetCharacter() : null;
+  const pop=document.getElementById('sheet-popup');
+  if(!pop) return;
+  pop.classList.remove('enemy');
+  pop.innerHTML=`
+    <div class="sheet-top">
+      <div class="sheet-icon">\u{1F9C8}</div>
+      <div><div class="sheet-name">Cast Grease</div><div class="sheet-sub">${escapeHtml(ch.name)} · ${Number(item.aoeRadius)||70}px slippery area</div></div>
+      <div class="sheet-window-tools"><button onclick="closeGreaseCastChoice()">×</button></div>
+    </div>
+    <div class="sheet-detail">
+      <p class="hint">Drop Grease under the current target, or set a custom point on the map.</p>
+      <div class="sheet-actions">
+        <button onclick="castGreaseAtCurrentTarget('${characterId}','${type}','${itemId}')" ${target?'':'disabled'}>Cast on target</button>
+        <button onclick="armGreasePlacement('${characterId}','${type}','${itemId}')">Set area</button>
+      </div>
+      <div class="small">${target?`Current target: ${escapeHtml(target.name)}`:'No target selected. Use Set area or click an enemy first.'}</div>
+    </div>`;
+  setSheetIdentity(pop,'grease-choice',itemId);
+  prepareSheetWindow(pop,wrap.clientWidth/2-150,wrap.clientHeight/2-120,{keepPosition:false});
+}
+function closeGreaseCastChoice(){
+  pendingGreasePlacement=null;
+  closeSheet();
+}
+function armGreasePlacement(characterId,type,itemId){
+  const ch=characterById(characterId);
+  const item=(ch?.[type+'s']||[]).find(x=>x.id===itemId);
+  if(!ch || !item) return;
+  pendingGreasePlacement={characterId,type,itemId};
+  closeSheet();
+  showCritOverlay('Click the map to place Grease','roll','Set area');
+}
+function castGreaseAtCurrentTarget(characterId,type,itemId){
+  const target=selectedTargetUid ? enemyByUid(selectedTargetUid) || selectedTargetCharacter() : null;
+  if(!target) return showCritOverlay('Choose a target first','roll','Grease');
+  closeSheet();
+  return rollCharacterAction(characterId,type,itemId,{greaseMode:'target'});
+}
+function completeGreasePlacement(x,y){
+  const pending=pendingGreasePlacement;
+  pendingGreasePlacement=null;
+  if(!pending) return false;
+  const ch=characterById(pending.characterId);
+  if(!ch) return false;
+  if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked'), false;
+  const item=(ch[pending.type+'s']||[]).find(action=>action.id===pending.itemId);
+  if(!item) return false;
+  const actionCost=item.actionCost||inferActionCost(item);
+  if(!canUseTurnAction(ch,actionCost)) return false;
+  ch.derived=ch.derived || calculateDerived(ch);
+  const castLevel=pending.type==='spell' ? chooseCastLevel(ch,item) : 0;
+  if(pending.type==='spell' && Number(item.spellLevel)>0){
+    if(!castLevel) return showCritOverlay('No spell slot available','fail','Spell slots'), false;
+    if(!spendSpellSlot(ch,castLevel)) return showCritOverlay(`No L${castLevel} slots left`,'fail','Spell slots'), false;
+  }
+  const castItem=pending.type==='spell' ? {...item,castLevel} : item;
+  markTurnAction(actionCost,ch.id);
+  syncCharacter(ch);
+  castGreaseArea(ch,'character',castItem,{x,y},Number(castItem.aoeRadius)||70);
+  return true;
+}
+function turnEntryForId(id){
+  const character=characterById(id);
+  if(character) return {kind:'character',entity:character};
+  const enemy=enemyByUid(id);
+  if(enemy) return {kind:'enemy',entity:enemy};
+  return null;
+}
+function handleSlippedStartOfTurn(id){
+  const entry=turnEntryForId(id);
+  if(!entry?.entity || !hasStatusNamed(entry.entity,'Slipped')) return;
+  const slipped=normalizeStatuses(entry.entity.statuses).find(s=>s.name==='Slipped');
+  const dc=Number(slipped?.saveDC)||12;
+  const bonus=greaseSaveBonusFor(entry);
+  const roll=rollDiceExpression('1d20',bonus);
+  const stoodUp=roll.total>=dc;
+  if(stoodUp) removeStatusFromEntry(entry,'Slipped');
+  addChatMessage({
+    kind:'save',
+    character:entryLabel(entry),
+    label:'Get up from Grease',
+    detail:`DEX save ${roll.total} [${roll.rolls[0]} ${formatBonus(bonus)}] vs DC ${dc} - ${stoodUp?'back on their feet':'still slipped'}`,
+    total:roll.total,
+    rolls:roll.rolls
+  });
+  showCritOverlay(`${entryLabel(entry)} ${stoodUp?'gets up':'stays slipped'}`,stoodUp?'success':'fail','Grease');
+}
 function moveCharacterOnMap(ch,nextX,nextY,{announce=true}={}){
   if(!ch) return false;
   if(!canMoveCharacterNow(ch) || !canSpendMovement(ch,nextX,nextY)) return false;
@@ -5622,6 +5890,7 @@ function moveCharacterOnMap(ch,nextX,nextY,{announce=true}={}){
   revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
   syncCharacter(ch);
   recordTurnMovement(ch,fromX,fromY,characterX(ch),characterY(ch));
+  checkGreaseEntryForEntity(ch,'character',{x:fromX,y:fromY});
   if(announce) updateAllPanels();
   draw();
   scheduleSave();
@@ -5638,6 +5907,10 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     } else {
       openCampaignNotes(isDM()?'dm':'public');
     }
+    return;
+  }
+  if(pendingGreasePlacement){
+    completeGreasePlacement(x,y);
     return;
   }
   if(mode==='ping'){
@@ -5867,6 +6140,7 @@ canvas.addEventListener('mouseup',()=>{
     return;
   }
   if(isDragging){
+    if(dragTarget && dragTarget.kind==='enemy') checkGreaseEntryForEntity(dragTarget,'enemy');
     isDragging=false;
     dragTarget=null;
     canvas.style.cursor=mode==='drag'?'grab':'crosshair';
@@ -6006,6 +6280,7 @@ canvas.addEventListener('touchend',e=>{
     const world=screenToWorld(sx,sy);
     handleCanvasTap(world.x,world.y,sx,sy);
   }
+  if(isDragging && dragTarget && dragTarget.kind==='enemy') checkGreaseEntryForEntity(dragTarget,'enemy');
   if(isDragging) updateAllPanels();
   isDragging=false;
   dragTarget=null;
@@ -6020,6 +6295,7 @@ document.getElementById('img-input').addEventListener('change',async e=>{
   try{
     pushDMUndo('upload map');
     mapUrl='';
+    mapLabel=f.name || 'Uploaded map';
     mapImageData=await compressMapFile(f);
     mapRevision=Date.now();
     loadMapFromDataUrl(mapImageData,()=>{
@@ -6028,11 +6304,14 @@ document.getElementById('img-input').addEventListener('change',async e=>{
       draw();
       saveState();
       saveCloudAssets(true);
+      updateMapLibraryUI();
+      closeMapLibrary();
     },true);
   }catch(err){
     const reader=new FileReader();
     reader.onload=()=>{
       mapUrl='';
+      mapLabel=f.name || 'Uploaded map';
       mapImageData=reader.result;
       mapRevision=Date.now();
       loadMapFromDataUrl(mapImageData,()=>{
@@ -6041,6 +6320,8 @@ document.getElementById('img-input').addEventListener('change',async e=>{
         draw();
         saveState();
         saveCloudAssets(true);
+        updateMapLibraryUI();
+        closeMapLibrary();
       },true);
     };
     reader.readAsDataURL(f);
@@ -6051,8 +6332,19 @@ function useHostedMapFromPrompt(){
   if(!isDM()) return requireDM();
   const url=prompt('Hosted map path or URL, e.g. maps/undercity.webp',mapUrl||'maps/');
   if(!url) return;
+  switchHostedMap(url.trim(),url.trim());
+}
+function hostedMapLabel(url=''){
+  const match=HOSTED_MAP_LIBRARY.find(map=>map.url===url);
+  if(match) return match.name;
+  return String(url||'Hosted map').split('/').pop()?.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ') || 'Hosted map';
+}
+function switchHostedMap(url,label=hostedMapLabel(url)){
+  if(!isDM()) return requireDM();
+  if(!url) return;
   pushDMUndo('set hosted map');
-  mapUrl=url.trim();
+  mapUrl=String(url).trim();
+  mapLabel=label || hostedMapLabel(mapUrl);
   mapImageData='';
   mapRevision=Date.now();
   loadMapFromUrl(mapUrl,()=>{
@@ -6061,7 +6353,50 @@ function useHostedMapFromPrompt(){
     draw();
     saveState();
     saveCloudAssets(true);
+    updateMapLibraryUI();
+    closeMapLibrary();
   },true);
+}
+function openMapLibrary(){
+  if(!isDM()) return requireDM();
+  renderMapLibrary();
+  document.getElementById('map-library-overlay')?.classList.add('show');
+}
+function closeMapLibrary(){
+  document.getElementById('map-library-overlay')?.classList.remove('show');
+}
+function renderMapLibrary(){
+  const grid=document.getElementById('map-library-grid');
+  if(grid){
+    grid.innerHTML=HOSTED_MAP_LIBRARY.map(map=>`
+      <button class="map-card ${mapUrl===map.url?'active':''}" data-map-url="${escapeAttr(map.url)}" onclick="switchHostedMap('${escapeAttr(map.url)}','${escapeAttr(map.name)}')">
+        <img src="${escapeAttr(map.url)}" loading="lazy" alt="">
+        <span>${escapeHtml(map.name)}<small>${escapeHtml(map.url)}</small></span>
+      </button>
+    `).join('');
+  }
+  updateMapLibraryUI();
+}
+function updateMapLibraryUI(){
+  const label=document.getElementById('map-current-label');
+  const path=document.getElementById('map-current-path');
+  const input=document.getElementById('hosted-map-path');
+  const current=mapUrl ? (mapLabel || hostedMapLabel(mapUrl)) : mapImageData ? (mapLabel || 'Uploaded local map') : 'No map selected';
+  if(label) label.textContent=current;
+  if(path) path.textContent=mapUrl || (mapImageData ? 'Uploaded map stored in campaign state' : 'No hosted path yet.');
+  if(input && !input.value) input.value=mapUrl || 'maps/';
+  document.querySelectorAll('.map-card').forEach(card=>card.classList.toggle('active',card.dataset.mapUrl===mapUrl));
+}
+function useHostedMapFromLibrary(){
+  const input=document.getElementById('hosted-map-path');
+  const url=String(input?.value||'').trim();
+  if(!url) return showCritOverlay('Paste a map path first','roll','Map');
+  switchHostedMap(url,hostedMapLabel(url));
+}
+function copyCurrentMapPath(){
+  if(!mapUrl) return showCritOverlay('Current map is not hosted','roll','Map');
+  navigator.clipboard?.writeText(mapUrl);
+  showCritOverlay('Map path copied','roll','Map');
 }
 
 function compressMapFile(file){
@@ -6468,6 +6803,7 @@ function updateSoundZonePlayback(force=false){
 
 function updateAllPanels(){
   updateRoleUI();
+  updateMapLibraryUI();
   set3DModeButton();
   updateRPDock();
   updateCombatModeUI();
@@ -6669,12 +7005,18 @@ function updateCombatPopout(){
   const title=document.getElementById('combat-title');
   const body=document.getElementById('combat-body');
   if(!title||!body) return;
+  const spellIconHtml=item=>window.MoovablesSpellIcons?.html(item?.name,22,'action-spell-icon') || '<span class="spell-icon fallback">✦</span>';
+  const actionIconHtml=(prefix,item)=>{
+    if(prefix==='Spell') return spellIconHtml(item);
+    if(prefix==='Weapon') return '<span class="spell-icon weapon">⚔</span>';
+    return '<span class="spell-icon feature">✦</span>';
+  };
   const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
-    <span class="action-label">${prefix}: ${escapeHtml(item.name)}</span>
+    <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span></span>
     <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
   const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
-    <span class="action-label">Feature: ${escapeHtml(item.name)}</span>
+    <span class="action-label">${actionIconHtml('Feature',item)}<span class="action-label-text">Feature: ${escapeHtml(item.name)}</span></span>
     <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} Â· ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
   const turnUseLabel=id=>turnActionState.actorId===id?`${turnActionState.actionTaken?' · action used':''}${turnActionState.bonusActionTaken?' · bonus used':''}${turnActionState.reactionTaken?' · reaction used':''}`:'';
@@ -7864,11 +8206,12 @@ function showEffectSheet(fx,x,y){
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('effect',fx.id)) return;
   pop.classList.remove('enemy');
-  const name=fx.type==='fire'?'Hazard':fx.type[0].toUpperCase()+fx.type.slice(1);
+  const name=fx.type==='fire'?'Hazard':fx.type==='grease'?'Grease':fx.type[0].toUpperCase()+fx.type.slice(1);
+  const icon=fx.type==='poison'?'\u2620\uFE0F':fx.type==='fire'?'\u{1F525}':fx.type==='grease'?'\u{1F9C8}':'\u{1F4A7}';
   pop.innerHTML=`
     <div class="sheet-top">
-      <div class="sheet-icon">${fx.type==='poison'?'\u2620\uFE0F':fx.type==='fire'?'\u{1F525}':'\u{1F4A7}'}</div>
-      <div><div class="sheet-name">${name} area</div><div class="sheet-sub">${fx.radius}px radius</div></div>
+      <div class="sheet-icon">${icon}</div>
+      <div><div class="sheet-name">${name} area</div><div class="sheet-sub">${fx.radius}px radius${fx.saveDC?` · DEX DC ${fx.saveDC}`:''}</div></div>
       ${sheetToolsHtml()}
     </div>
     <label class="small">Radius: <strong id="fx-radius-val">${fx.radius}</strong>px</label>
@@ -8114,6 +8457,7 @@ function normalizeStatuses(statuses=[]){
       die:s.die==null?undefined:Number(s.die)||0,
       sourceId:s.sourceId||'',
       sourceSpell:s.sourceSpell||s.spell||'',
+      saveDC:s.saveDC==null?undefined:Math.max(0,Number(s.saveDC)||0),
       concentration:!!s.concentration,
       spell:s.spell||''
     };
@@ -8158,7 +8502,7 @@ function rollStateKeyForType(rollType='check'){
   if(rollType==='save') return 'save';
   return 'check';
 }
-function rollModeInfo(actor,rollType='check'){
+function rollModeInfo(actor,rollType='check',target=null){
   const sources=[];
   const state=normalizeRollState(actor?.rollState||{});
   if(state.next) sources.push({mode:state.next,label:'Next roll'});
@@ -8166,6 +8510,11 @@ function rollModeInfo(actor,rollType='check'){
   if(typed) sources.push({mode:typed,label:rollType==='check'?'Skills/checks':rollType});
   const poisoned=normalizeStatuses(actor?.statuses||[]).some(s=>s.name==='Poisoned');
   if(poisoned && ['attack','check'].includes(rollType)) sources.push({mode:'disadvantage',label:'Poisoned'});
+  if(rollType==='attack' && target){
+    const targetStatuses=normalizeStatuses(target.statuses||[]);
+    if(targetStatuses.some(s=>s.name==='Slipped' || s.name==='Prone')) sources.push({mode:'advantage',label:'Target slipped'});
+    if(targetStatuses.some(s=>s.name==='Reckless')) sources.push({mode:'advantage',label:'Target reckless'});
+  }
   const hasAdv=sources.some(s=>s.mode==='advantage');
   const hasDis=sources.some(s=>s.mode==='disadvantage');
   return {mode:hasAdv&&hasDis?'normal':hasAdv?'advantage':hasDis?'disadvantage':'normal',sources};
@@ -8236,12 +8585,12 @@ function consumeRollBuff(ch,buff){
   }
   return applyCharacterPatch(ch.id,{statuses:next});
 }
-function rollWithBuffs(ch,expression,baseBonus=0,rollType='check',manualBuffKey=''){
+function rollWithBuffs(ch,expression,baseBonus=0,rollType='check',manualBuffKey='',target=null){
   const isD20=/^1d20$/i.test(String(expression));
   let base=rollDiceExpression(expression,baseBonus);
   let modeInfo={mode:'normal',sources:[]};
   if(isD20){
-    modeInfo=rollModeInfo(ch,rollType);
+    modeInfo=rollModeInfo(ch,rollType,target);
   }
   if(isD20 && modeInfo.mode!=='normal'){
     const a=1+Math.floor(Math.random()*20), b=1+Math.floor(Math.random()*20);
@@ -8580,7 +8929,7 @@ function applyDamageRiders(ch,target,critical=false){
   const total=riders.reduce((sum,r)=>sum+r.amount,0);
   return {total,riders,detail:riders.map(r=>`${r.name} ${r.formula} [${r.roll.rolls.join(', ')}]${critical?' x2':''} = ${r.amount}`).join(' + ')};
 }
-function rollCharacterAction(characterId,type,itemId){
+function rollCharacterAction(characterId,type,itemId,options={}){
   const ch=characterById(characterId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
@@ -8590,6 +8939,9 @@ function rollCharacterAction(characterId,type,itemId){
   if(!canUseTurnAction(ch,actionCost)) return;
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
+  if(type==='spell' && isGreaseAction(item) && !options.greaseMode){
+    return showGreaseCastChoice(characterId,type,itemId);
+  }
   const castLevel=type==='spell' ? chooseCastLevel(ch,item) : 0;
   if(type==='spell' && Number(item.spellLevel)>0){
     if(!castLevel) return showCritOverlay('No spell slot available','fail','Spell slots');
@@ -8634,13 +8986,13 @@ function rollCharacterAction(characterId,type,itemId){
     updateCombatPopout();
     return;
   }
-  const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack');
-  const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   if(!target){
     if(type==='spell' && castLevel) changeCharacterSpellSlot(ch.id,castLevel,-1);
     return showCritOverlay('Choose an enemy target first','roll','Attack');
   }
+  const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack','',target);
+  const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
   markTurnAction(actionCost,characterId);
   const natural=keptD20(attack);
   const critical=isAttackCrit(attack);
@@ -8870,12 +9222,13 @@ function useCharacterFeature(characterId,itemId){
   updateCombatPopout();
   scheduleSave();
 }
-function addEnemyStatus(uid,status,rounds=10){
+function addEnemyStatus(uid,status,rounds=10,meta={}){
   const enemy=enemyByUid(uid);
   if(!enemy) return null;
   const statuses=normalizeStatuses(enemy.statuses||[]);
   const existing=statuses.find(s=>s.name===status);
-  const next=existing ? statuses.map(s=>s.name===status?{...s,rounds:Math.max(s.rounds,rounds)}:s) : [...statuses,{name:status,rounds}];
+  const payload={name:status,rounds,...meta};
+  const next=existing ? statuses.map(s=>s.name===status?{...s,...payload,rounds:Math.max(s.rounds,rounds),sourceId:payload.sourceId||s.sourceId,sourceSpell:payload.sourceSpell||s.sourceSpell,saveDC:payload.saveDC||s.saveDC}:s) : [...statuses,payload];
   enemy.statuses=next;
   broadcast({type:'iconUpdate',icon:enemy});
   draw();
@@ -8920,6 +9273,9 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   const cone=isConeAction(item);
   const center=aoeCenter(caster,item);
   const origin=entityPoint(caster);
+  if(isGreaseAction(item)){
+    return castGreaseArea(caster,casterKind,item,center,radius);
+  }
   if(cone && !center.target && !(templateDraft?.kind==='cone')){
     return showCritOverlay('Choose a target direction first','roll','Cone attack');
   }
@@ -8954,7 +9310,7 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
         amount=saved ? Math.floor(damage.total/2) : damage.total;
       } else {
         const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
-        attack=rollWithBuffs(caster,'1d20',atkBonus,'attack');
+        attack=rollWithBuffs(caster,'1d20',atkBonus,'attack','',entry.entity);
         const ac=entry.kind==='enemy' ? entry.entity.ac : entry.entity.derived?.AC||10;
         const critical=isAttackCrit(attack);
         const fumble=isAttackFumble(attack);
@@ -9031,10 +9387,10 @@ function rollEnemyAction(enemyUid,type,itemId){
     updateCombatPopout();
     return;
   }
-  const attack=rollWithBuffs(enemy,'1d20',enemy.attackBonus||0,'attack');
-  const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
   const target=targetCharacter||targetEnemy;
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
+  const attack=rollWithBuffs(enemy,'1d20',enemy.attackBonus||0,'attack','',target);
+  const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
   markTurnAction(actionCost,enemy.uid);
   const targetAC=targetCharacter ? target.derived?.AC || 10 : target.ac;
   const natural=keptD20(attack);
@@ -9798,6 +10154,7 @@ function advanceTurn(){
   const id=turnOrder[activeTurnIndex];
   if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
   if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
+  handleSlippedStartOfTurn(id);
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
   playSfx('turn');
   updateAllPanels();
@@ -10028,6 +10385,7 @@ function loadState(){
     }
     mapImageData=state.mapImageData || '';
     mapUrl=state.mapUrl || '';
+    mapLabel=state.mapLabel || hostedMapLabel(mapUrl);
     mapRevision=Number(state.mapRevision)||0;
     if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,false);
     fogRevision=Number(state.fogRevision)||0;
@@ -10129,6 +10487,7 @@ function applyPersistedState(state){
   const incomingFogRevision=Number(state.fogRevision)||0;
   if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,true);
   const incomingMapUrl=state.mapUrl || '';
+  mapLabel=state.mapLabel || hostedMapLabel(incomingMapUrl);
   const needsAssetMap=!incomingMapUrl && !state.mapImageData && incomingMapRevision && incomingMapRevision!==mapRevision;
   if(incomingMapUrl){
     mapUrl=incomingMapUrl;
@@ -10369,7 +10728,7 @@ function mergeCloudStateBeforeSave(state){
   const localRev=Number(state.mapRevision)||0;
   const remoteRev=Number(latestCloudState.mapRevision)||0;
   if(remoteRev>localRev){
-    state={...state,mapRevision:remoteRev,mapUrl:latestCloudState.mapUrl||state.mapUrl||''};
+    state={...state,mapRevision:remoteRev,mapUrl:latestCloudState.mapUrl||state.mapUrl||'',mapLabel:latestCloudState.mapLabel||state.mapLabel||''};
   }
   const localFogRev=Number(state.fogRevision)||0;
   const remoteFogRev=Number(latestCloudState.fogRevision)||0;
@@ -10638,7 +10997,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapLabel=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };

@@ -106,6 +106,24 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .item-row button{height:38px;padding:0 9px}
 .item-row select,.item-row input{height:38px}
 .item-row textarea{grid-column:1/-1;min-height:52px;font-size:12px}
+.spell-icon{display:inline-grid;place-items:center;flex:0 0 var(--icon-size,22px);width:var(--icon-size,22px);height:var(--icon-size,22px);border:1px solid rgba(255,213,130,.44);border-radius:7px;background-color:rgba(255,190,96,.12);background-repeat:no-repeat;box-shadow:0 0 12px rgba(255,162,48,.16),0 0 0 1px rgba(0,0,0,.35) inset;color:#ffd98a;font-size:12px;line-height:1;text-shadow:0 1px 4px #000}
+.spell-icon.fallback{font-weight:900}
+.spell-icon img{width:100%;height:100%;display:block;border-radius:inherit;object-fit:cover}
+.spell-field-label{display:flex;align-items:center;gap:10px}
+.builder-spell-icon{--icon-size:55px;border-radius:12px}
+.spell-inspect{display:grid;gap:12px}
+.spell-inspect-art{position:relative;min-height:250px;border:1px solid rgba(202,168,107,.42);border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 30%,rgba(255,184,72,.18),rgba(7,8,10,.96) 62%);box-shadow:0 18px 48px rgba(0,0,0,.44),0 0 24px rgba(202,168,107,.12) inset}
+.spell-inspect-art img{width:100%;height:100%;min-height:250px;display:block;object-fit:cover;image-rendering:auto;filter:saturate(1.16) contrast(1.06)}
+.spell-inspect-art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.72));pointer-events:none}
+.spell-inspect-title{position:absolute;left:14px;right:14px;bottom:12px;z-index:1;text-shadow:0 2px 10px #000}
+.spell-inspect-title b{display:block;font-size:24px;line-height:1.05;color:#fff1bf}
+.spell-inspect-title span{display:block;margin-top:4px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#e5bd70}
+.spell-inspect-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spell-inspect-stat{border:1px solid rgba(202,168,107,.25);border-radius:10px;background:rgba(8,9,10,.82);padding:9px}
+.spell-inspect-stat b{display:block;color:#fff0be}
+.spell-inspect-stat span{display:block;margin-top:3px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#c6a45f}
+.spell-inspect-body{border:1px solid rgba(202,168,107,.25);border-radius:12px;background:rgba(8,9,10,.78);padding:11px;color:#e9dcc2;line-height:1.45;font-size:13px}
+.spell-inspect-hint{font-size:11px;color:#a99a80}
 .combine-box{border:1px solid rgba(202,168,107,.45);background:rgba(202,168,107,.08);border-radius:var(--radius);padding:10px;margin-bottom:10px}
 .combine-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
 .combine-preview{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px}
@@ -719,6 +737,8 @@ label,h3{color:#cba86e}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets_manifest.js"></script>
+<script src="assets/spell-icons/spell_icon_atlas.js"></script>
+<script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
 <script src="spell_data.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
@@ -840,6 +860,7 @@ let cloudSaveTimer=null;
 let cloudChannel=null;
 let cloudPollTimer=null;
 let cloudLastUpdated='';
+let latestCloudState=null;
 let cloudIdleTimer=null;
 let cloudPausedForIdle=false;
 let campaignInfo=null;
@@ -849,6 +870,7 @@ let campaignCharacterIds=new Set();
 let pendingLocalImport=[];
 let accountSyncEnabled=false;
 let currentBuilderTab='identity';
+let hoveredSpellPreview=null;
 
 function abilityMod(score){return Math.floor((Number(score)-10)/2)}
 function proficiencyBonus(level){return 2+Math.floor((Math.max(1,Math.min(20,level))-1)/4)}
@@ -1548,6 +1570,68 @@ function renderList(){
     </div>`).join('');
   renderAccountUI();
 }
+function mergedSpellPreviewData(spell={}){
+  const atlas=window.MoovablesSpellIcons?.find?.(spell.name)||{};
+  const spellSlug=window.MoovablesSpellIcons?.slug?.(spell.name)||String(spell.name||'').toLowerCase();
+  const catalogue=spellCatalogue().find(s=>(window.MoovablesSpellIcons?.slug?.(s.name)||s.name)===spellSlug)||{};
+  return {...atlas,...catalogue,...spell,name:spell.name||catalogue.name||atlas.name||'Spell'};
+}
+function spellArtUrl(spell={}){
+  const slug=window.MoovablesSpellIcons?.slug?.(spell.name);
+  return slug ? `assets/spell-icons/previews/${slug}.webp` : (window.MoovablesSpellIcons?.iconUrl?.(spell.name) || '');
+}
+function spellFormula(spell={}){
+  const count=Number(spell.diceCount)||diceCountFromFormula(spell.damageFormula)||0;
+  const die=spell.die||dieFromFormula(spell.damageFormula)||'';
+  const bonus=Number(spell.bonus)||0;
+  if(!count||!die) return spell.damageHeal||spell.damageFormula||spell.damageType||'None';
+  return `${count}${die}${bonus?formatSigned(bonus):''}`;
+}
+function renderSheetPreview(ch){
+  if(!ch) return;
+  const d=ch.derived;
+  document.getElementById('preview').innerHTML=`
+    <div class="sheet-hero"><div class="sheet-icon">${tokenThumbHtml(ch)}</div><div><div class="sheet-title">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div></div>
+    <div class="sheet-stats">
+      <div class="sheet-box"><b>${ch.currentHP}/${d.HP}</b><span>HP</span></div>
+      <div class="sheet-box"><b>${d.AC}</b><span>AC</span></div>
+      <div class="sheet-box"><b>${d.attackBonus>=0?'+':''}${d.attackBonus}</b><span>Attack</span></div>
+      <div class="sheet-box"><b>${d.passivePerception}</b><span>Passive</span></div>
+      <div class="sheet-box"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
+    </div>
+    <div class="muted">${escapeHtml(ch.background||'No background')} · ${escapeHtml(ch.alignment)}</div>
+    <div class="muted" style="margin-top:8px">Equipped: ${equippedItems(ch).map(i=>escapeHtml(i.name)).join(', ') || 'Nothing equipped'}</div>
+    <div class="muted" style="margin-top:8px">Top skills: ${topSkills(ch).map(([name,total])=>`${skillLabel(name)} ${formatSigned(total)}`).join(', ') || 'None selected'}</div>
+    <div class="pill-row" style="margin-top:10px">${(ch.statuses||[]).map(s=>`<span class="pill on">${s}</span>`).join('') || '<span class="pill">No status effects</span>'}</div>`;
+}
+function renderSpellPreview(spell={}){
+  const info=mergedSpellPreviewData(spell);
+  const art=spellArtUrl(info);
+  const level=Number(info.spellLevel ?? info.level ?? 0);
+  const school=info.school||'Custom';
+  const action=info.actionCost||info.castingTime||'action';
+  const range=info.range||'Range varies';
+  const target=info.targetMode||info.targetArea||'Target varies';
+  const save=Number(info.saveDC)||info.attackSave||'';
+  const description=info.description||info.effect||info.damageType||'No description yet. Add one in the spell details to make this card richer.';
+  document.getElementById('preview').innerHTML=`
+    <div class="spell-inspect">
+      <div class="spell-inspect-art">
+        ${art?`<img src="${escapeAttr(art)}" alt="">`:`<div class="spell-icon fallback" style="--icon-size:220px">?</div>`}
+        <div class="spell-inspect-title"><b>${escapeHtml(info.name)}</b><span>${level===0?'Cantrip':`Level ${level}`} · ${escapeHtml(school)}</span></div>
+      </div>
+      <div class="spell-inspect-grid">
+        <div class="spell-inspect-stat"><b>${escapeHtml(spellFormula(info))}</b><span>Damage / Effect</span></div>
+        <div class="spell-inspect-stat"><b>${escapeHtml(action)}</b><span>Action</span></div>
+        <div class="spell-inspect-stat"><b>${escapeHtml(range)}</b><span>Range</span></div>
+        <div class="spell-inspect-stat"><b>${escapeHtml(target)}</b><span>Targeting</span></div>
+        <div class="spell-inspect-stat"><b>${info.concentration?'Yes':'No'}</b><span>Concentration</span></div>
+        <div class="spell-inspect-stat"><b>${escapeHtml(save||'None')}</b><span>Save / DC</span></div>
+      </div>
+      <div class="spell-inspect-body">${escapeHtml(description)}</div>
+      <div class="spell-inspect-hint">Hover another spell to inspect it. Move away to return to the sheet preview.</div>
+    </div>`;
+}
 function renderLive(){
   syncCustomFields();
   const ch=readFormFor(selected());
@@ -1568,19 +1652,8 @@ function renderLive(){
   const gearAbilities=equippedItems(ch).flatMap(item=>[item.ability,item.bonusAction&&`Bonus: ${item.bonusAction}`].filter(Boolean));
   const sheetAbilities=[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class']),...(ch.abilities||[]).map(a=>a.name),...(ch.bonusActions||[]).map(a=>a.name),...gearAbilities];
   document.getElementById('traits').innerHTML=sheetAbilities.map(t=>`<span class="pill on">${escapeHtml(t)}</span>`).join('');
-  document.getElementById('preview').innerHTML=`
-    <div class="sheet-hero"><div class="sheet-icon">${tokenThumbHtml(ch)}</div><div><div class="sheet-title">${escapeHtml(ch.name)}</div><div class="sheet-sub">L${ch.level} ${ch.race} ${ch.subclass?`${ch.subclass} `:''}${ch.class}</div></div></div>
-    <div class="sheet-stats">
-      <div class="sheet-box"><b>${ch.currentHP}/${d.HP}</b><span>HP</span></div>
-      <div class="sheet-box"><b>${d.AC}</b><span>AC</span></div>
-      <div class="sheet-box"><b>${d.attackBonus>=0?'+':''}${d.attackBonus}</b><span>Attack</span></div>
-      <div class="sheet-box"><b>${d.passivePerception}</b><span>Passive</span></div>
-      <div class="sheet-box"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
-    </div>
-    <div class="muted">${escapeHtml(ch.background||'No background')} · ${escapeHtml(ch.alignment)}</div>
-    <div class="muted" style="margin-top:8px">Equipped: ${equippedItems(ch).map(i=>escapeHtml(i.name)).join(', ') || 'Nothing equipped'}</div>
-    <div class="muted" style="margin-top:8px">Top skills: ${topSkills(ch).map(([name,total])=>`${skillLabel(name)} ${formatSigned(total)}`).join(', ') || 'None selected'}</div>
-    <div class="pill-row" style="margin-top:10px">${(ch.statuses||[]).map(s=>`<span class="pill on">${s}</span>`).join('') || '<span class="pill">No status effects</span>'}</div>`;
+  if(hoveredSpellPreview) renderSpellPreview(hoveredSpellPreview);
+  else renderSheetPreview(ch);
   document.getElementById('json-preview').textContent=JSON.stringify(ch,null,2);
   renderChecklist(ch);
   renderLevelHelper(ch);
@@ -1622,7 +1695,7 @@ function renderActionList(type,items){
   if(!el) return;
   el.innerHTML=items.map(item=>`
     <div class="item-row" data-${type}-row data-id="${item.id}" data-source-item-id="${escapeHtml(item.sourceItemId||'')}" data-casting-time="${escapeHtml(item.castingTime||'')}" data-range="${escapeHtml(item.range||'')}" data-concentration="${item.concentration?'1':'0'}" data-source-class="${escapeHtml(item.sourceClass||'')}" data-upcast-dice="${escapeHtml(item.upcastDice||'')}">
-      <div><label>${type==='weapon'?'Weapon':'Spell'}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${type==='weapon'?'Longsword':'Fire Bolt'}"></div>
+      <div><label class="${type==='spell'?'spell-field-label':''}">${type==='spell'?(window.MoovablesSpellIcons?.html(item.name,22,'builder-spell-icon') || '<span class="spell-icon fallback">✦</span>'):''}${type==='weapon'?'Weapon':'Spell'}</label><input data-${type}-name value="${escapeHtml(item.name)}" placeholder="${type==='weapon'?'Longsword':'Fire Bolt'}"></div>
       <div><label>Dice count</label><input data-${type}-dice-count type="number" min="1" max="20" value="${Number(item.diceCount)||1}"></div>
       <div><label>Damage die</label><select data-${type}-die>${DAMAGE_DICE.map(d=>`<option ${d===item.die?'selected':''}>${d}</option>`).join('')}</select></div>
       <div><label>Bonus</label><input data-${type}-bonus type="number" value="${item.bonus}" step="1"></div>
@@ -1640,6 +1713,19 @@ function renderActionList(type,items){
     input.addEventListener('input',()=>{syncActionItemsToCharacter();renderLive();scheduleSave()});
     input.addEventListener('change',()=>{syncActionItemsToCharacter();renderLive();scheduleSave()});
   });
+  if(type==='spell'){
+    el.querySelectorAll('[data-spell-row]').forEach(row=>{
+      row.addEventListener('mouseenter',()=>{
+        const id=row.dataset.id;
+        hoveredSpellPreview=(selected()?.spells||[]).find(spell=>spell.id===id)||readActionItems('spell').find(spell=>spell.id===id);
+        if(hoveredSpellPreview) renderSpellPreview(hoveredSpellPreview);
+      });
+      row.addEventListener('mouseleave',()=>{
+        hoveredSpellPreview=null;
+        renderSheetPreview(readFormFor(selected()));
+      });
+    });
+  }
 }
 function syncActionItemsToCharacter(){
   const ch=selected();
@@ -1786,7 +1872,21 @@ function renderSpellCatalogue(ch=selected()){
   spellSelect.innerHTML=options.map(spell=>`<option value="${escapeAttr(spell.name)}" ${spell.name===currentSpell?'selected':''}>${escapeHtml(spell.name)} · ${escapeHtml(spell.actionCost||'action')}</option>`).join('');
   const picked=options.find(s=>s.name===spellSelect.value)||options[0];
   preview.textContent=picked ? `${cls} ${picked.level===0?'cantrip':`level ${picked.level}`} · ${picked.castingTime||'action'} · ${picked.actionType} · ${picked.range||'range varies'}` : `${cls} has no spells available at this level.`;
-  spellSelect.onchange=()=>renderSpellCatalogue(selected());
+  const showPicked=()=>{
+    const current=options.find(s=>s.name===spellSelect.value)||picked;
+    if(current){ hoveredSpellPreview=current; renderSpellPreview(current); }
+  };
+  const clearPicked=()=>{
+    hoveredSpellPreview=null;
+    renderSheetPreview(readFormFor(selected()));
+  };
+  spellSelect.onchange=()=>{ renderSpellCatalogue(selected()); showPicked(); };
+  spellSelect.onmouseenter=showPicked;
+  spellSelect.onfocus=showPicked;
+  spellSelect.onmouseleave=clearPicked;
+  spellSelect.onblur=clearPicked;
+  preview.onmouseenter=showPicked;
+  preview.onmouseleave=clearPicked;
 }
 function addSelectedCatalogSpell(){
   syncActionItemsToCharacter();
@@ -2646,6 +2746,7 @@ function importFromPrompt(){
 function applyCloudState(nextState){
   if(!nextState) return;
   if(!hasCampaignAccess(nextState)) return redirectToCampaignManager();
+  latestCloudState=nextState;
   applyingCloudState=true;
   campaignInfo=nextState.campaign||campaignInfo;
   const incomingOwner=nextState.myId||nextState.ownerId||'';
@@ -2736,6 +2837,7 @@ async function loadCloudState(){
   if(error) return;
   if(data?.updated_at) cloudLastUpdated=data.updated_at;
   if(data?.state){
+    latestCloudState=data.state;
     applyCloudState(data.state);
     if(data.state.mapImageData || data.state.fogRevealData) scheduleCloudSave(data.state,true);
   }
@@ -2761,7 +2863,16 @@ function scheduleCloudSave(nextState=state,immediate=false){
 }
 async function saveCloudState(nextState){
   if(!cloudReady||applyingCloudState) return;
-  nextState=stripCloudState(nextState);
+  let remoteState=latestCloudState;
+  try{
+    const {data}=await cloudClient.from(CLOUD_TABLE).select('state,updated_at').eq('id',CLOUD_CAMPAIGN_ID).maybeSingle();
+    if(data?.state){
+      remoteState=data.state;
+      latestCloudState=data.state;
+      if(data.updated_at) cloudLastUpdated=data.updated_at;
+    }
+  }catch(e){}
+  nextState=mergeBuilderStateBeforeSave(nextState,remoteState);
   const updatedAt=new Date().toISOString();
   await cloudClient.from(CLOUD_TABLE).upsert({
     id:CLOUD_CAMPAIGN_ID,
@@ -2770,6 +2881,7 @@ async function saveCloudState(nextState){
     updated_at:updatedAt
   });
   cloudLastUpdated=updatedAt;
+  latestCloudState=nextState;
   broadcastCloudState(nextState);
   document.getElementById('save-state').textContent='Saved to Supabase.';
 }
@@ -2785,6 +2897,31 @@ function broadcastCloudState(nextState){
 function stripCloudState(nextState){
   const {mapImageData:_mapImageData,fogRevealData:_fogRevealData,...lightState}=nextState||{};
   return {...lightState,assetMode:'split-v1'};
+}
+function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
+  const cleanBuilder=stripCloudState(builderState);
+  if(!remoteState) return cleanBuilder;
+  const cleanRemote=stripCloudState(remoteState);
+  const editedCharacters=(cleanBuilder.myCharacters||[]).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID,claimedBy:ch.claimedBy||ch.owner||BUILDER_PLAYER_ID}));
+  const editedIds=new Set(editedCharacters.map(ch=>ch.id).filter(Boolean));
+  const remoteParty=Array.isArray(cleanRemote.partyCharacters)
+    ? cleanRemote.partyCharacters
+    : (Array.isArray(cleanRemote.myCharacters) ? cleanRemote.myCharacters.map(ch=>({...ch,owner:cleanRemote.myId||ch.owner})) : []);
+  const mergedParty=[
+    ...editedCharacters,
+    ...remoteParty.filter(ch=>ch?.id && !editedIds.has(ch.id))
+  ].map(hydrateCharacter);
+  return {
+    ...cleanRemote,
+    version:cleanBuilder.version||cleanRemote.version||1,
+    campaign:cleanBuilder.campaign||cleanRemote.campaign||null,
+    campaignPortal:cleanBuilder.campaignPortal||cleanRemote.campaignPortal||null,
+    myId:BUILDER_PLAYER_ID,
+    myCharacters:editedCharacters,
+    partyCharacters:mergedParty,
+    characterClaims:cleanRemote.characterClaims||cleanBuilder.characterClaims||{},
+    assetMode:'split-v1'
+  };
 }
 function toast(message){
   const el=document.getElementById('toast');

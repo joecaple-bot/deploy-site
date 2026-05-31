@@ -1,0 +1,92 @@
+{
+  "packs": [
+    {
+      "school": "Abjuration",
+      "slug": "abjuration",
+      "atlasFile": "moovables_spell_atlas_abjuration.webp",
+      "jsonFile": "moovables_spell_atlas_abjuration.json",
+      "spellCount": 45,
+      "columns": 10,
+      "rows": 5,
+      "atlasWidth": 500,
+      "atlasHeight": 250
+    },
+    {
+      "school": "Conjuration",
+      "slug": "conjuration",
+      "atlasFile": "moovables_spell_atlas_conjuration.webp",
+      "jsonFile": "moovables_spell_atlas_conjuration.json",
+      "spellCount": 62,
+      "columns": 12,
+      "rows": 6,
+      "atlasWidth": 600,
+      "atlasHeight": 300
+    },
+    {
+      "school": "Divination",
+      "slug": "divination",
+      "atlasFile": "moovables_spell_atlas_divination.webp",
+      "jsonFile": "moovables_spell_atlas_divination.json",
+      "spellCount": 30,
+      "columns": 8,
+      "rows": 4,
+      "atlasWidth": 400,
+      "atlasHeight": 200
+    },
+    {
+      "school": "Enchantment",
+      "slug": "enchantment",
+      "atlasFile": "moovables_spell_atlas_enchantment.webp",
+      "jsonFile": "moovables_spell_atlas_enchantment.json",
+      "spellCount": 34,
+      "columns": 9,
+      "rows": 4,
+      "atlasWidth": 450,
+      "atlasHeight": 200
+    },
+    {
+      "school": "Evocation",
+      "slug": "evocation",
+      "atlasFile": "moovables_spell_atlas_evocation.webp",
+      "jsonFile": "moovables_spell_atlas_evocation.json",
+      "spellCount": 72,
+      "columns": 12,
+      "rows": 6,
+      "atlasWidth": 600,
+      "atlasHeight": 300
+    },
+    {
+      "school": "Illusion",
+      "slug": "illusion",
+      "atlasFile": "moovables_spell_atlas_illusion.webp",
+      "jsonFile": "moovables_spell_atlas_illusion.json",
+      "spellCount": 28,
+      "columns": 8,
+      "rows": 4,
+      "atlasWidth": 400,
+      "atlasHeight": 200
+    },
+    {
+      "school": "Necromancy",
+      "slug": "necromancy",
+      "atlasFile": "moovables_spell_atlas_necromancy.webp",
+      "jsonFile": "moovables_spell_atlas_necromancy.json",
+      "spellCount": 26,
+      "columns": 8,
+      "rows": 4,
+      "atlasWidth": 400,
+      "atlasHeight": 200
+    },
+    {
+      "school": "Transmutation",
+      "slug": "transmutation",
+      "atlasFile": "moovables_spell_atlas_transmutation.webp",
+      "jsonFile": "moovables_spell_atlas_transmutation.json",
+      "spellCount": 64,
+      "columns": 12,
+      "rows": 6,
+      "atlasWidth": 600,
+      "atlasHeight": 300
+    }
+  ]
+}
