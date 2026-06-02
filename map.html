@@ -186,6 +186,9 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .chat-msg:last-child{border-bottom:0}
 .chat-msg b{color:#fff2d0}
 .chat-msg span{color:var(--muted)}
+#roll-chat-popout{position:absolute;right:16px;bottom:16px;z-index:138;width:min(330px,calc(100% - 34px));border:1px solid rgba(202,168,107,.42);border-radius:14px;background:linear-gradient(180deg,rgba(24,22,19,.94),rgba(10,12,15,.96));box-shadow:0 18px 54px rgba(0,0,0,.52),0 0 0 1px rgba(255,230,170,.08) inset;padding:10px;pointer-events:auto}
+#roll-chat-popout .panel-head{margin-bottom:7px}
+#roll-chat-popout .chat-log{height:164px}
 .dice-row{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:7px}
 .dice-row button{font-size:10px;padding:5px 0}
 .chat-compose{display:grid;grid-template-columns:1fr 54px;gap:5px;margin-top:6px}
@@ -594,7 +597,7 @@ h3{
 .char-chip,.enemy-card,.sheet-detail,.mini-stat,.chat-log,.new-player-nudge,.turn-item,#sheet-popup,#modal,#confirm-box,#combat-popout,#floating-end-turn{
   position:relative;
 }
-.char-chip:before,.enemy-card:before,.sheet-detail:before,.chat-log:before,#sheet-popup:before,#modal:before,#confirm-box:before,#combat-popout:after{
+.char-chip:before,.enemy-card:before,.sheet-detail:before,.chat-log:before,#sheet-popup:before,#modal:before,#confirm-box:before,#combat-popout:after,#roll-chat-popout:before{
   content:"";position:absolute;inset:3px;pointer-events:none;border-radius:inherit;
   border:1px solid rgba(255,230,170,.055);
 }
@@ -792,6 +795,8 @@ h3{
   #sidebar{width:100%;height:38dvh;min-height:240px;border-left:0;border-top:1px solid var(--line)}
   #combat-popout{bottom:8px;left:8px;width:calc(100% - 16px)}
   #quick-use-popout{left:8px;right:8px;bottom:calc(8px + 190px);width:auto}
+  #roll-chat-popout{right:8px;bottom:8px;width:min(310px,calc(100% - 16px))}
+  #roll-chat-popout .chat-log{height:118px}
   .modal-body{grid-template-columns:1fr}
 }
 </style>
@@ -889,6 +894,25 @@ h3{
       <div id="quick-use-popout">
         <h3>Quick Use</h3>
         <div id="quick-use-body" class="quick-empty">No active character.</div>
+      </div>
+      <div id="roll-chat-popout">
+        <div class="panel-head">
+          <h3>Roll chat</h3>
+          <button onclick="clearChat()" style="font-size:11px;padding:5px 8px">Clear</button>
+        </div>
+        <div id="chat-log" class="chat-log"></div>
+        <div class="dice-row">
+          <button onclick="rollSimpleDie(4)">d4</button>
+          <button onclick="rollSimpleDie(6)">d6</button>
+          <button onclick="rollSimpleDie(8)">d8</button>
+          <button onclick="rollSimpleDie(10)">d10</button>
+          <button onclick="rollSimpleDie(12)">d12</button>
+          <button onclick="rollSimpleDie(20)">d20</button>
+        </div>
+        <div class="chat-compose">
+          <input id="chat-text" placeholder="Message or roll note">
+          <button onclick="sendChatText()">Send</button>
+        </div>
       </div>
       <div id="campaign-notes-popout">
         <div class="notes-top">
@@ -1236,24 +1260,6 @@ h3{
           <h3>DM rewards</h3>
         </div>
         <button class="full-btn primary dm-only" onclick="openDMGiveItemModal()">Give item to player</button>
-
-        <div class="hdiv"></div>
-        <div class="panel-head">
-          <h3>Roll chat</h3>
-          <button onclick="clearChat()" style="font-size:11px;padding:5px 8px">Clear</button>
-        </div>
-        <div id="chat-log" class="chat-log"></div>
-        <div class="dice-row">
-          <button onclick="rollSimpleDie(4)">d4</button>
-          <button onclick="rollSimpleDie(6)">d6</button>
-          <button onclick="rollSimpleDie(8)">d8</button>
-          <button onclick="rollSimpleDie(12)">d12</button>
-          <button onclick="rollSimpleDie(20)">d20</button>
-        </div>
-        <div class="chat-compose">
-          <input id="chat-text" placeholder="Message or roll note">
-          <button onclick="sendChatText()">Send</button>
-        </div>
 
         <div class="hdiv dm-only"></div>
         <div class="panel-head dm-only">
@@ -1628,6 +1634,7 @@ function hydrateCharacter(raw={}){
     bonusActions:Array.isArray(raw.bonusActions) ? raw.bonusActions.map(normalizeTextItem) : [],
     spellSlotUsage:raw.spellSlotUsage && typeof raw.spellSlotUsage==='object' ? raw.spellSlotUsage : {},
     featureUsage:raw.featureUsage && typeof raw.featureUsage==='object' ? raw.featureUsage : {},
+    updatedAt:raw.updatedAt || '',
     owner:raw.owner || myId
   };
   character.derived=calculateDerived(character);
@@ -2351,7 +2358,7 @@ let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
 let diceAnimTimers = [];
-let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, d20Model:null, d20Loading:null };
+let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, models:{}, loadings:{} };
 let dice3DRenderToken = 0;
 let sheetPinned = false;
 let sheetDrag = null;
@@ -7538,6 +7545,7 @@ function sheetCommandPanelHtml(ch,variant='main'){
           <button onclick="rollSimpleDie(4)">d4</button>
           <button onclick="rollSimpleDie(6)">d6</button>
           <button onclick="rollSimpleDie(8)">d8</button>
+          <button onclick="rollSimpleDie(10)">d10</button>
           <button onclick="rollSimpleDie(12)">d12</button>
           <button class="wide" onclick="rollD20('${ch.id}')">d20 check</button>
         </div>
@@ -9658,7 +9666,7 @@ function initDice3D(){
   const face=new THREE.PointLight(0xfff0c0,1.65,12);
   face.position.set(0,1.2,4.6);
   dice3DState.scene.add(face);
-  loadPremiumD20Model().catch(()=>{});
+  [6,10,12,20].forEach(sides=>loadPremiumDiceModel(sides).catch(()=>{}));
   return true;
 }
 function clearDice3DMesh(){
@@ -9739,8 +9747,50 @@ const D20_FACE_TWISTS = {
   16:-30 * Math.PI / 180,
   20:90 * Math.PI / 180
 };
-function premiumD20FaceQuaternion(roll){
+const D12_FACE_NORMALS = {
+  1:[-0.4534,0.42015,-0.78607],
+  2:[0.01125,0.99904,-0.04225],
+  3:[-0.58708,-0.42093,0.69149],
+  4:[-0.07496,0.47737,0.8755],
+  5:[-0.8254,-0.4532,0.33664],
+  6:[0.82908,0.45131,0.33007],
+  7:[0.4571,-0.42714,0.78013],
+  8:[0.59281,0.41419,0.69067],
+  9:[-0.867,-0.4631,0.18398],
+  10:[-0.01001,-0.99933,0.03521],
+  11:[0.07288,-0.4798,-0.87435],
+  12:[0.86659,-0.46349,-0.1849]
+};
+const D12_FACE_CALIBRATION = {
+  1:2,
+  2:6,
+  3:4,
+  4:9,
+  5:1,
+  6:8,
+  7:10,
+  8:12,
+  9:11,
+  10:5,
+  11:3,
+  12:7
+};
+const D12_FACE_TWISTS = {};
+function premiumDiceFaceQuaternion(sides,roll){
   if(!window.THREE) return null;
+  const die=Number(sides)||20;
+  if(die===12){
+    const rollNumber=Math.max(1,Math.min(12,Number(roll)||1));
+    const normal=D12_FACE_NORMALS[D12_FACE_CALIBRATION[rollNumber] || rollNumber];
+    if(!normal) return null;
+    const q=new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(normal[0],normal[1],normal[2]).normalize(),
+      new THREE.Vector3(0,0,1)
+    );
+    const twist=D12_FACE_TWISTS[rollNumber] || 0;
+    return twist ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),twist).multiply(q) : q;
+  }
+  if(die!==20) return null;
   const rollNumber=Math.max(1,Math.min(20,Number(roll)||1));
   const normal=D20_FACE_NORMALS[D20_FACE_CALIBRATION[rollNumber] || rollNumber];
   if(!normal) return null;
@@ -9751,13 +9801,22 @@ function premiumD20FaceQuaternion(roll){
   const twist=D20_FACE_TWISTS[rollNumber] || 0;
   return twist ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),twist).multiply(q) : q;
 }
-function loadPremiumD20Model(){
-  if(dice3DState.d20Model) return Promise.resolve(dice3DState.d20Model);
-  if(dice3DState.d20Loading) return dice3DState.d20Loading;
+const PREMIUM_DICE_MODELS = {
+  6:{src:'assets/dice/dice_6.glb?v=1',size:2.05,label:'d6',tint:0x050505,tintStrength:.96,brightness:.42,emissiveIntensity:.08,coreColor:0xffffff,coreIntensity:4.8,coreDistance:6,coreSize:.14},
+  10:{src:'assets/dice/dice_10.glb?v=1',size:2.15,label:'d10',tint:0x050505,tintStrength:.97,brightness:.36,emissiveIntensity:.015,coreColor:0xf5fbff,coreIntensity:4.4,coreDistance:5.6,coreSize:.15},
+  12:{src:'assets/dice/dice_12.glb?v=1',size:2.05,label:'d12',tint:0x050505,tintStrength:.97,brightness:.36,emissiveIntensity:.015,coreColor:0xf4e9ff,coreIntensity:4.2,coreDistance:5.5,coreSize:.15},
+  20:{src:'assets/dice/dice_20.glb?v=8',size:2,label:'d20',tint:0x050505,tintStrength:.95,brightness:.42,emissiveIntensity:.08,coreColor:0xfff4d8,coreIntensity:4.2,coreDistance:5.6,coreSize:.13}
+};
+function loadPremiumDiceModel(sides=20){
+  const die=Number(sides)||20;
+  const config=PREMIUM_DICE_MODELS[die];
+  if(!config) return Promise.resolve(null);
+  if(dice3DState.models[die]) return Promise.resolve(dice3DState.models[die]);
+  if(dice3DState.loadings[die]) return dice3DState.loadings[die];
   if(!window.THREE?.GLTFLoader) return Promise.reject(new Error('GLTFLoader unavailable'));
   const loader=new THREE.GLTFLoader();
-  dice3DState.d20Loading=new Promise((resolve,reject)=>{
-    loader.load('assets/dice/dice_20.glb?v=8',gltf=>{
+  dice3DState.loadings[die]=new Promise((resolve,reject)=>{
+    loader.load(config.src,gltf=>{
       const model=gltf.scene || gltf.scenes?.[0];
       if(!model) return reject(new Error('Dice model missing scene'));
       model.traverse(child=>{
@@ -9767,11 +9826,20 @@ function loadPremiumD20Model(){
           if(child.material){
             const mats=Array.isArray(child.material)?child.material:[child.material];
             mats.forEach(mat=>{
-              if(mat.color) mat.color.multiplyScalar(1.35);
+              mat.transparent=false;
+              mat.opacity=1;
+              mat.alphaTest=0;
+              if(mat.color){
+                mat.color.multiplyScalar(config.brightness||1.2);
+                if(config.tint && window.THREE?.Color){
+                  mat.color.lerp(new THREE.Color(config.tint),config.tintStrength||.18);
+                }
+              }
               if(mat.map && 'emissive' in mat){
-                mat.emissive?.setRGB?.(.22,.22,.22);
+                if(config.coreColor && window.THREE?.Color) mat.emissive?.copy?.(new THREE.Color(config.coreColor));
+                else mat.emissive?.setRGB?.(.22,.22,.22);
                 mat.emissiveMap=mat.map;
-                mat.emissiveIntensity=.48;
+                mat.emissiveIntensity=config.emissiveIntensity ?? .08;
               }
               if('roughness' in mat) mat.roughness=.42;
               if('metalness' in mat) mat.metalness=.03;
@@ -9799,16 +9867,19 @@ function loadPremiumD20Model(){
       box.getCenter(center);
       const maxDim=Math.max(size.x,size.y,size.z)||1;
       model.position.sub(center);
-      model.scale.multiplyScalar(2/maxDim);
-      dice3DState.d20Model=model;
+      model.scale.multiplyScalar((config.size||2)/maxDim);
+      dice3DState.models[die]=model;
       resolve(model);
     },undefined,reject);
   }).catch(err=>{
-    console.warn('Premium d20 failed to load',err);
-    dice3DState.d20Loading=null;
+    console.warn(`Premium ${config.label} failed to load`,err);
+    dice3DState.loadings[die]=null;
     return null;
   });
-  return dice3DState.d20Loading;
+  return dice3DState.loadings[die];
+}
+function loadPremiumD20Model(){
+  return loadPremiumDiceModel(20);
 }
 function makeProceduralDiceGroup(die,roll,isCrit,isFail){
   const group=new THREE.Group();
@@ -9834,8 +9905,9 @@ function setDiceGroup(group){
   dice3DState.group=group;
   dice3DState.scene.add(group);
 }
-function makePremiumDiceGroup(model,roll,{x=0,kept=true}={}){
+function makePremiumDiceGroup(model,roll,{x=0,kept=true,sides=20,calibrated=true}={}){
   const group=new THREE.Group();
+  const config=PREMIUM_DICE_MODELS[Number(sides)||20] || PREMIUM_DICE_MODELS[20];
   const premium=model.clone(true);
   premium.traverse(child=>{
     if(!child.isMesh || !child.material) return;
@@ -9845,6 +9917,9 @@ function makePremiumDiceGroup(model,roll,{x=0,kept=true}={}){
         next.transparent=true;
         next.opacity=.48;
       } else if('emissiveIntensity' in next) {
+        next.transparent=false;
+        next.opacity=1;
+        next.alphaTest=0;
         next.emissiveIntensity=Math.max(next.emissiveIntensity||0,.62);
       }
       return next;
@@ -9852,19 +9927,58 @@ function makePremiumDiceGroup(model,roll,{x=0,kept=true}={}){
     child.material=Array.isArray(child.material) ? child.material.map(cloneMaterial) : cloneMaterial(child.material);
   });
   group.add(premium);
+  if(config?.coreColor && window.THREE?.PointLight){
+    const coreColor=new THREE.Color(config.coreColor);
+    const core=new THREE.PointLight(coreColor,kept ? (config.coreIntensity||1.25) : .35,config.coreDistance||3.5);
+    core.position.set(0,0,0);
+    group.add(core);
+    if(window.THREE?.SphereGeometry && window.THREE?.MeshBasicMaterial){
+      const glow=new THREE.Mesh(
+        new THREE.SphereGeometry(config.coreSize||.08,18,10),
+        new THREE.MeshBasicMaterial({
+          color:coreColor,
+          transparent:true,
+          opacity:kept ? .5 : .16,
+          blending:THREE.AdditiveBlending,
+          depthWrite:false
+        })
+      );
+      group.add(glow);
+    }
+  }
   group.userData.premiumDice=true;
+  group.userData.sides=Number(sides)||20;
   group.userData.roll=Number(roll)||1;
+  group.userData.calibrated=calibrated!==false;
   group.userData.baseX=x;
   group.userData.kept=kept;
   group.position.x=x;
   return group;
 }
+// Visual calibration maps the app's true roll to the model rotation value that
+// shows the matching face. Fill this in from "rolled X shows Y" playtest notes.
+const PREMIUM_DICE_VISUAL_ROLLS = {
+  12:{
+    1:10,
+    2:5,
+    6:8,
+    8:4,
+    12:6
+  }
+};
+function premiumDiceVisualRoll(sides,roll,calibrated=true){
+  const die=Number(sides)||20;
+  const value=Number(roll)||1;
+  if(!calibrated) return value;
+  return PREMIUM_DICE_VISUAL_ROLLS[die]?.[value] || value;
+}
 function animateDiceGroup(group,roll){
   const start=performance.now();
   const duration=1580;
-  const endRot={x:(roll%7)*0.43+0.42,y:(roll%11)*0.37+0.25,z:(roll%5)*0.31+0.15};
   const premium=group.userData?.premiumDice===true;
-  const faceQuat=premium ? premiumD20FaceQuaternion(roll) : null;
+  const visualRoll=premium ? premiumDiceVisualRoll(group.userData.sides,roll,group.userData.calibrated!==false) : roll;
+  const endRot={x:(visualRoll%7)*0.43+0.42,y:(visualRoll%11)*0.37+0.25,z:(visualRoll%5)*0.31+0.15};
+  const faceQuat=premium && group.userData.calibrated!==false ? premiumDiceFaceQuaternion(group.userData.sides,roll) : null;
   const spinX=premium ? Math.PI*3.4 : Math.PI*7;
   const spinY=premium ? Math.PI*4.2 : Math.PI*9;
   const spinZ=premium ? Math.PI*2.2 : Math.PI*5;
@@ -9905,7 +10019,7 @@ function animateDiceSet(root,items){
     const bounce=Math.sin(Math.PI*t);
     root.children.forEach((group,index)=>{
       const roll=Number(group.userData.roll)||1;
-      const faceQuat=premiumD20FaceQuaternion(roll);
+      const faceQuat=premiumDiceFaceQuaternion(group.userData.sides,roll);
       const phase=index*.45;
       const extra=new THREE.Quaternion().setFromEuler(new THREE.Euler(
         (1-ease)*Math.PI*3.4+Math.sin(t*28+phase)*.06*(1-ease),
@@ -9925,7 +10039,7 @@ function animateDiceSet(root,items){
   };
   dice3DState.frame=requestAnimationFrame(animate);
 }
-function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
+function renderDice3D({natural=0,sides=20,rolls=null,mode='normal',calibrated=true}={}){
   if(!initDice3D()) return false;
   clearDice3DMesh();
   const renderToken=++dice3DRenderToken;
@@ -9939,19 +10053,19 @@ function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
     fallback.userData.fallbackDice=true;
     setDiceGroup(fallback);
     animateDiceGroup(fallback,roll);
-    loadPremiumD20Model().then(model=>{
+    loadPremiumDiceModel(die).then(model=>{
       if(!model || renderToken!==dice3DRenderToken) return;
       clearDice3DMesh();
       if(d20Rolls.length>1){
         const root=new THREE.Group();
         const keptIndex=Math.max(0,d20Rolls.findIndex(value=>value===roll));
         d20Rolls.forEach((value,index)=>{
-          root.add(makePremiumDiceGroup(model,value,{x:index===0?-1.35:1.35,kept:index===keptIndex}));
+          root.add(makePremiumDiceGroup(model,value,{x:index===0?-1.35:1.35,kept:index===keptIndex,sides:die,calibrated}));
         });
         setDiceGroup(root);
         animateDiceSet(root,d20Rolls);
       } else {
-        const group=makePremiumDiceGroup(model,roll,{x:0,kept:true});
+        const group=makePremiumDiceGroup(model,roll,{x:0,kept:true,sides:die,calibrated});
         setDiceGroup(group);
         animateDiceGroup(group,roll);
       }
@@ -9961,9 +10075,18 @@ function renderDice3D({natural=0,sides=20,rolls=null,mode='normal'}={}){
   const group=makeProceduralDiceGroup(die,roll,isCrit,isFail);
   setDiceGroup(group);
   animateDiceGroup(group,roll);
+  if(PREMIUM_DICE_MODELS[die]){
+    loadPremiumDiceModel(die).then(model=>{
+      if(!model || renderToken!==dice3DRenderToken) return;
+      clearDice3DMesh();
+      const premium=makePremiumDiceGroup(model,roll,{x:0,kept:true,sides:die,calibrated});
+      setDiceGroup(premium);
+      animateDiceGroup(premium,roll);
+    }).catch(()=>{});
+  }
   return true;
 }
-function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',character='Player',type='roll',rolls=null,rollMode='normal'}={}){
+function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',character='Player',type='roll',rolls=null,rollMode='normal',calibrated=true}={}){
   const overlay=document.getElementById('dice-overlay');
   const badge=document.getElementById('dice-result-badge');
   const totalEl=document.getElementById('dice-total');
@@ -9979,7 +10102,7 @@ function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',characte
     : String(rollNumber || '?');
   badge.className='dice-result-badge';
   if(dualRoll) badge.classList.add('dual');
-  else if(sideCount===20 && dice3DState.d20Model) badge.classList.add('premium');
+  else if(dice3DState.models[sideCount]) badge.classList.add('premium');
   if(sideCount===20 && rollNumber===20) badge.classList.add('success');
   if(sideCount===20 && rollNumber===1) badge.classList.add('fail');
   totalEl.textContent='Rolling...';
@@ -9989,7 +10112,7 @@ function showDiceRollAnimation({natural=0,total=0,sides=20,label='Roll',characte
   badge.classList.remove('show');
   void overlay.offsetWidth;
   overlay.classList.add('show');
-  renderDice3D({natural:rollNumber,sides:sideCount,rolls:d20Rolls,mode:rollMode});
+  renderDice3D({natural:rollNumber,sides:sideCount,rolls:d20Rolls,mode:rollMode,calibrated});
   diceAnimTimers.forEach(clearTimeout);
   diceAnimTimers=[
     setTimeout(()=>{ badge.classList.add('show'); totalEl.textContent=dualRoll ? `Kept ${rollNumber} - Total ${total || rollNumber}` : `Total ${total || rollNumber}`; },1280),
@@ -10177,6 +10300,31 @@ function sendChatText(){
   const input=document.getElementById('chat-text');
   const text=input.value.trim();
   if(!text) return;
+  const forcedModelRoll=text.match(/^\/roll(d4|d6|d8|d10|d12|d20)\s+([1-9]|1[0-9]|20)$/i);
+  if(forcedModelRoll){
+    const sides=Number(forcedModelRoll[1].replace('d',''));
+    const value=Number(forcedModelRoll[2]);
+    if(value<1 || value>sides){
+      addChatMessage({kind:'chat',character:'Table',label:`Use /roll${forcedModelRoll[1].toLowerCase()} 1-${sides}`});
+      input.value='';
+      return;
+    }
+    const ch=getActiveCharacter();
+    lastRoll={roll:value,mod:0,total:value,character:ch?.name || 'Player'};
+    addChatMessage({
+      kind:'roll',
+      character:ch?.name || 'Player',
+      label:`${forcedModelRoll[1].toLowerCase()} test`,
+      detail:`forced ${forcedModelRoll[1].toLowerCase()} calibration`,
+      total:value,
+      rolls:[value]
+    });
+    showDiceRollAnimation({natural:value,total:value,sides,label:`raw ${forcedModelRoll[1].toLowerCase()} test`,character:ch?.name||'Player',calibrated:false});
+    setTimeout(()=>showCritOverlay(`${forcedModelRoll[1].toLowerCase()} calibration roll ${value}`,'roll',`${forcedModelRoll[1].toLowerCase()} test`),850);
+    playSfx(sfxForRoll(value,sides===20));
+    input.value='';
+    return;
+  }
   const forcedRoll=text.match(/^\/roll([1-9]|1[0-9]|20)$/i);
   if(forcedRoll){
     const value=Number(forcedRoll[1]);
@@ -11008,6 +11156,7 @@ function broadcast(msg){
 function syncCharacter(ch){
   if(!ch) return;
   ch.derived=calculateDerived(ch);
+  ch.updatedAt=new Date().toISOString();
   if(canControlCharacter(ch)) characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:Date.now()};
   broadcast({type:'characterState',character:ch,characterClaims});
   scheduleSave();

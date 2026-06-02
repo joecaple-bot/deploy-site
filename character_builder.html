@@ -1011,6 +1011,7 @@ function hydrateCharacter(raw={}){
     spellSlotUsage:raw.spellSlotUsage&&typeof raw.spellSlotUsage==='object'?raw.spellSlotUsage:{},
     featureUsage:raw.featureUsage&&typeof raw.featureUsage==='object'?raw.featureUsage:{},
     accountOwnerUserId:raw.accountOwnerUserId||'',
+    updatedAt:raw.updatedAt||'',
     owner:raw.owner||BUILDER_PLAYER_ID
   };
   character.derived=calculateDerived(character);
@@ -1144,6 +1145,52 @@ function authDisplayName(){
 function accountCharacterPayload(ch){
   return hydrateCharacter({...ch,accountOwnerUserId:authUser?.id||ch.accountOwnerUserId||'',owner:BUILDER_PLAYER_ID});
 }
+function campaignRuntimeCharacterById(characterId,nextState=latestCloudState){
+  if(!characterId||!nextState) return null;
+  const incomingOwner=nextState.myId||nextState.ownerId||'';
+  const party=Array.isArray(nextState.partyCharacters)
+    ? nextState.partyCharacters
+    : (Array.isArray(nextState.myCharacters)?nextState.myCharacters.map(ch=>({...ch,owner:incomingOwner||ch.owner})):[]);
+  const found=party.find(ch=>ch?.id===characterId);
+  return found ? hydrateCharacter(found) : null;
+}
+function mergeCampaignRuntimeFields(character,nextState=latestCloudState){
+  const local=hydrateCharacter(character||{});
+  const remote=campaignRuntimeCharacterById(local.id,nextState);
+  if(!remote) return local;
+  const localTime=Date.parse(local.updatedAt||'')||0;
+  const remoteTime=Date.parse(remote.updatedAt||'')||0;
+  const remoteHasRuntime=(remote.inventory||[]).length
+    || Number(remote.gold)
+    || Object.keys(remote.equipment||{}).length
+    || Number(remote.currentHP)
+    || (remote.statuses||[]).length;
+  if(localTime&&remoteTime&&remoteTime<localTime) return local;
+  if(localTime&&!remoteTime&&!remoteHasRuntime) return local;
+  return hydrateCharacter({
+    ...local,
+    gold:remote.gold,
+    currentHP:remote.currentHP,
+    statuses:remote.statuses,
+    rollState:remote.rollState||local.rollState,
+    deathSaves:remote.deathSaves||local.deathSaves,
+    inventory:remote.inventory,
+    equipment:remote.equipment,
+    weapons:remote.weapons,
+    spells:remote.spells,
+    abilities:remote.abilities,
+    bonusActions:remote.bonusActions,
+    spellSlotUsage:remote.spellSlotUsage,
+    featureUsage:remote.featureUsage,
+    position:remote.position||local.position,
+    tokenArt:remote.tokenArt||local.tokenArt,
+    tokenScale:remote.tokenScale||local.tokenScale,
+    updatedAt:remote.updatedAt||local.updatedAt
+  });
+}
+function mergeCampaignRuntimeIntoCharacters(characters=[],nextState=latestCloudState){
+  return (characters||[]).map(ch=>mergeCampaignRuntimeFields(ch,nextState));
+}
 function renderAccountUI(){
   const badge=document.getElementById('account-badge');
   const login=document.getElementById('discord-login-btn');
@@ -1244,7 +1291,11 @@ async function loadAccountCharacters(){
   if(!client||!authUser) return;
   const {data,error}=await client.from('account_characters').select('id,character,updated_at').eq('owner_user_id',authUser.id).order('updated_at',{ascending:false});
   if(error){toast('Account character sync failed');return;}
-  const accountChars=(data||[]).map(row=>accountCharacterPayload({...row.character,id:row.id})).filter(Boolean);
+  const accountChars=mergeCampaignRuntimeIntoCharacters((data||[]).map(row=>accountCharacterPayload({
+    ...row.character,
+    id:row.id,
+    updatedAt:row.character?.updatedAt||row.updated_at||''
+  })),latestCloudState).filter(Boolean);
   const {data:campaignLinks}=await client.from('campaign_characters').select('character_id').eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('owner_user_id',authUser.id).eq('active',true);
   campaignCharacterIds=new Set((campaignLinks||[]).map(row=>row.character_id));
   const offerImport=shouldOfferLocalImport(accountChars);
@@ -2756,7 +2807,8 @@ function applyCloudState(nextState){
   if(incomingOwner===BUILDER_PLAYER_ID && Array.isArray(nextState.myCharacters)){
     state.myCharacters=nextState.myCharacters;
   }
-  state.myCharacters=(state.myCharacters||[]).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
+  state.myCharacters=mergeCampaignRuntimeIntoCharacters(state.myCharacters,nextState)
+    .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
   if(!state.myCharacters.length) state.myCharacters=[hydrateCharacter({})];
   ensureRequestedCharacterAvailable();
   selectedId=(REQUESTED_CHARACTER_ID&&state.myCharacters.some(ch=>ch.id===REQUESTED_CHARACTER_ID)?REQUESTED_CHARACTER_ID:null)||(incomingOwner===BUILDER_PLAYER_ID?state.activeCharacterId:selectedId)||state.myCharacters[0].id;
@@ -2902,7 +2954,8 @@ function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
   const cleanBuilder=stripCloudState(builderState);
   if(!remoteState) return cleanBuilder;
   const cleanRemote=stripCloudState(remoteState);
-  const editedCharacters=(cleanBuilder.myCharacters||[]).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID,claimedBy:ch.claimedBy||ch.owner||BUILDER_PLAYER_ID}));
+  const editedCharacters=mergeCampaignRuntimeIntoCharacters(cleanBuilder.myCharacters||[],cleanRemote)
+    .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID,claimedBy:ch.claimedBy||ch.owner||BUILDER_PLAYER_ID}));
   const editedIds=new Set(editedCharacters.map(ch=>ch.id).filter(Boolean));
   const remoteParty=Array.isArray(cleanRemote.partyCharacters)
     ? cleanRemote.partyCharacters
