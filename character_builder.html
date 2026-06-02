@@ -972,7 +972,7 @@ function renderAssetPicker(currentPath=selectedTokenArt){
       </div>
       <div class="asset-grid">${items.map(item=>`<button type="button" class="asset-cell ${item.path===currentPath?'sel':''}" data-asset-path="${escapeHtml(item.path)}"><img src="${escapeHtml(item.path)}" alt=""><span>${escapeHtml(item.name)}</span></button>`).join('')}</div>
     </details>`;
-  const choose=path=>{selectedTokenArt=path;renderAssetPicker(path);renderLive();scheduleSave();};
+  const choose=path=>{selectedTokenArt=path;renderAssetPicker(path);saveSelectedTokenVisual({tokenArt:path});};
   el.querySelector('[data-asset-folder]')?.addEventListener('change',e=>{const first=assetManifest().find(item=>item.folder===e.target.value);choose(first?.path||'');});
   el.querySelector('[data-asset-item]')?.addEventListener('change',e=>choose(e.target.value));
   el.querySelector('[data-asset-clear]')?.addEventListener('click',()=>choose(''));
@@ -1435,8 +1435,8 @@ function ensureRequestedCharacterAvailable(){
     state.myCharacters.push(hydrateCharacter({...requested,owner:BUILDER_PLAYER_ID}));
   }
 }
-function writeStorage(message='Saved'){
-  if(!applyingCloudState&&document.getElementById('name')&&selectedId) commitForm();
+function writeStorage(message='Saved',options={}){
+  if(!options.skipCommit&&!applyingCloudState&&document.getElementById('name')&&selectedId) commitForm();
   state.myCharacters=state.myCharacters.map(hydrateCharacter);
   state.myId=BUILDER_PLAYER_ID;
   const editedCharacters=state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
@@ -1595,6 +1595,26 @@ function syncCustomFields(){
 function commitForm(){
   const i=state.myCharacters.findIndex(c=>c.id===selectedId);
   if(i>=0) state.myCharacters[i]=readFormFor(state.myCharacters[i]);
+}
+function saveSelectedTokenVisual({tokenArt=selectedTokenArt,icon=selectedIcon}={}){
+  const i=state.myCharacters.findIndex(c=>c.id===selectedId);
+  if(i<0) return;
+  const live=mergeCampaignRuntimeFields(state.myCharacters[i],latestCloudState);
+  const tokenScale=Number(document.getElementById('token-scale')?.value)||live.tokenScale||1;
+  const updated=hydrateCharacter({
+    ...live,
+    tokenArt:tokenArt||'',
+    icon:icon||live.icon,
+    tokenScale,
+    updatedAt:new Date().toISOString()
+  });
+  state.myCharacters[i]=updated;
+  selectedTokenArt=updated.tokenArt||'';
+  selectedIcon=updated.icon;
+  renderIconButtons();
+  renderList();
+  renderLive();
+  writeStorage('Token art saved',{skipCommit:true});
 }
 function renderAll(){
   renderList();
@@ -2674,9 +2694,7 @@ function renderIconButtons(){
 }
 function selectIcon(icon){
   selectedIcon=icon;
-  renderIconButtons();
-  renderLive();
-  scheduleSave();
+  saveSelectedTokenVisual({icon});
 }
 function applyBeginnerPreset(kind){
   commitForm();
