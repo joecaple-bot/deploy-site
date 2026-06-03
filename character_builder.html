@@ -1218,7 +1218,8 @@ function shouldOfferLocalImport(accountChars){
   return pendingLocalImport.length>0;
 }
 function isDefaultGhostCharacter(ch){
-  return (!ch?.name || ch.name==='Player' || ch.name==='New Character') && Number(ch?.level||1)===1 && (ch?.class||'Fighter')==='Fighter';
+  const hasContent=(ch?.weapons||[]).length || (ch?.spells||[]).length || (ch?.abilities||[]).length || (ch?.inventory||[]).length;
+  return (!ch?.name || ch.name==='Player' || ch.name==='New Character') && Number(ch?.level||1)===1 && (ch?.class||'Fighter')==='Fighter' && !hasContent;
 }
 function renderMigrationPanel(){
   const panel=document.getElementById('migration-panel');
@@ -1385,6 +1386,7 @@ async function attachSelectedToCampaign(){
   commitForm();
   const ch=selected();
   if(!ch) return;
+  if(isDefaultGhostCharacter(ch)) return toast('Name and build the character before adding it to campaign');
   await saveAccountCharacters();
   await ensureCampaignMembership();
   const client=ensureSupabaseClient();
@@ -1439,7 +1441,9 @@ function writeStorage(message='Saved',options={}){
   if(!options.skipCommit&&!applyingCloudState&&document.getElementById('name')&&selectedId) commitForm();
   state.myCharacters=state.myCharacters.map(hydrateCharacter);
   state.myId=BUILDER_PLAYER_ID;
-  const editedCharacters=state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
+  const editedCharacters=state.myCharacters
+    .filter(ch=>!isDefaultGhostCharacter(ch))
+    .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
   const editedIds=new Set(editedCharacters.map(ch=>ch.id));
   state.partyCharacters=[
     ...editedCharacters,
@@ -2973,6 +2977,7 @@ function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
   if(!remoteState) return cleanBuilder;
   const cleanRemote=stripCloudState(remoteState);
   const editedCharacters=mergeCampaignRuntimeIntoCharacters(cleanBuilder.myCharacters||[],cleanRemote)
+    .filter(ch=>!isDefaultGhostCharacter(ch))
     .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID,claimedBy:ch.claimedBy||ch.owner||BUILDER_PLAYER_ID}));
   const editedIds=new Set(editedCharacters.map(ch=>ch.id).filter(Boolean));
   const remoteParty=Array.isArray(cleanRemote.partyCharacters)

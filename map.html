@@ -6794,7 +6794,7 @@ function removeStrayPlayerToken(characterId,owner=''){
   removeRemoteCharacterToken(characterId,owner);
   hideSheet();
   addChatMessage({kind:'system',character:'DM',label:'Removed stray player token'});
-  broadcast({type:'characterRemove',characterId,owner});
+  broadcast({type:'characterRemove',characterId,owner:owner||''});
 }
 function buildModalIcons(current){
   const el=document.getElementById('modal-icons');
@@ -7055,7 +7055,7 @@ function isPlaceholderCharacter(ch){
   return (ch.name==='Player'||ch.name==='New Character') && ch.class==='Fighter' && !hasActions;
 }
 function isGeneratedDefaultGhost(ch){
-  return isPlaceholderCharacter(ch) && ch.name==='Player' && (ch.race||'Human')==='Human' && Number(ch.level||1)===1;
+  return isPlaceholderCharacter(ch) && (ch.name==='Player'||ch.name==='New Character') && (ch.race||'Human')==='Human' && Number(ch.level||1)===1;
 }
 function pruneGeneratedDefaultGhosts(characters=[]){
   const list=characters.filter(Boolean);
@@ -7526,13 +7526,22 @@ function duplicateEnemy(id){
 function updatePlayersList(){
   const el=document.getElementById('players-list');
   el.innerHTML='';
-  const grouped={};
-  for(const ch of myCharacters) grouped[ch.id]={color:ch.color,icon:ch.icon,name:ch.name+' (me)',level:ch.level};
-  for(const ch of Object.values(remoteCharacters)) grouped[ch.id]={color:ch.color,icon:ch.icon,name:ch.name,level:ch.level};
-  for(const [id,p] of Object.entries(grouped)){
+  const entries=[
+    ...myCharacters.map(ch=>({id:ch.id,owner:myId,local:true,character:ch})),
+    ...Object.values(remoteCharacters).map(ch=>({id:ch.id,owner:ch.owner||'',local:false,character:ch}))
+  ].filter(entry=>entry.id && entry.character && !isGeneratedDefaultGhost(entry.character));
+  const seen=new Map();
+  for(const entry of entries){
+    const key=`${entry.owner||'unknown'}:${entry.id}`;
+    if(!seen.has(key)) seen.set(key,entry);
+  }
+  for(const entry of seen.values()){
+    const p=entry.character;
     const d=document.createElement('div');
     d.className='player-chip';
-    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${cleanEmoji(p.icon,'\u{1F9D9}')}</span><span>${escapeHtml(p.name||id.slice(0,6))} L${p.level||1}</span>`;
+    const tag=entry.local?'me':(characterClaim(entry.id)?.owner===entry.owner?'claimed':'remote');
+    const cleanup=isDM() && !entry.local ? `<button style="font-size:10px;padding:4px 7px;margin-left:auto" onclick="removeStrayPlayerToken('${escapeAttr(entry.id)}','${escapeAttr(entry.owner||'')}')">Remove stray</button>` : '';
+    d.innerHTML=`<div class="player-dot" style="background:${p.color||'#48b37f'}"></div><span style="font-size:16px">${cleanEmoji(p.icon,'\u{1F9D9}')}</span><span>${escapeHtml(p.name||entry.id.slice(0,6))} L${p.level||1}<small style="display:block;color:var(--muted)">${escapeHtml(tag)}</small></span>${cleanup}`;
     el.appendChild(d);
   }
 }
