@@ -106,7 +106,11 @@ body.rp-mode.dm-mode .rp-board-menu{display:flex}
 .rp-action.primary{width:116px;height:116px;border-color:rgba(255,218,128,.95);background:radial-gradient(circle at 50% 28%,rgba(134,81,31,.96),rgba(20,12,8,.98) 68%)}
 .rp-hint{margin-top:14px;font-size:12px;color:#dcc69c;text-shadow:0 1px 4px #000}
 canvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none}
-#sidebar{width:286px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:260px}
+#sidebar{width:var(--sidebar-width,286px);flex:0 0 var(--sidebar-width,286px);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:260px;max-width:min(620px,46vw);position:relative}
+#sidebar-resize{position:absolute;left:-10px;top:0;bottom:0;width:20px;z-index:999;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(202,168,107,.12),transparent);pointer-events:auto}
+#sidebar-resize:before{content:"";position:absolute;left:5px;top:50%;width:3px;height:92px;transform:translateY(-50%);border-radius:999px;background:linear-gradient(180deg,rgba(255,226,156,.18),rgba(202,168,107,.75),rgba(255,226,156,.18));box-shadow:0 0 14px rgba(202,168,107,.3)}
+#sidebar-resize:after{content:"";position:absolute;left:3px;top:50%;width:7px;height:36px;transform:translateY(-50%);border-top:1px solid rgba(255,226,156,.45);border-bottom:1px solid rgba(255,226,156,.45)}
+body.sidebar-resizing{cursor:ew-resize;user-select:none}
 #sidebar-scroll{flex:1;overflow-y:auto;padding:12px}
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -178,9 +182,16 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
 .roll-toggle.on{border-color:currentColor;background:rgba(255,255,255,.08)}
 .roll-toggle.advantage{color:#61d889}
 .roll-toggle.disadvantage{color:#ff6d6d}
-.enemy-action-row{display:grid;grid-template-columns:1.15fr .85fr .65fr .55fr 1fr auto;gap:5px;align-items:center;margin-top:6px}
+.enemy-action-row{display:grid;grid-template-columns:1.15fr .78fr .72fr .55fr .62fr .55fr 1fr .78fr .58fr .58fr auto;gap:5px;align-items:center;margin-top:6px}
 .enemy-action-row input,.enemy-action-row select{height:28px;font-size:10px;padding:0 6px}
 .enemy-action-row button{height:28px;font-size:10px;padding:0 7px}
+.enemy-stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+.enemy-stat-cell{border:1px solid var(--line);border-radius:var(--radius);background:rgba(0,0,0,.18);padding:6px}
+.enemy-stat-cell label{margin:0 0 4px;font-size:9px;text-align:center}
+.enemy-stat-cell input{height:26px;text-align:center;font-size:11px;padding:0 4px}
+.enemy-tool-row{display:flex;gap:6px;align-items:end;flex-wrap:wrap;margin-top:8px}
+.enemy-tool-row>div{flex:1 1 130px}
+.enemy-tool-row button{height:32px}
 .chat-log{height:172px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:#111419;padding:7px;display:flex;flex-direction:column;gap:6px}
 .chat-msg{font-size:11px;line-height:1.35;color:#dfe5ee;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:5px}
 .chat-msg:last-child{border-bottom:0}
@@ -253,6 +264,7 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-actions button{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:7px 9px;text-align:left;min-width:0;overflow:visible;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32);transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;z-index:1}
 .combat-actions button .action-label{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .combat-actions button .action-label-text{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.combat-actions button .action-roll-tag{display:inline-flex;align-items:center;justify-content:center;margin-left:auto;flex:0 0 auto;padding:2px 6px;border:1px solid rgba(255,213,130,.32);border-radius:999px;background:rgba(202,168,107,.1);color:#ffe2a3;font-size:10px;line-height:1;white-space:nowrap}
 .spell-icon{display:inline-grid;place-items:center;flex:0 0 var(--icon-size,22px);width:var(--icon-size,22px);height:var(--icon-size,22px);border:1px solid rgba(255,213,130,.44);border-radius:7px;background-color:rgba(255,190,96,.12);background-repeat:no-repeat;box-shadow:0 0 12px rgba(255,162,48,.16),0 0 0 1px rgba(0,0,0,.35) inset;color:#ffd98a;font-size:12px;line-height:1;text-shadow:0 1px 4px #000}
 .spell-icon.weapon{background:radial-gradient(circle at 42% 36%,rgba(255,232,170,.35),rgba(126,86,32,.32) 48%,rgba(8,9,12,.9));color:#ffe5ac}
 .spell-icon.feature{background:radial-gradient(circle at 45% 35%,rgba(126,211,255,.36),rgba(82,55,150,.32) 50%,rgba(8,9,12,.9));color:#d9f1ff}
@@ -491,7 +503,8 @@ input:focus,select:focus,textarea:focus{
   border-right:1px solid rgba(202,151,74,.22);
 }
 #sidebar{
-  width:320px;
+  width:var(--sidebar-width,320px);
+  flex-basis:var(--sidebar-width,320px);
   background:
     linear-gradient(180deg,rgba(23,18,13,.98),rgba(9,8,7,.99)),
     radial-gradient(circle at 50% 0%,rgba(240,168,58,.12),transparent 34%);
@@ -792,7 +805,8 @@ h3{
   #main{flex-direction:column}
   #toolbar{align-items:flex-start;max-height:128px}
   #canvas-wrap{flex:1 0 42dvh;min-height:260px}
-  #sidebar{width:100%;height:38dvh;min-height:240px;border-left:0;border-top:1px solid var(--line)}
+  #sidebar{width:100%;flex-basis:auto;height:38dvh;min-height:240px;border-left:0;border-top:1px solid var(--line)}
+  #sidebar-resize{display:none}
   #combat-popout{bottom:8px;left:8px;width:calc(100% - 16px)}
   #quick-use-popout{left:8px;right:8px;bottom:calc(8px + 190px);width:auto}
   #roll-chat-popout{right:8px;bottom:8px;width:min(310px,calc(100% - 16px))}
@@ -1010,7 +1024,7 @@ h3{
       </div>
 
       <div id="enemy-modal-overlay" class="enemy-modal">
-        <div id="confirm-box" style="width:min(760px,96vw)">
+        <div id="confirm-box" style="width:min(960px,96vw)">
           <h2 id="enemy-modal-title">Enemy</h2>
           <label>Name</label>
           <input id="enemy-name" placeholder="Goblin Scout">
@@ -1018,12 +1032,24 @@ h3{
           <input id="enemy-icon" maxlength="4" placeholder="&#x1F479;">
           <div id="enemy-asset-picker"></div>
           <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
+            <div><label>Level</label><input id="enemy-level" type="number" min="1" max="20" value="1"></div>
+            <div><label>Role</label><select id="enemy-role"><option>Minion</option><option>Skirmisher</option><option>Brute</option><option>Caster</option><option>Boss</option></select></div>
             <div><label>HP</label><input id="enemy-hp" type="number" min="1" value="7"></div>
             <div><label>AC</label><input id="enemy-ac" type="number" min="1" value="13"></div>
             <div><label>Attack bonus</label><input id="enemy-attack" type="number" value="4"></div>
+            <div><label>Save DC</label><input id="enemy-save-dc" type="number" min="0" max="30" value="12"></div>
+            <div><label>Primary stat</label><select id="enemy-primary"><option>STR</option><option>DEX</option><option>CON</option><option>INT</option><option>WIS</option><option>CHA</option></select></div>
             <div><label>Color</label><input id="enemy-color" type="color" value="#e06b62"></div>
             <div><label>Token size</label><input id="enemy-token-scale" type="range" min="0.75" max="2.5" step="0.05" value="1"></div>
             <div><label>Hidden</label><select id="enemy-hidden"><option value="true">Hidden until revealed</option><option value="false">Visible</option></select></div>
+          </div>
+          <div class="enemy-tool-row">
+            <button type="button" onclick="applyEnemyLevelDefaults()">Apply level scaling</button>
+            <div class="hint">Scales HP, AC, attack, save DC, stats, and boss size from level and role. Existing actions stay intact.</div>
+          </div>
+          <div class="sheet-detail">
+            <h4>Stat block and saving throws</h4>
+            <div class="enemy-stat-grid" id="enemy-stat-grid"></div>
           </div>
           <div id="enemy-action-editor" class="sheet-detail"></div>
           <label style="margin-top:8px">DM notes</label>
@@ -1239,6 +1265,7 @@ h3{
     </div>
 
     <aside id="sidebar">
+      <div id="sidebar-resize" title="Drag to resize sidebar"></div>
       <div id="sidebar-scroll">
         <div class="panel-head">
           <h3>Your characters</h3>
@@ -1346,6 +1373,7 @@ h3{
 <script src="vendor/three.min.js?v=124-models"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
+<script src="spell_data.js"></script>
 <script src="assets/spell-icons/spell_icon_atlas.js"></script>
 <script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
 <script src="assets_manifest.js"></script>
@@ -1475,6 +1503,8 @@ const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
 const ACTION_COSTS = ['action','bonus','reaction','free','passive'];
 const TARGET_MODES = ['single','enemies','allies','all','cone'];
+const ENEMY_ROLES = ['Minion','Skirmisher','Brute','Caster','Boss'];
+const ENEMY_PRIMARY_BY_ROLE = {Minion:'DEX',Skirmisher:'DEX',Brute:'STR',Caster:'INT',Boss:'STR'};
 const ROLL_BUFFS = {
   bless:{label:'Bless',die:4,appliesTo:['attack','save'],consume:false,color:'rgba(255,226,112,.9)'},
   guidance:{label:'Guidance',die:4,appliesTo:['check'],consume:true,color:'rgba(111,220,255,.9)'},
@@ -1663,6 +1693,9 @@ function normalizeActionItem(item={}){
     targetMode:TARGET_MODES.includes(targetMode) ? targetMode : 'single',
     aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(item)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
+    saveAbility:inferSaveAbility(item),
+    saveHalf:inferSaveHalfDamage(item),
+    attackSave:item.attackSave||'',
     spellLevel,
     castLevel:Math.max(spellLevel,Math.min(9,Number(item.castLevel)||spellLevel)),
     castingTime:item.castingTime||'',
@@ -1685,6 +1718,19 @@ function inferActionCost(item={}){
 function validDiceFormula(value=''){return /^\d+d(4|6|8|10|12)$/i.test(String(value).trim())}
 function diceCountFromFormula(value=''){const m=String(value).trim().match(/^(\d+)d/i);return m?Number(m[1]):0}
 function dieFromFormula(value=''){const m=String(value).trim().match(/d(4|6|8|10|12)$/i);return m?'d'+m[1]:''}
+function inferSaveAbility(item={}){
+  const raw=String(item.saveAbility||'').toUpperCase();
+  if(ABILITIES.includes(raw)) return raw;
+  const text=`${item.attackSave||''} ${item.description||''} ${item.name||''}`.toUpperCase();
+  const match=text.match(/\b(STR|DEX|CON|INT|WIS|CHA|STRENGTH|DEXTERITY|CONSTITUTION|INTELLIGENCE|WISDOM|CHARISMA)\b/);
+  const map={STRENGTH:'STR',DEXTERITY:'DEX',CONSTITUTION:'CON',INTELLIGENCE:'INT',WISDOM:'WIS',CHARISMA:'CHA'};
+  return match ? (map[match[1]]||match[1]) : '';
+}
+function inferSaveHalfDamage(item={}){
+  if(item.saveHalf===true || item.saveHalf==='true') return true;
+  const text=`${item.attackSave||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
+  return /half\s*(dam|dmg|damage)|\(half|save.*half/.test(text);
+}
 function diceFormulaForAction(item={}){
   return diceFormulaAtLevel(item,Number(item.castLevel)||Number(item.spellLevel)||0);
 }
@@ -2115,6 +2161,9 @@ function hydrateActionItem(raw={}){
     targetMode:TARGET_MODES.includes(targetMode) ? targetMode : 'single',
     aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(raw)),
     saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||0)),
+    saveAbility:inferSaveAbility(raw),
+    saveHalf:inferSaveHalfDamage(raw),
+    attackSave:raw.attackSave||'',
     spellLevel,
     castLevel:Math.max(spellLevel,Math.min(9,Number(raw.castLevel)||spellLevel)),
     castingTime:raw.castingTime||'',
@@ -2126,11 +2175,99 @@ function hydrateActionItem(raw={}){
     sourceItemId:raw.sourceItemId || ''
   };
 }
+function normalizeEnemyRole(role='Skirmisher'){
+  return ENEMY_ROLES.includes(role) ? role : 'Skirmisher';
+}
+function normalizeEnemyStats(raw={}){
+  const out={};
+  for(const ab of ABILITIES) out[ab]=Math.max(1,Math.min(30,Number(raw?.[ab])||10));
+  return out;
+}
+function normalizeEnemySaves(raw={}){
+  const out={};
+  for(const ab of ABILITIES) out[ab]=Math.max(-10,Math.min(20,Number(raw?.[ab])||0));
+  return out;
+}
+function enemyStatMod(enemy,ab='STR'){
+  return abilityMod(normalizeEnemyStats(enemy?.stats)[ab]||10);
+}
+function enemyProficiency(level=1){
+  return proficiencyBonus(Math.max(1,Math.min(20,Number(level)||1)));
+}
+function enemyRoleDefaults(level=1,role='Skirmisher'){
+  const lvl=Math.max(1,Math.min(20,Number(level)||1));
+  const kind=normalizeEnemyRole(role);
+  const pb=enemyProficiency(lvl);
+  const primary=ENEMY_PRIMARY_BY_ROLE[kind]||'DEX';
+  const statBases={Minion:12,Skirmisher:14,Brute:16,Caster:15,Boss:17};
+  const hpByRole={Minion:4,Skirmisher:7,Brute:10,Caster:5,Boss:16};
+  const baseHP={Minion:5,Skirmisher:9,Brute:14,Caster:7,Boss:28};
+  const acMod={Minion:0,Skirmisher:1,Brute:0,Caster:0,Boss:2}[kind]||0;
+  const stats=normalizeEnemyStats({STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10});
+  stats[primary]=Math.min(24,(statBases[kind]||14)+Math.floor((lvl-1)/5));
+  stats.CON=Math.max(stats.CON,kind==='Brute'||kind==='Boss'?15:12);
+  if(kind==='Caster') stats.WIS=Math.max(stats.WIS,13);
+  const attackBonus=pb+enemyStatMod({stats},primary);
+  const saveDC=8+pb+enemyStatMod({stats},primary);
+  const saves=normalizeEnemySaves({});
+  saves[primary]=attackBonus;
+  saves.CON=pb+enemyStatMod({stats},'CON');
+  return {
+    level:lvl,
+    role:kind,
+    primaryStat:primary,
+    hp:Math.max(1,Math.round((baseHP[kind]||9)+lvl*(hpByRole[kind]||7))),
+    ac:Math.max(8,12+Math.floor((lvl-1)/4)+acMod),
+    attackBonus,
+    saveDC,
+    tokenScale:kind==='Boss'?1.45:1,
+    boss:kind==='Boss',
+    stats,
+    savingThrows:saves
+  };
+}
+function spellCatalogue(){
+  return Array.isArray(window.MOOVABLES_SPELLS) ? window.MOOVABLES_SPELLS : [];
+}
+function spellToEnemyActionItem(spell={}){
+  return hydrateActionItem({
+    name:spell.name,
+    die:spell.die||'d6',
+    diceCount:spell.diceCount||diceCountFromFormula(spell.damageFormula)||1,
+    damageFormula:spell.damageFormula||'',
+    upcastDice:spell.upcastDice||'',
+    bonus:spell.bonus||0,
+    actionType:spell.actionType||'damage',
+    actionCost:spell.actionCost||'action',
+    targetMode:spell.targetMode||'single',
+    aoeRadius:spell.aoeRadius||0,
+    saveDC:0,
+    saveAbility:inferSaveAbility(spell),
+    saveHalf:inferSaveHalfDamage(spell),
+    attackSave:spell.attackSave||'',
+    spellLevel:spell.level||0,
+    castLevel:spell.level||0,
+    castingTime:spell.castingTime||'',
+    range:spell.range||'',
+    concentration:!!spell.concentration,
+    sourceClass:'Enemy',
+    effect:spell.effect||spell.damageType||spell.name,
+    description:[spell.school,spell.range&&`Range: ${spell.range}`,spell.castingTime&&`Cast: ${spell.castingTime}`,spell.concentration?'Concentration':'',spell.attackSave,spell.damageHeal,spell.description].filter(Boolean).join(' - ')
+  });
+}
 function hydrateEnemyTemplate(raw={}){
   const defaultWeapons=[hydrateActionItem({name:'Strike',die:'d6',bonus:2,actionType:'damage',description:'Basic monster attack'})];
+  const level=Math.max(1,Math.min(20,Number(raw.level)||1));
+  const role=normalizeEnemyRole(raw.role||'Skirmisher');
   return {
     id:raw.id || 'e_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Enemy',
+    level,
+    role,
+    primaryStat:ABILITIES.includes(raw.primaryStat) ? raw.primaryStat : (ENEMY_PRIMARY_BY_ROLE[role]||'DEX'),
+    stats:normalizeEnemyStats(raw.stats||{}),
+    savingThrows:normalizeEnemySaves(raw.savingThrows||raw.saves||{}),
+    saveDC:Math.max(0,Math.min(30,Number(raw.saveDC)||12)),
     icon:cleanEmoji(raw.icon || raw.em,'\u{1F479}'),
     tokenArt:raw.tokenArt || '',
     tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
@@ -2143,13 +2280,20 @@ function hydrateEnemyTemplate(raw={}){
     notes:raw.notes || '',
     rollState:normalizeRollState(raw.rollState || {}),
     weapons:Array.isArray(raw.weapons)&&raw.weapons.length ? raw.weapons.map(hydrateActionItem) : defaultWeapons,
-    spells:Array.isArray(raw.spells) ? raw.spells.map(hydrateActionItem) : []
+    spells:Array.isArray(raw.spells) ? raw.spells.map(hydrateActionItem) : [],
+    bonusActions:Array.isArray(raw.bonusActions) ? raw.bonusActions.map(hydrateActionItem) : []
   };
 }
 function hydratePlacedIcon(raw={}){
   const icon={...raw};
   if(icon.kind==='enemy'){
     icon.name=icon.name || icon.label || 'Enemy';
+    icon.level=Math.max(1,Math.min(20,Number(icon.level)||1));
+    icon.role=normalizeEnemyRole(icon.role||'Skirmisher');
+    icon.primaryStat=ABILITIES.includes(icon.primaryStat) ? icon.primaryStat : (ENEMY_PRIMARY_BY_ROLE[icon.role]||'DEX');
+    icon.stats=normalizeEnemyStats(icon.stats||{});
+    icon.savingThrows=normalizeEnemySaves(icon.savingThrows||icon.saves||{});
+    icon.saveDC=Math.max(0,Math.min(30,Number(icon.saveDC)||12));
     icon.icon=cleanEmoji(icon.icon || icon.em,'\u{1F479}');
     icon.em=icon.icon;
     icon.tokenArt=icon.tokenArt || '';
@@ -2164,6 +2308,7 @@ function hydratePlacedIcon(raw={}){
     icon.notes=icon.notes || '';
     icon.weapons=Array.isArray(icon.weapons)&&icon.weapons.length ? icon.weapons.map(hydrateActionItem) : hydrateEnemyTemplate(icon).weapons;
     icon.spells=Array.isArray(icon.spells) ? icon.spells.map(hydrateActionItem) : [];
+    icon.bonusActions=Array.isArray(icon.bonusActions) ? icon.bonusActions.map(hydrateActionItem) : [];
     icon.statuses=normalizeStatuses(icon.statuses||[]);
     icon.rollState=normalizeRollState(icon.rollState||{});
     icon.loot=Array.isArray(icon.loot) ? icon.loot.map(normalizeLootEntry) : [];
@@ -2253,6 +2398,7 @@ function hslToRgb(h,s,l){
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const wrap = document.getElementById('canvas-wrap');
+const sidebar = document.getElementById('sidebar');
 let fogCanvas = document.createElement('canvas');
 let fogCtx = fogCanvas.getContext('2d');
 let revealCanvas = document.createElement('canvas');
@@ -2322,7 +2468,7 @@ let enemyTemplates = [];
 let selectedEnemyId = null;
 let pendingEnemyEditId = null;
 let pendingEnemyPlacedUid = null;
-let pendingEnemyActions = {weapons:[],spells:[]};
+let pendingEnemyActions = {weapons:[],spells:[],bonusActions:[]};
 let selectedEffect = 'poison';
 let effectRadius = 60;
 let areaEffects = [];
@@ -2352,6 +2498,7 @@ let myId = stablePlayerId();
 let userRole = localStorage.getItem(roleKey()) || 'player';
 let selectedTargetUid = null;
 let activeEnemyUid = null;
+const LOCAL_TARGET_KEY=`${STORAGE_PREFIX}:target:${CLOUD_CAMPAIGN_ID}:${myId}`;
 let pendingModalSave = null;
 let pendingGreasePlacement = null;
 let dragTarget = null;
@@ -2496,7 +2643,6 @@ function pushDMUndo(label='DM action'){
     areaEffects:areaEffects.map(fx=>({...fx})),
     soundZones:soundZones.map(zone=>({...zone})),
     myCharacters:myCharacters.map(ch=>JSON.parse(JSON.stringify(ch))),
-    selectedTargetUid,
     turnOrder:[...turnOrder],
     initiativeRolls:{...initiativeRolls},
     activeTurnIndex
@@ -2517,7 +2663,6 @@ function undoLastDMAction(){
   areaEffects=snap.areaEffects.map(hydrateAreaEffect);
   soundZones=(snap.soundZones||[]).map(hydrateSoundZone);
   myCharacters=snap.myCharacters.map(hydrateCharacter);
-  selectedTargetUid=snap.selectedTargetUid;
   turnOrder=snap.turnOrder;
   initiativeRolls=snap.initiativeRolls;
   activeTurnIndex=snap.activeTurnIndex;
@@ -3640,6 +3785,47 @@ function resize(){
   resize3DRenderer();
 }
 
+const SIDEBAR_WIDTH_KEY=`${STORAGE_PREFIX}:sidebarWidth`;
+let sidebarResizeDrag=null;
+function sidebarWidthBounds(){
+  const appWidth=document.getElementById('main')?.clientWidth || window.innerWidth || 1280;
+  return {min:260,max:Math.max(300,Math.min(620,Math.round(appWidth*.46)))};
+}
+function setSidebarWidth(width,save=false){
+  if(!sidebar || window.matchMedia('(max-width: 860px)').matches) return;
+  const bounds=sidebarWidthBounds();
+  const next=Math.max(bounds.min,Math.min(bounds.max,Math.round(Number(width)||286)));
+  document.documentElement.style.setProperty('--sidebar-width',`${next}px`);
+  if(save) localStorage.setItem(SIDEBAR_WIDTH_KEY,String(next));
+  resize();
+}
+function initSidebarResize(){
+  const saved=Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+  if(saved) setSidebarWidth(saved,false);
+  const handle=document.getElementById('sidebar-resize');
+  if(!handle) return;
+  handle.addEventListener('pointerdown',e=>{
+    if(window.matchMedia('(max-width: 860px)').matches) return;
+    const rect=sidebar.getBoundingClientRect();
+    sidebarResizeDrag={startX:e.clientX,startWidth:rect.width};
+    document.body.classList.add('sidebar-resizing');
+    handle.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  window.addEventListener('pointermove',e=>{
+    if(!sidebarResizeDrag) return;
+    const next=sidebarResizeDrag.startWidth-(e.clientX-sidebarResizeDrag.startX);
+    setSidebarWidth(next,false);
+  });
+  window.addEventListener('pointerup',()=>{
+    if(!sidebarResizeDrag) return;
+    const width=sidebar.getBoundingClientRect().width;
+    sidebarResizeDrag=null;
+    document.body.classList.remove('sidebar-resizing');
+    setSidebarWidth(width,true);
+  });
+}
+
 /* ===== Existing fog system preserved ===== */
 function initFog(){
   fogCtx.fillStyle='rgba(15,15,28,1)';
@@ -4515,7 +4701,7 @@ function removeRemoteCharacterToken(characterId,owner=''){
   for(const [key,ch] of Object.entries(remoteCharacters)){
     if(ch.id===characterId && (!owner || ch.owner===owner)) delete remoteCharacters[key];
   }
-  if(selectedTargetUid===characterId || selectedTargetUid===`${owner}:${characterId}`) selectedTargetUid=null;
+  if(selectedTargetUid===characterId || selectedTargetUid===`${owner}:${characterId}`) setLocalTarget(null);
   turnOrder=turnOrder.filter(id=>id!==characterId && id!==`${owner}:${characterId}`);
   updateAllPanels();
   draw();
@@ -4614,6 +4800,20 @@ function allCharactersById(){
 }
 function characterById(id){
   return myCharacters.find(c=>c.id===id) || remoteCharacters[id] || Object.values(remoteCharacters).find(c=>c.id===id) || allCharactersById()[id] || null;
+}
+function loadLocalTarget(){
+  try{ selectedTargetUid=localStorage.getItem(LOCAL_TARGET_KEY)||null; }catch(e){}
+  validateLocalTarget();
+}
+function setLocalTarget(uid){
+  selectedTargetUid=uid||null;
+  try{
+    if(selectedTargetUid) localStorage.setItem(LOCAL_TARGET_KEY,selectedTargetUid);
+    else localStorage.removeItem(LOCAL_TARGET_KEY);
+  }catch(e){}
+}
+function validateLocalTarget(){
+  if(selectedTargetUid && !enemyByUid(selectedTargetUid) && !characterById(selectedTargetUid)) setLocalTarget(null);
 }
 function selectedTargetCharacter(){
   if(!selectedTargetUid || enemyByUid(selectedTargetUid)) return null;
@@ -5754,7 +5954,7 @@ function doHardReset(){
   rebuild3DSceneObjects();
   enemyTemplates=[];
   selectedEnemyId=null;
-  selectedTargetUid=null;
+  setLocalTarget(null);
   activeEnemyUid=null;
   players={};
   remoteCharacters={};
@@ -5862,7 +6062,7 @@ function canUseEnemyTurnAction(enemy,kind='action'){
     showCritOverlay('Select that enemy turn first','roll','Combat');
     return false;
   }
-  if(turnActionState.actionTaken && turnActionState.actorId===enemy.uid){
+  if(kind==='action' && turnActionState.actionTaken && turnActionState.actorId===enemy.uid){
     showCritOverlay('Enemy action already used','roll','Combat');
     return false;
   }
@@ -5913,7 +6113,16 @@ function recordTurnMovement(ch,fromX,fromY,toX,toY){
 }
 function greaseSaveBonusFor(entry){
   if(entry?.kind==='character') return abilityMod(statsWithRace(entry.entity).DEX);
-  return Number(entry?.entity?.dexSaveBonus || entry?.entity?.saveBonus || 0) || 0;
+  return Number(entry?.entity?.savingThrows?.DEX ?? entry?.entity?.dexSaveBonus ?? entry?.entity?.saveBonus ?? 0) || 0;
+}
+function saveBonusForEntry(entry,ability='DEX'){
+  const ab=ABILITIES.includes(ability) ? ability : 'DEX';
+  if(entry?.kind==='character'){
+    const stats=statsWithRace(entry.entity);
+    const itemStats=itemStatBonuses(entry.entity);
+    return abilityMod((stats[ab]||10)+(itemStats[ab]||0));
+  }
+  return Number(entry?.entity?.savingThrows?.[ab] ?? 0) || 0;
 }
 function entryLabel(entry){
   return entry?.entity?.name || (entry?.kind==='enemy'?'Enemy':'Character');
@@ -6141,7 +6350,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
   const effect=tokenLock?null:effectAt(x,y);
   const soundZone=(!tokenLock && isDM())?soundZoneAt(x,y):null;
   if(enemy){
-    selectedTargetUid=enemy.uid;
+    setLocalTarget(enemy.uid);
     updateAllPanels();
     addChatMessage({kind:'target',character:'Table',label:`Target set: ${enemy.name}`});
     updateCombatPopout();
@@ -6150,7 +6359,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     return;
   }
   if(hit){
-    selectedTargetUid=hit.id;
+    setLocalTarget(hit.id);
     updateAllPanels();
     addChatMessage({kind:'target',character:'Table',label:`Target set: ${hit.p.name}`});
     updateCombatPopout();
@@ -7029,6 +7238,7 @@ function updateSoundZonePlayback(force=false){
 }
 
 function updateAllPanels(){
+  validateLocalTarget();
   updateRoleUI();
   updateMapLibraryUI();
   set3DModeButton();
@@ -7238,8 +7448,9 @@ function updateCombatPopout(){
     if(prefix==='Weapon') return '<span class="spell-icon weapon">⚔</span>';
     return '<span class="spell-icon feature">✦</span>';
   };
+  const actionFormulaLabel=(item,defaultDie)=>`${diceFormulaForAction(item)||defaultDie}${Number(item.bonus)?` ${formatBonus(item.bonus)}`:''}`;
   const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
-    <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span></span>
+    <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(actionFormulaLabel(item,defaultDie))}</span></span>
     <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
   const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
@@ -7251,6 +7462,7 @@ function updateCombatPopout(){
   if(activeEnemy){
     const weapons=Array.isArray(activeEnemy.weapons)?activeEnemy.weapons:[];
     const spells=Array.isArray(activeEnemy.spells)?activeEnemy.spells:[];
+    const bonusActions=Array.isArray(activeEnemy.bonusActions)?activeEnemy.bonusActions:[];
     const targetEnemy=selectedTargetUid?enemyByUid(selectedTargetUid):null;
     const targetCharacter=selectedTargetCharacter();
     const targetLabel=targetCharacter?`${escapeHtml(targetCharacter.name)} AC ${targetCharacter.derived?.AC||'-'} HP ${targetCharacter.currentHP}/${targetCharacter.derived?.HP||targetCharacter.currentHP}`:targetEnemy?`${escapeHtml(targetEnemy.name)} AC ${targetEnemy.ac} HP ${targetEnemy.hp}/${targetEnemy.maxHP}`:'None selected';
@@ -7262,8 +7474,9 @@ function updateCombatPopout(){
       <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')`,'d6')).join('')}
         ${spells.map(s=>actionButtonHtml('Spell',s,`rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')`,'d6')).join('')}
+        ${bonusActions.map(a=>actionButtonHtml('Bonus',a,`rollEnemyAction('${activeEnemy.uid}','bonusAction','${a.id}')`,'d4')).join('')}
       </div>
-      ${(!weapons.length&&!spells.length)?'<div class="combat-empty">This enemy has no actions yet. Edit the enemy stat block to add weapons or spells.</div>':''}`;
+      ${(!weapons.length&&!spells.length&&!bonusActions.length)?'<div class="combat-empty">This enemy has no actions yet. Edit the enemy stat block to add weapons, spells, or bonus actions.</div>':''}`;
     return;
   }
   const ch=getActiveCharacter();
@@ -7362,7 +7575,7 @@ function selectEnemy(id){
 }
 function enemyToMapIcon(enemy){
   enemy=hydrateEnemyTemplate(enemy||{});
-  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',tokenScale:tokenScale(enemy),hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',weapons:enemy.weapons||[],spells:enemy.spells||[],statuses:[],loot:[],lootGenerated:false};
+  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,level:enemy.level||1,role:enemy.role||'Skirmisher',primaryStat:enemy.primaryStat||'DEX',stats:enemy.stats||{},savingThrows:enemy.savingThrows||{},saveDC:enemy.saveDC||12,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',tokenScale:tokenScale(enemy),hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',weapons:enemy.weapons||[],spells:enemy.spells||[],bonusActions:enemy.bonusActions||[],statuses:[],loot:[],lootGenerated:false};
 }
 function placeSelectedEnemy(){
   if(!isDM()) return requireDM();
@@ -7380,6 +7593,10 @@ function openEnemyModal(id=null){
   document.getElementById('enemy-icon').value=enemy.icon;
   pendingEnemyTokenArt=enemy.tokenArt||'';
   renderAssetPicker('enemy-asset-picker',pendingEnemyTokenArt,path=>{ pendingEnemyTokenArt=path; });
+  document.getElementById('enemy-level').value=enemy.level||1;
+  document.getElementById('enemy-role').value=enemy.role||'Skirmisher';
+  document.getElementById('enemy-save-dc').value=enemy.saveDC||12;
+  document.getElementById('enemy-primary').value=enemy.primaryStat||'DEX';
   document.getElementById('enemy-hp').value=enemy.hp;
   document.getElementById('enemy-ac').value=enemy.ac;
   document.getElementById('enemy-attack').value=enemy.attackBonus ?? 4;
@@ -7387,9 +7604,11 @@ function openEnemyModal(id=null){
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
+  renderEnemyStatGrid(enemy);
   pendingEnemyActions={
     weapons:(enemy.weapons||[]).map(hydrateActionItem),
-    spells:(enemy.spells||[]).map(hydrateActionItem)
+    spells:(enemy.spells||[]).map(hydrateActionItem),
+    bonusActions:(enemy.bonusActions||[]).map(hydrateActionItem)
   };
   renderEnemyActionEditor();
   document.getElementById('enemy-modal-overlay').classList.add('show');
@@ -7405,6 +7624,10 @@ function openPlacedEnemyModal(uid){
   document.getElementById('enemy-icon').value=cleanEmoji(enemy.icon||enemy.em,'\u{1F479}');
   pendingEnemyTokenArt=enemy.tokenArt||'';
   renderAssetPicker('enemy-asset-picker',pendingEnemyTokenArt,path=>{ pendingEnemyTokenArt=path; });
+  document.getElementById('enemy-level').value=enemy.level||1;
+  document.getElementById('enemy-role').value=enemy.role||'Skirmisher';
+  document.getElementById('enemy-save-dc').value=enemy.saveDC||12;
+  document.getElementById('enemy-primary').value=enemy.primaryStat||'DEX';
   document.getElementById('enemy-hp').value=enemy.maxHP||enemy.hp||1;
   document.getElementById('enemy-ac').value=enemy.ac;
   document.getElementById('enemy-attack').value=enemy.attackBonus ?? 4;
@@ -7412,9 +7635,11 @@ function openPlacedEnemyModal(uid){
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
+  renderEnemyStatGrid(enemy);
   pendingEnemyActions={
     weapons:(enemy.weapons||[]).map(hydrateActionItem),
-    spells:(enemy.spells||[]).map(hydrateActionItem)
+    spells:(enemy.spells||[]).map(hydrateActionItem),
+    bonusActions:(enemy.bonusActions||[]).map(hydrateActionItem)
   };
   renderEnemyActionEditor();
   document.getElementById('enemy-modal-overlay').classList.add('show');
@@ -7425,15 +7650,52 @@ function closeEnemyModal(){
   pendingEnemyPlacedUid=null;
   pendingEnemyTokenArt='';
 }
+function renderEnemyStatGrid(enemy={}){
+  const el=document.getElementById('enemy-stat-grid');
+  if(!el) return;
+  const stats=normalizeEnemyStats(enemy.stats||{});
+  const saves=normalizeEnemySaves(enemy.savingThrows||{});
+  el.innerHTML=ABILITIES.map(ab=>`
+    <div class="enemy-stat-cell">
+      <label>${ab}</label>
+      <input id="enemy-stat-${ab}" type="number" min="1" max="30" value="${stats[ab]}">
+      <label>Save</label>
+      <input id="enemy-save-${ab}" type="number" min="-10" max="20" value="${saves[ab]}">
+    </div>`).join('');
+}
+function readEnemyStats(){
+  const stats={}, savingThrows={};
+  for(const ab of ABILITIES){
+    stats[ab]=Math.max(1,Math.min(30,Number(document.getElementById(`enemy-stat-${ab}`)?.value)||10));
+    savingThrows[ab]=Math.max(-10,Math.min(20,Number(document.getElementById(`enemy-save-${ab}`)?.value)||0));
+  }
+  return {stats,savingThrows};
+}
+function applyEnemyLevelDefaults(){
+  const defaults=enemyRoleDefaults(document.getElementById('enemy-level')?.value,document.getElementById('enemy-role')?.value);
+  document.getElementById('enemy-hp').value=defaults.hp;
+  document.getElementById('enemy-ac').value=defaults.ac;
+  document.getElementById('enemy-attack').value=defaults.attackBonus;
+  document.getElementById('enemy-save-dc').value=defaults.saveDC;
+  document.getElementById('enemy-primary').value=defaults.primaryStat;
+  document.getElementById('enemy-token-scale').value=defaults.tokenScale;
+  renderEnemyStatGrid(defaults);
+}
 function renderEnemyActionEditor(){
   const el=document.getElementById('enemy-action-editor');
   if(!el) return;
+  pendingEnemyActions.weapons=pendingEnemyActions.weapons||[];
+  pendingEnemyActions.spells=pendingEnemyActions.spells||[];
+  pendingEnemyActions.bonusActions=pendingEnemyActions.bonusActions||[];
   const typeOptions=['damage','healing','buff','utility'];
   const dieOptions=['d4','d6','d8','d10','d12'];
+  const costOptions=['action','bonus','reaction','free','passive'];
   const row=(kind,item)=>`
     <div class="enemy-action-row">
       <input value="${escapeHtml(item.name)}" placeholder="Name" oninput="updateEnemyActionField('${kind}','${item.id}','name',this.value)">
       <select onchange="updateEnemyActionField('${kind}','${item.id}','actionType',this.value)">${typeOptions.map(t=>`<option value="${t}" ${item.actionType===t?'selected':''}>${t}</option>`).join('')}</select>
+      <select title="Action economy cost" onchange="updateEnemyActionField('${kind}','${item.id}','actionCost',this.value)">${costOptions.map(t=>`<option value="${t}" ${(item.actionCost||'action')===t?'selected':''}>${t}</option>`).join('')}</select>
+      <input type="number" min="1" max="20" value="${Number(item.diceCount)||1}" title="Dice count" oninput="updateEnemyActionField('${kind}','${item.id}','diceCount',this.value)">
       <select onchange="updateEnemyActionField('${kind}','${item.id}','die',this.value)">${dieOptions.map(d=>`<option value="${d}" ${item.die===d?'selected':''}>${d}</option>`).join('')}</select>
       <input type="number" value="${Number(item.bonus)||0}" title="Damage/heal bonus" oninput="updateEnemyActionField('${kind}','${item.id}','bonus',this.value)">
       <input value="${escapeHtml(item.effect||'')}" placeholder="Effect/buff" oninput="updateEnemyActionField('${kind}','${item.id}','effect',this.value)">
@@ -7446,13 +7708,53 @@ function renderEnemyActionEditor(){
     <h4>${label}</h4>
     ${pendingEnemyActions[kind].map(item=>row(kind,item)).join('') || '<div class="hint">None yet.</div>'}
     <button style="margin-top:6px;width:100%" onclick="addEnemyAction('${kind}')">Add ${label.slice(0,-1)}</button>`;
-  el.innerHTML=rows('weapons','Weapons')+rows('spells','Spells');
+  el.innerHTML=`
+    <h4>Spell library</h4>
+    <div class="enemy-tool-row">
+      <div><label>Spell tier</label><select id="enemy-spell-level" onchange="renderEnemySpellPicker()"></select></div>
+      <div style="flex:2 1 220px"><label>Library spell</label><select id="enemy-spell-pick"></select></div>
+      <button type="button" onclick="addEnemyCatalogSpell()">Add spell</button>
+    </div>
+    <div class="hint" id="enemy-spell-preview">Pick a spell to add a ready-to-use enemy action.</div>
+    ${rows('weapons','Weapons')}
+    ${rows('spells','Spells')}
+    ${rows('bonusActions','Bonus Actions')}`;
+  renderEnemySpellPicker();
+}
+function renderEnemySpellPicker(){
+  const levelSelect=document.getElementById('enemy-spell-level');
+  const spellSelect=document.getElementById('enemy-spell-pick');
+  const preview=document.getElementById('enemy-spell-preview');
+  if(!levelSelect||!spellSelect||!preview) return;
+  const spells=spellCatalogue();
+  const levels=[...new Set(spells.map(s=>Number(s.level)||0))].sort((a,b)=>a-b);
+  const current=levelSelect.value;
+  levelSelect.innerHTML=levels.map(level=>`<option value="${level}" ${String(level)===current?'selected':''}>${level===0?'Cantrips':`Level ${level}`}</option>`).join('') || '<option value="">No spell library</option>';
+  if(current && [...levelSelect.options].some(o=>o.value===current)) levelSelect.value=current;
+  const level=Number(levelSelect.value)||0;
+  const filtered=spells.filter(spell=>(Number(spell.level)||0)===level).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const selected=spellSelect.value;
+  spellSelect.innerHTML=filtered.map(spell=>`<option value="${escapeAttr(spell.name)}" ${spell.name===selected?'selected':''}>${escapeHtml(spell.name)}${spell.classes?.length?` - ${escapeHtml(spell.classes.join('/'))}`:''}</option>`).join('') || '<option value="">No spells at this tier</option>';
+  const picked=filtered.find(spell=>spell.name===spellSelect.value) || filtered[0];
+  preview.textContent=picked ? `${picked.name}: ${picked.actionCost||'action'} - ${picked.actionType||'utility'} - ${picked.damageFormula||picked.damageHeal||'no damage'} - ${picked.range||'range varies'}` : 'No spell selected.';
+  spellSelect.onchange=()=>renderEnemySpellPicker();
+}
+function addEnemyCatalogSpell(){
+  const name=document.getElementById('enemy-spell-pick')?.value;
+  const spell=spellCatalogue().find(s=>s.name===name);
+  if(!spell) return showCritOverlay('No spell selected','roll','Enemy spell');
+  const action=spellToEnemyActionItem(spell);
+  action.saveDC=Number(document.getElementById('enemy-save-dc')?.value)||action.saveDC||12;
+  pendingEnemyActions.spells.push(action);
+  renderEnemyActionEditor();
 }
 function addEnemyAction(kind){
+  pendingEnemyActions[kind]=pendingEnemyActions[kind]||[];
   pendingEnemyActions[kind].push(hydrateActionItem({
-    name:kind==='weapons'?'New attack':'New spell',
-    actionType:kind==='weapons'?'damage':'damage',
-    die:kind==='weapons'?'d6':'d8',
+    name:kind==='weapons'?'New attack':kind==='bonusActions'?'New bonus action':'New spell',
+    actionType:kind==='bonusActions'?'utility':kind==='weapons'?'damage':'damage',
+    actionCost:kind==='bonusActions'?'bonus':'action',
+    die:kind==='weapons'?'d6':kind==='bonusActions'?'d4':'d8',
     bonus:kind==='weapons'?2:0,
     effect:''
   }));
@@ -7461,7 +7763,8 @@ function addEnemyAction(kind){
 function updateEnemyActionField(kind,id,field,value){
   const item=pendingEnemyActions[kind]?.find(action=>action.id===id);
   if(!item) return;
-  item[field]=['bonus','aoeRadius','saveDC'].includes(field) ? Number(value)||0 : value;
+  item[field]=['bonus','aoeRadius','saveDC','diceCount'].includes(field) ? Number(value)||0 : value;
+  if(field==='diceCount'||field==='die') item.damageFormula=`${Math.max(1,Number(item.diceCount)||1)}${DAMAGE_DICE.includes(item.die)?item.die:'d6'}`;
   if(field==='name' && !item.effect) item.effect=value;
 }
 function removeEnemyAction(kind,id){
@@ -7470,20 +7773,29 @@ function removeEnemyAction(kind,id){
 }
 function saveEnemyTemplate(){
   if(!isDM()) return requireDM();
+  const block=readEnemyStats();
   const data=hydrateEnemyTemplate({
     id:pendingEnemyEditId,
     name:document.getElementById('enemy-name').value.trim()||'Enemy',
+    level:document.getElementById('enemy-level').value,
+    role:document.getElementById('enemy-role').value,
+    primaryStat:document.getElementById('enemy-primary').value,
+    stats:block.stats,
+    savingThrows:block.savingThrows,
+    saveDC:document.getElementById('enemy-save-dc').value,
     icon:cleanEmoji(document.getElementById('enemy-icon').value.trim(),'\u{1F479}'),
     tokenArt:pendingEnemyTokenArt||'',
     tokenScale:Number(document.getElementById('enemy-token-scale').value)||1,
     hp:document.getElementById('enemy-hp').value,
     ac:document.getElementById('enemy-ac').value,
     attackBonus:document.getElementById('enemy-attack').value,
+    boss:document.getElementById('enemy-role').value==='Boss',
     color:document.getElementById('enemy-color').value,
     hidden:document.getElementById('enemy-hidden').value==='true',
     notes:document.getElementById('enemy-notes').value.trim(),
     weapons:pendingEnemyActions.weapons,
-    spells:pendingEnemyActions.spells
+    spells:pendingEnemyActions.spells,
+    bonusActions:pendingEnemyActions.bonusActions
   });
   if(pendingEnemyPlacedUid){
     const enemy=enemyByUid(pendingEnemyPlacedUid);
@@ -7492,7 +7804,6 @@ function saveEnemyTemplate(){
       Object.assign(enemy,placed,{uid:enemy.uid,x:enemy.x,y:enemy.y,hp:Math.min(data.hp,enemy.hp||data.hp),maxHP:data.hp,statuses:normalizeStatuses(enemy.statuses||[])});
       broadcast({type:'iconUpdate',icon:enemy});
       activeEnemyUid=enemy.uid;
-      selectedTargetUid=enemy.uid;
     }
     closeEnemyModal();
     updateAllPanels();
@@ -7768,12 +8079,14 @@ function showEnemySheet(enemy,x,y){
       <div class="mini-stat"><b>${Math.round(enemy.x)},${Math.round(enemy.y)}</b><span>Pos</span></div>`:''}
     </div>
     ${enemy.hp<=0?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${ensureEnemyLoot(enemy).map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeEnemyLoot('${enemy.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Already looted</span><span></span></div>'}</div></div>`:''}
+    ${dm?`<div class="sheet-detail"><h4>Stat block</h4><div class="compact-list">${ABILITIES.map(ab=>`<div><span>${ab} ${normalizeEnemyStats(enemy.stats)[ab]}</span><span>Save ${formatSigned(normalizeEnemySaves(enemy.savingThrows)[ab])}</span></div>`).join('')}</div></div>`:''}
     ${dm&&enemy.notes?`<div class="sheet-detail"><h4>DM notes</h4><div class="hint">${escapeHtml(enemy.notes)}</div></div>`:''}
     ${dm&&(enemy.statuses||[]).length?`<div class="pill-row">${normalizeStatuses(enemy.statuses).map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>`:''}
     ${dm?rollStateControlsHtml(enemy,'enemy'):''}
     ${dm?`<div class="action-buttons">
       ${(enemy.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="setActiveEnemy('${enemy.uid}',true);rollEnemyAction('${enemy.uid}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)}</button>`).join('')}
       ${(enemy.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="setActiveEnemy('${enemy.uid}',true);rollEnemyAction('${enemy.uid}','spell','${s.id}')">Spell: ${escapeHtml(s.name)}</button>`).join('')}
+      ${(enemy.bonusActions||[]).map(a=>`<button title="${escapeHtml(a.description||a.name)}" onclick="setActiveEnemy('${enemy.uid}',true);rollEnemyAction('${enemy.uid}','bonusAction','${a.id}')">Bonus: ${escapeHtml(a.name)}</button>`).join('')}
     </div>`:''}
     ${dm?`<div class="tracker">
       <span>Damage / heal</span>
@@ -8034,18 +8347,18 @@ function clearActiveEnemy(){
   draw();
 }
 function setTarget(uid){
-  selectedTargetUid=uid;
+  setLocalTarget(uid);
   const enemy=enemyByUid(uid);
   if(enemy) addChatMessage({kind:'target',character:'Table',label:`Target set: ${enemy.name}`});
   const character=characterById(uid);
   if(character) addChatMessage({kind:'target',character:'Table',label:`Target set: ${character.name}`});
   updateCombatPopout();
-  scheduleSave();
+  draw();
 }
 function clearTarget(){
-  selectedTargetUid=null;
+  setLocalTarget(null);
   updateCombatPopout();
-  scheduleSave();
+  draw();
 }
 function visibleEnemies(){
   return placedIcons.filter(ic=>ic.kind==='enemy' && (!ic.hidden || isRevealed(ic.x,ic.y)));
@@ -8398,7 +8711,7 @@ function killEnemy(uid){
   pushDMUndo('remove enemy');
   noteEnemyDefeated(enemy,'DM');
   placedIcons=placedIcons.filter(ic=>ic.uid!==uid);
-  if(selectedTargetUid===uid) selectedTargetUid=null;
+  if(selectedTargetUid===uid) setLocalTarget(null);
   if(activeEnemyUid===uid) activeEnemyUid=null;
   hideSheet();
   addChatMessage({kind:'enemy',character:'Table',label:`${enemy.name} removed from the map`});
@@ -9228,6 +9541,46 @@ function rollCharacterAction(characterId,type,itemId,options={}){
     if(type==='spell' && castLevel) changeCharacterSpellSlot(ch.id,castLevel,-1);
     return showCritOverlay('Choose an enemy target first','roll','Attack');
   }
+  const saveAbility=inferSaveAbility(castItem);
+  const saveDC=saveAbility ? (Number(castItem.saveDC)||Number(ch.derived?.spellSaveDC)||0) : 0;
+  const saveHalf=inferSaveHalfDamage(castItem);
+  if(actionType==='damage' && saveDC){
+    const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
+    const saveBonus=saveBonusForEntry({kind:'enemy',entity:target},saveAbility);
+    const save=rollDiceExpression('1d20',saveBonus);
+    const saved=save.total>=saveDC;
+    const appliedDamage=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
+    const hpBefore=target.hp;
+    const hpAfter=Math.max(0,target.hp-appliedDamage);
+    markTurnAction(actionCost,characterId);
+    if(isDM()) pushDMUndo('save spell damage');
+    target.hp=hpAfter;
+    campaignStat('damageDealt',appliedDamage);
+    if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
+    broadcast({type:'iconUpdate',icon:target});
+    lastRoll={roll:save.rolls[0],mod:saveBonus,total:save.total,character:target.name};
+    addChatMessage({
+      kind:type,
+      character:ch.name,
+      label:item.name,
+      detail:`${target.name} ${saveAbility} save ${save.total} [${save.rolls.join(', ')} ${formatBonus(saveBonus)}] vs DC ${saveDC} - ${saved?'Saved':'Failed'}${saved&&saveHalf?', half damage':''}. Damage ${damage.total} [${damage.rolls.join(', ')} ${formatBonus(castItem.bonus)}] = ${appliedDamage}${castLevel?` using L${castLevel}`:''}`,
+      total:appliedDamage,
+      rolls:damage.rolls
+    });
+    const effect={text:`${item.name}: ${appliedDamage} damage to ${target.name}`,overlayType:saved?'roll':'success',title:`${saveAbility} save ${save.total} vs DC ${saveDC}`,kind:'action',characterId:ch.id,actionType,type,x:characterX(ch),y:characterY(ch),targetUid:target.uid,tx:target.x,ty:target.y,damage:appliedDamage,hpBefore,hpAfter,maxHP:target.maxHP,saveAbility,saveDC,saveTotal:save.total,saved};
+    playSfx(appliedDamage?'hit':'miss');
+    if(target.hp<=0) playSfx('enemyDown');
+    showDiceRollAnimation({natural:save.rolls[0],total:save.total,sides:20,label:`${saveAbility} save`,character:target.name});
+    showCritOverlay(effect.text,effect.overlayType,effect.title);
+    playActionAnimation(ch,type,effect);
+    emitLiveEffect(effect);
+    syncCharacter(ch);
+    updateActiveSummary();
+    updateCombatPopout();
+    draw();
+    scheduleSave();
+    return;
+  }
   const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack','',target);
   const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
   markTurnAction(actionCost,characterId);
@@ -9510,8 +9863,11 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   const cone=isConeAction(item);
   const center=aoeCenter(caster,item);
   const origin=entityPoint(caster);
+  const saveAbility=inferSaveAbility(item);
+  const saveDC=saveAbility ? (Number(item.saveDC)||Number(caster?.derived?.spellSaveDC)||Number(caster?.saveDC)||0) : 0;
+  const saveHalf=inferSaveHalfDamage(item);
   if(isGreaseAction(item)){
-    return castGreaseArea(caster,casterKind,item,center,radius);
+    return castGreaseArea(caster,casterKind,{...item,saveDC:saveDC||item.saveDC},center,radius);
   }
   if(cone && !center.target && !(templateDraft?.kind==='cone')){
     return showCritOverlay('Choose a target direction first','roll','Cone attack');
@@ -9534,17 +9890,17 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
     if(actionType==='damage'){
       if(splitDamage){
         amount=splitAmounts[index]||0;
-        if(item.saveDC){
-          const saveBonus=entry.kind==='character' ? abilityMod(statsWithRace(entry.entity).DEX) : 0;
+        if(saveDC){
+          const saveBonus=saveBonusForEntry(entry,saveAbility);
           save=rollDiceExpression('1d20',saveBonus);
-          saved=save.total>=item.saveDC;
-          if(saved) amount=Math.floor(amount/2);
+          saved=save.total>=saveDC;
+          if(saved) amount=saveHalf ? Math.floor(amount/2) : 0;
         }
-      } else if(item.saveDC){
-        const saveBonus=entry.kind==='character' ? abilityMod(statsWithRace(entry.entity).DEX) : 0;
+      } else if(saveDC){
+        const saveBonus=saveBonusForEntry(entry,saveAbility);
         save=rollDiceExpression('1d20',saveBonus);
-        saved=save.total>=item.saveDC;
-        amount=saved ? Math.floor(damage.total/2) : damage.total;
+        saved=save.total>=saveDC;
+        amount=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
       } else {
         const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
         attack=rollWithBuffs(caster,'1d20',atkBonus,'attack','',entry.entity);
@@ -9563,8 +9919,9 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
   }
   const casterName=caster.name||'Caster';
   const crits=results.filter(result=>result.critical).length;
+  const saveLabel=saveDC ? ` (${saveAbility} DC ${saveDC}${saveHalf?', half on save':', no damage on save'})` : '';
   const detail=actionType==='damage'
-    ? (targets.length ? `${damage.total} ${splitDamage?'rolled and split between':'potential damage to'} ${affected}/${targets.length} target${targets.length===1?'':'s'}${splitDamage?`: ${results.map(result=>`${result.name} ${result.damage}`).join(', ')}`:''}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${item.saveDC?` (DC ${item.saveDC})`:''}` : `${cone?'Cone':'Area'} cast. No targets inside radius ${radius}px.`)
+    ? (targets.length ? `${damage.total} ${splitDamage?'rolled and split between':'potential damage to'} ${affected}/${targets.length} target${targets.length===1?'':'s'}${splitDamage?`: ${results.map(result=>`${result.name} ${result.damage}${result.saveTotal!=null?` save ${result.saveTotal}${result.saved?' saved':' failed'}`:''}`).join(', ')}`:''}${crits?`, ${crits} crit${crits===1?'':'s'} doubled`:''}${saveLabel}` : `${cone?'Cone':'Area'} cast. No targets inside radius ${radius}px.`)
     : actionType==='healing'
       ? (targets.length ? `${damage.total} healing to ${affected} target${affected===1?'':'s'}` : `Area cast. No allies inside radius ${radius}px.`)
       : (targets.length ? `${effectName} applied to ${affected} target${affected===1?'':'s'}` : `${effectName} area placed. No targets inside radius ${radius}px.`);
@@ -9588,8 +9945,9 @@ function rollEnemyAction(enemyUid,type,itemId){
   if(!isDM()) return requireDM();
   const enemy=enemyByUid(enemyUid);
   if(!enemy) return;
-  const item=(enemy[type+'s']||[]).find(x=>x.id===itemId);
-  if(!item) return;
+  const baseItem=(enemy[type+'s']||[]).find(x=>x.id===itemId);
+  if(!baseItem) return;
+  const item={...baseItem,saveDC:Number(baseItem.saveDC)||Number(enemy.saveDC)||0};
   const actionCost=item.actionCost||inferActionCost(item);
   if(!canUseEnemyTurnAction(enemy,actionCost)) return;
   const actionType=item.actionType||inferActionType(item);
@@ -9626,6 +9984,46 @@ function rollEnemyAction(enemyUid,type,itemId){
   }
   const target=targetCharacter||targetEnemy;
   if(!target) return showCritOverlay('Choose a player or enemy target first','roll','Enemy action');
+  const saveAbility=inferSaveAbility(item);
+  const saveDC=saveAbility ? (Number(item.saveDC)||Number(enemy.saveDC)||0) : 0;
+  const saveHalf=inferSaveHalfDamage(item);
+  if(actionType==='damage' && saveDC){
+    const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
+    const entry=targetCharacter ? {kind:'character',entity:targetCharacter} : {kind:'enemy',entity:targetEnemy};
+    const saveBonus=saveBonusForEntry(entry,saveAbility);
+    const save=rollDiceExpression('1d20',saveBonus);
+    const saved=save.total>=saveDC;
+    const appliedDamage=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
+    let hpBefore=targetCharacter ? (target.currentHP ?? target.derived?.HP ?? 0) : target.hp;
+    let hpAfter=Math.max(0,hpBefore-appliedDamage);
+    markTurnAction(actionCost,enemy.uid);
+    if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter});
+    else {
+      target.hp=hpAfter;
+      broadcast({type:'iconUpdate',icon:target});
+    }
+    addChatMessage({
+      kind:type,
+      character:enemy.name,
+      label:item.name,
+      detail:`${target.name} ${saveAbility} save ${save.total} [${save.rolls.join(', ')} ${formatBonus(saveBonus)}] vs DC ${saveDC} - ${saved?'Saved':'Failed'}${saved&&saveHalf?', half damage':''}. Damage ${damage.total} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}] = ${appliedDamage}`,
+      total:appliedDamage,
+      rolls:damage.rolls
+    });
+    if(appliedDamage && hpAfter<=0){ if(targetEnemy) ensureEnemyLoot(targetEnemy); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
+    const visual={text:`${enemy.name}: ${item.name} deals ${appliedDamage} to ${target.name}`,overlayType:saved?'roll':'success',title:`${saveAbility} save ${save.total} vs DC ${saveDC}`};
+    const effect={kind:'action',...visual,roll:{roll:save.rolls[0],mod:saveBonus,total:save.total,character:target.name},diceSides:20,diceLabel:`${saveAbility} save`,characterId:enemy.uid,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:appliedDamage,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,saveAbility,saveDC,saveTotal:save.total,saved};
+    playSfx(appliedDamage?'hit':'miss');
+    if(appliedDamage && hpAfter<=0) playSfx('enemyDown');
+    showDiceRollAnimation({natural:save.rolls[0],total:save.total,sides:20,label:`${saveAbility} save`,character:target.name});
+    showCritOverlay(effect.text,effect.overlayType,effect.title);
+    playActionAnimation(enemy,type,effect);
+    emitLiveEffect(effect);
+    updateCombatPopout();
+    draw();
+    scheduleSave();
+    return;
+  }
   const attack=rollWithBuffs(enemy,'1d20',enemy.attackBonus||0,'attack','',target);
   const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
   markTurnAction(actionCost,enemy.uid);
@@ -10530,7 +10928,7 @@ function advanceTurn(){
   turnActionState={};
   const id=turnOrder[activeTurnIndex];
   if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
-  if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
+  if(enemyByUid(id)) activeEnemyUid=id;
   handleSlippedStartOfTurn(id);
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
   playSfx('turn');
@@ -10606,7 +11004,7 @@ function updateTurnOrder(){
       activeTurnIndex=i;
       turnActionState={};
       if(canControlCharacter(ch)) activeCharacterId=id;
-      if(ch.isEnemy){ activeEnemyUid=id; selectedTargetUid=id; }
+      if(ch.isEnemy) activeEnemyUid=id;
       broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
       updateAllPanels();
       draw();
@@ -10716,7 +11114,6 @@ function buildPersistedState(){
     soundZoneRadius,
     enemyTemplates,
     selectedEnemyId,
-    selectedTargetUid,
     myCharacters,
     partyCharacters,
     characterClaims,
@@ -10776,7 +11173,6 @@ function loadState(){
     soundZoneRadius=Number(state.soundZoneRadius)||150;
     enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
     selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
-    selectedTargetUid=state.selectedTargetUid || null;
     activeEnemyUid=null;
     myCharacters=(state.myCharacters || []).map(hydrateCharacter);
     characterClaims=normalizeCharacterClaims(state.characterClaims);
@@ -10890,7 +11286,6 @@ function applyPersistedState(state){
   soundZoneRadius=Number(state.soundZoneRadius)||150;
   enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
   selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
-  selectedTargetUid=state.selectedTargetUid || null;
   activeEnemyUid=null;
   applyCharacterStateFromCampaign(state);
   revealRadius=Number(state.revealRadius)||30;
@@ -11276,7 +11671,7 @@ function connectWS(){
           scheduleSave();
         } else if(msg.type==='iconDelete'){
           placedIcons=placedIcons.filter(ic=>ic.uid!==msg.uid);
-          if(selectedTargetUid===msg.uid) selectedTargetUid=null;
+          if(selectedTargetUid===msg.uid) setLocalTarget(null);
           if(activeEnemyUid===msg.uid) activeEnemyUid=null;
           hideSheet();
           draw();
@@ -11350,7 +11745,7 @@ function connectWS(){
           turnActionState=msg.turnActionState||{};
           const id=turnOrder[activeTurnIndex];
           if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
-          if(enemyByUid(id)){ activeEnemyUid=id; selectedTargetUid=id; }
+          if(enemyByUid(id)) activeEnemyUid=id;
           playSfx('turn');
           updateAllPanels();
           draw();
@@ -11387,7 +11782,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapLabel=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; selectedTargetUid=null; activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapLabel=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; setLocalTarget(null); activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
@@ -11583,6 +11978,8 @@ document.querySelectorAll('#dm-item-modal input,#dm-item-modal select,#dm-item-m
 loadState();
 ensureDefaultCharacter();
 ensureDefaultEnemies();
+loadLocalTarget();
+initSidebarResize();
 resize();
 updateAllPanels();
 initSupabaseCloud();
