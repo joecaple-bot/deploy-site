@@ -112,6 +112,22 @@ canvas{display:block;touch-action:none;user-select:none;-webkit-user-select:none
 #sidebar-resize:after{content:"";position:absolute;left:3px;top:50%;width:7px;height:36px;transform:translateY(-50%);border-top:1px solid rgba(255,226,156,.45);border-bottom:1px solid rgba(255,226,156,.45)}
 body.sidebar-resizing{cursor:ew-resize;user-select:none}
 #sidebar-scroll{flex:1;overflow-y:auto;padding:12px}
+.side-section{position:relative;border:0;border-radius:18px;background:linear-gradient(180deg,rgba(17,14,10,.52),rgba(8,7,6,.32));margin:0 2px 13px;padding:6px;overflow:visible;box-shadow:0 10px 28px rgba(0,0,0,.2),0 0 0 1px rgba(255,230,170,.025) inset}
+.side-section:before{content:"";position:absolute;inset:-8px -7px;z-index:0;pointer-events:none;background:url('assets/ui/fancy_sidebar_border.png') center/100% 100% no-repeat;opacity:.76;filter:drop-shadow(0 8px 14px rgba(0,0,0,.42))}
+.side-section:after{content:"";position:absolute;inset:12px 18px;z-index:0;pointer-events:none;border-radius:18px;background:radial-gradient(ellipse at 50% 0%,rgba(255,155,42,.22),transparent 70%),linear-gradient(180deg,rgba(255,186,72,.08),transparent 62%);opacity:.72;filter:blur(14px)}
+.side-section.collapsed:after{display:none}
+.side-section-head{position:relative;z-index:1;margin:0;padding:12px 12px;cursor:pointer;user-select:none;background:linear-gradient(90deg,rgba(79,51,19,.5),rgba(12,10,8,.22));border-bottom:1px solid rgba(202,168,107,.14);border-radius:12px 12px 4px 4px}
+.side-section-head:hover{background:linear-gradient(90deg,rgba(113,72,25,.6),rgba(12,10,8,.25));box-shadow:0 0 20px rgba(255,156,47,.1) inset}
+.side-section-head h3{margin:0}
+.side-section-head .actions{display:flex;align-items:center;gap:5px;margin-left:auto}
+.side-section-head button{font-size:11px;padding:5px 8px}
+.side-section-toggle{width:27px;height:25px;padding:0!important;border-radius:999px;font-weight:800;color:#ffe7b2}
+.side-section-body{position:relative;z-index:1;padding:11px 10px 10px;background:linear-gradient(180deg,rgba(7,7,7,.18),rgba(0,0,0,.08));border-radius:0 0 12px 12px}
+.side-section.collapsed .side-section-body{display:none}
+.side-section.collapsed .side-section-head{border-bottom:0;border-radius:12px}
+.side-section.collapsed{background:linear-gradient(90deg,rgba(17,14,10,.68),rgba(8,7,6,.4))}
+.side-section.compact-alert{box-shadow:0 0 22px rgba(255,145,40,.12),0 10px 28px rgba(0,0,0,.2)}
+.side-section.compact-alert:before{opacity:.9;filter:drop-shadow(0 0 10px rgba(255,148,45,.2)) drop-shadow(0 8px 14px rgba(0,0,0,.42))}
 .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .full-btn{width:100%;font-size:12px;padding:8px;margin-bottom:7px}
@@ -277,6 +293,14 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-actions button .action-full small{display:block;color:#d9c59b;font-size:10px}
 .combat-actions button:hover,.combat-actions button:focus-visible{border-color:rgba(255,221,151,.85);box-shadow:0 0 16px rgba(202,168,107,.2);transform:translateY(-2px) scale(1.03);z-index:5}
 .combat-actions button:hover .action-full,.combat-actions button:focus-visible .action-full{display:block}
+.action-cast-wrap{position:relative;display:flex;flex-direction:column;gap:0;min-width:0;overflow:visible}
+.action-cast-wrap>button{width:100%}
+.upcast-tabs{display:flex;align-items:flex-end;gap:3px;min-height:20px;padding:0 8px 0 10px;transform:translateY(2px);pointer-events:auto}
+.upcast-tabs button{min-width:25px;height:19px;padding:0 5px;text-align:center;font-size:10px;line-height:17px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,rgba(45,32,18,.96),rgba(13,12,10,.96));border:1px solid rgba(202,168,107,.42);color:#dcc38a;box-shadow:0 -2px 8px rgba(0,0,0,.26) inset;transform:none}
+.upcast-tabs button:hover,.upcast-tabs button:focus-visible{transform:translateY(-1px);border-color:rgba(255,221,151,.86);box-shadow:0 0 12px rgba(255,177,65,.22),0 -2px 8px rgba(0,0,0,.26) inset}
+.upcast-tabs button.active{color:#fff3c8;border-color:rgba(70,205,132,.92);background:linear-gradient(180deg,rgba(28,82,50,.92),rgba(12,22,15,.98));box-shadow:0 0 13px rgba(64,210,126,.28),0 0 0 1px rgba(255,226,160,.12) inset}
+.upcast-tabs button.unavailable{opacity:.38;filter:grayscale(.55);cursor:not-allowed}
+.upcast-tabs button.unavailable:hover{transform:none;box-shadow:0 -2px 8px rgba(0,0,0,.26) inset}
 .combat-empty{font-size:11px;color:var(--muted);line-height:1.45}
 .combat-empty button{margin-top:7px;font-size:11px;padding:6px 8px}
 .quick-use{margin-top:10px;border-top:1px solid rgba(202,168,107,.28);padding-top:9px}
@@ -349,7 +373,10 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #modal-btns button{font-size:12px;padding:7px 14px}
 #map-library-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.68);z-index:130;align-items:center;justify-content:center;padding:16px}
 #map-library-overlay.show{display:flex}
+#scene-deck-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.68);z-index:131;align-items:center;justify-content:center;padding:16px}
+#scene-deck-overlay.show{display:flex}
 #map-library{width:min(980px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(180deg,rgba(30,24,17,.98),rgba(9,10,12,.98));border:1px solid rgba(202,168,107,.5);border-radius:14px;box-shadow:0 28px 120px rgba(0,0,0,.72),0 0 0 1px rgba(255,225,160,.08) inset}
+#scene-deck{width:min(1040px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(180deg,rgba(30,24,17,.98),rgba(9,10,12,.98));border:1px solid rgba(202,168,107,.5);border-radius:14px;box-shadow:0 28px 120px rgba(0,0,0,.72),0 0 0 1px rgba(255,225,160,.08) inset}
 .map-library-body{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;padding:16px 18px}
 .map-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .map-card{position:relative;min-height:122px;overflow:hidden;border:1px solid rgba(202,168,107,.38);border-radius:12px;background:#090b0f;box-shadow:0 12px 34px rgba(0,0,0,.32);cursor:pointer;text-align:left;padding:0}
@@ -361,6 +388,20 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .map-library-panel{border:1px solid rgba(202,168,107,.28);border-radius:12px;background:rgba(7,8,10,.72);padding:12px;display:flex;flex-direction:column;gap:10px}
 .map-library-panel h3{font-size:13px;color:#ffe8b7;margin-bottom:2px}
 .map-library-panel code{display:block;word-break:break-all;color:#d6c4a1;background:rgba(0,0,0,.28);border:1px solid rgba(202,168,107,.18);border-radius:8px;padding:8px;font-size:11px}
+.scene-deck-body{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;padding:16px 18px}
+.scene-list{display:flex;flex-direction:column;gap:9px}
+.scene-card{border:1px solid rgba(202,168,107,.32);border-radius:12px;background:linear-gradient(135deg,rgba(255,151,45,.08),rgba(0,0,0,.36));padding:10px;text-align:left;cursor:pointer;color:#f5dfad}
+.scene-card:hover,.scene-card.active{border-color:rgba(255,190,96,.84);box-shadow:0 0 22px rgba(255,151,45,.18)}
+.scene-card b{display:block;font:800 13px Georgia,'Times New Roman',serif;color:#fff1cd}
+.scene-card span{display:block;margin-top:3px;color:#bfa879;font-size:11px;line-height:1.35}
+.scene-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.scene-meta-grid div{border:1px solid rgba(202,168,107,.22);border-radius:10px;background:rgba(0,0,0,.24);padding:8px}
+.scene-meta-grid b{display:block;color:#ffe8b7}
+.scene-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.scene-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.scene-start-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.scene-start-grid button{min-height:34px;font-size:11px;padding:6px 8px}
+.scene-start-grid button.active{border-color:#ffc45f;background:linear-gradient(180deg,rgba(127,76,20,.78),rgba(38,22,8,.92));box-shadow:0 0 18px rgba(255,166,48,.24)}
 .map-path-row{display:grid;grid-template-columns:1fr auto;gap:8px}
 .map-path-row input{height:34px}
 .map-helper{font-size:11px;color:#aa9a83;line-height:1.45}
@@ -819,6 +860,9 @@ h3{
 <div id="app">
   <div id="toolbar">
     <button class="dm-only" onclick="openMapLibrary()">Maps</button>
+    <button class="dm-only" onclick="openSceneDeck()">Scenes</button>
+    <select id="scene-select" class="dm-only" onchange="selectedSceneId=this.value;renderSceneDeck()" title="Prepared scene" style="width:auto;height:30px;font-size:12px;padding:0 7px"></select>
+    <button class="dm-only" onclick="transitionToSelectedScene()">Transition</button>
     <button class="dm-only" onclick="document.getElementById('img-input').click()">Upload map</button>
     <input type="file" id="img-input" accept="image/*" style="display:none">
     <button class="dm-only" onclick="useHostedMapFromPrompt()">Hosted map</button>
@@ -1252,6 +1296,47 @@ h3{
         </div>
       </div>
 
+      <div id="scene-deck-overlay">
+        <div id="scene-deck">
+          <div class="modal-top">
+            <h2>Scene Deck</h2>
+            <button class="ghost" onclick="closeSceneDeck()" aria-label="Close">Close</button>
+          </div>
+          <div class="scene-deck-body">
+            <section>
+              <div class="section-title">Prepared scenes</div>
+              <div id="scene-deck-list" class="scene-list"></div>
+            </section>
+            <section class="map-library-panel">
+              <h3>Scene setup</h3>
+              <div>
+                <label>Scene name</label>
+                <input id="scene-name-input" placeholder="Goblin ambush, temple reveal, boss room">
+              </div>
+              <div>
+                <label>Party start area</label>
+                <div id="scene-start-grid" class="scene-start-grid"></div>
+              </div>
+              <div class="scene-row">
+                <div>
+                  <label>Start radius</label>
+                  <input id="scene-start-radius" type="number" min="20" max="320" value="90" onchange="updateSelectedSceneStartRadius()">
+                </div>
+                <button onclick="useCurrentViewAsSceneStart()">Use custom view</button>
+              </div>
+              <div class="scene-meta-grid" id="scene-deck-summary"></div>
+              <div class="scene-actions">
+                <button class="primary" onclick="captureCurrentScene()">Capture as new</button>
+                <button onclick="updateSelectedSceneFromCurrent()">Update selected</button>
+                <button onclick="transitionToSelectedScene()">Transition to scene</button>
+                <button class="danger" onclick="deleteSelectedScene()">Delete scene</button>
+              </div>
+              <div class="map-helper">Scenes save the hosted map path, fog mood, start area, enemies, placeables, area effects, sound zones, and 3D props. Player character sheets stay separate.</div>
+            </section>
+          </div>
+        </div>
+      </div>
+
       <div id="confirm-overlay">
         <div id="confirm-box">
           <h2>Hard reset?</h2>
@@ -1267,103 +1352,166 @@ h3{
     <aside id="sidebar">
       <div id="sidebar-resize" title="Drag to resize sidebar"></div>
       <div id="sidebar-scroll">
-        <div class="panel-head">
-          <h3>Your characters</h3>
-          <button onclick="openAddCharModal()" style="font-size:11px;padding:5px 8px">New</button>
-        </div>
-        <button class="full-btn primary" onclick="openEditCharModal()">Edit selected character</button>
-        <div id="my-characters-list"></div>
-        <div id="new-player-nudge"></div>
-
-        <div class="hdiv"></div>
-        <div class="panel-head">
-          <h3>Active Sheet</h3>
-          <button onclick="centerActiveCharacter()" style="font-size:11px;padding:5px 8px">Ping</button>
-        </div>
-        <div id="active-summary"></div>
-
-        <div class="hdiv dm-only"></div>
-        <div class="panel-head dm-only">
-          <h3>DM rewards</h3>
-        </div>
-        <button class="full-btn primary dm-only" onclick="openDMGiveItemModal()">Give item to player</button>
-
-        <div class="hdiv dm-only"></div>
-        <div class="panel-head dm-only">
-          <h3>Enemies</h3>
-          <button onclick="openEnemyModal()" style="font-size:11px;padding:5px 8px">New</button>
-        </div>
-        <button class="full-btn dm-only" onclick="placeSelectedEnemy()">Place selected enemy</button>
-        <div id="enemy-list" class="dm-only"></div>
-
-        <div class="hdiv dm-only"></div>
-        <h3 class="dm-only">Place icon</h3>
-        <button class="full-btn dm-only" onclick="createNamedPin()">Place named pin</button>
-        <div class="icon-grid dm-only" id="icon-grid"></div>
-
-        <div class="hdiv dm-only"></div>
-        <div class="panel-head dm-only">
-          <h3>Area effects</h3>
-          <button onclick="setMode('effect')" id="btn-effect" style="font-size:11px;padding:5px 8px">Place</button>
-        </div>
-        <div class="effect-controls dm-only">
-          <button id="effect-poison" class="sel" onclick="selectEffect('poison')">Poison</button>
-          <button id="effect-fire" onclick="selectEffect('fire')">Hazard</button>
-          <button id="effect-water" onclick="selectEffect('water')">Water</button>
-        </div>
-        <label class="small dm-only">Effect radius: <strong id="effect-radius-val">60</strong>px</label>
-        <input class="dm-only" type="range" id="effect-radius-slider" min="20" max="220" value="60" step="5" oninput="setEffectRadius(+this.value)">
-        <button class="full-btn danger dm-only" onclick="clearAreaEffects()">Clear all effects</button>
-
-        <div class="hdiv dm-only"></div>
-        <div class="panel-head dm-only">
-          <h3>Sound zones</h3>
-          <button onclick="setMode('sound')" id="btn-sound" style="font-size:11px;padding:5px 8px">Paint</button>
-        </div>
-        <label class="small dm-only">Loop type</label>
-        <select id="sound-zone-type" class="dm-only" onchange="selectSoundZoneType(this.value)"></select>
-        <label class="small dm-only">Sound radius: <strong id="sound-radius-val">150</strong>px</label>
-        <input class="dm-only" type="range" id="sound-radius-slider" min="40" max="420" value="150" step="10" oninput="setSoundZoneRadius(+this.value)">
-        <button class="full-btn danger dm-only" onclick="clearSoundZones()">Clear sound zones</button>
-
-        <div class="hdiv"></div>
-        <div class="panel-head">
-          <h3>Turn order</h3>
-          <div class="actions">
-            <button class="dm-only" onclick="rollInitiative()" style="font-size:11px;padding:5px 8px">Roll</button>
-            <button class="dm-only" onclick="nextTurn()" style="font-size:11px;padding:5px 8px">Next</button>
+        <section class="side-section" data-section="characters">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('characters')">
+            <h3>Your characters</h3>
+            <div class="actions">
+              <button onclick="event.stopPropagation();openAddCharModal()">New</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
           </div>
-        </div>
-        <div id="turn-list"></div>
-        <div class="actions dm-only" style="margin-bottom:7px">
-          <button onclick="partyRest('short')" style="font-size:11px;padding:6px 8px">Short rest party</button>
-          <button onclick="partyRest('long')" style="font-size:11px;padding:6px 8px">Long rest party</button>
-        </div>
-        <div class="actions" style="margin-bottom:7px">
-          <button onclick="cycleTarget(-1)" style="font-size:11px;padding:6px 8px">Prev target</button>
-          <button onclick="cycleTarget(1)" style="font-size:11px;padding:6px 8px">Next target</button>
-        </div>
-        <button id="end-turn-btn" class="full-btn primary" onclick="endPlayerTurn()">End turn</button>
-        <button class="full-btn dm-only" onclick="clearInitiative()">Clear initiative</button>
+          <div class="side-section-body">
+            <button class="full-btn primary" onclick="openEditCharModal()">Edit selected character</button>
+            <div id="my-characters-list"></div>
+            <div id="new-player-nudge"></div>
+          </div>
+        </section>
 
-        <div class="hdiv"></div>
-        <h3>Players online</h3>
-        <div id="players-list"></div>
+        <section class="side-section" data-section="active-sheet">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('active-sheet')">
+            <h3>Active Sheet</h3>
+            <div class="actions">
+              <button onclick="event.stopPropagation();centerActiveCharacter()">Ping</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
+          </div>
+          <div class="side-section-body">
+            <div id="active-summary"></div>
+          </div>
+        </section>
 
-        <div class="hdiv"></div>
-        <h3 class="dm-only">Campaign backup</h3>
-        <button class="full-btn danger dm-only" onclick="undoLastDMAction()">Undo last DM action</button>
-        <button class="full-btn dm-only" onclick="exportCampaignBackup()">Export session backup</button>
-        <button class="full-btn dm-only" onclick="importCampaignBackup()">Import session backup</button>
+        <section class="side-section dm-only" data-section="dm-rewards">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('dm-rewards')">
+            <h3>DM rewards</h3>
+            <button class="side-section-toggle" type="button">-</button>
+          </div>
+          <div class="side-section-body">
+            <button class="full-btn primary" onclick="openDMGiveItemModal()">Give item to player</button>
+          </div>
+        </section>
 
-        <div class="hdiv"></div>
-        <h3>Tips</h3>
-        <div class="hint">
-          <div>Click a token to open its sheet.</div>
-          <div>Move mode places the active character.</div>
-          <div>Drag mode repositions tokens and map icons.</div>
-          <div>Hidden icons stay secret until revealed.</div>
-        </div>
+        <section class="side-section dm-only" data-section="enemies">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('enemies')">
+            <h3>Enemies</h3>
+            <div class="actions">
+              <button onclick="event.stopPropagation();openEnemyModal()">New</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
+          </div>
+          <div class="side-section-body">
+            <button class="full-btn" onclick="placeSelectedEnemy()">Place selected enemy</button>
+            <div id="enemy-list"></div>
+          </div>
+        </section>
+
+        <section class="side-section dm-only" data-section="place-icons">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('place-icons')">
+            <h3>Place icon</h3>
+            <button class="side-section-toggle" type="button">-</button>
+          </div>
+          <div class="side-section-body">
+            <button class="full-btn" onclick="createNamedPin()">Place named pin</button>
+            <div class="icon-grid" id="icon-grid"></div>
+          </div>
+        </section>
+
+        <section class="side-section dm-only" data-section="area-effects">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('area-effects')">
+            <h3>Area effects</h3>
+            <div class="actions">
+              <button onclick="event.stopPropagation();setMode('effect')" id="btn-effect">Place</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
+          </div>
+          <div class="side-section-body">
+            <div class="effect-controls">
+              <button id="effect-poison" class="sel" onclick="selectEffect('poison')">Poison</button>
+              <button id="effect-fire" onclick="selectEffect('fire')">Hazard</button>
+              <button id="effect-water" onclick="selectEffect('water')">Water</button>
+            </div>
+            <label class="small">Effect radius: <strong id="effect-radius-val">60</strong>px</label>
+            <input type="range" id="effect-radius-slider" min="20" max="220" value="60" step="5" oninput="setEffectRadius(+this.value)">
+            <button class="full-btn danger" onclick="clearAreaEffects()">Clear all effects</button>
+          </div>
+        </section>
+
+        <section class="side-section dm-only" data-section="sound-zones">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('sound-zones')">
+            <h3>Sound zones</h3>
+            <div class="actions">
+              <button onclick="event.stopPropagation();setMode('sound')" id="btn-sound">Paint</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
+          </div>
+          <div class="side-section-body">
+            <label class="small">Loop type</label>
+            <select id="sound-zone-type" onchange="selectSoundZoneType(this.value)"></select>
+            <label class="small">Sound radius: <strong id="sound-radius-val">150</strong>px</label>
+            <input type="range" id="sound-radius-slider" min="40" max="420" value="150" step="10" oninput="setSoundZoneRadius(+this.value)">
+            <button class="full-btn danger" onclick="clearSoundZones()">Clear sound zones</button>
+          </div>
+        </section>
+
+        <section class="side-section" data-section="turn-order">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('turn-order')">
+            <h3>Turn order</h3>
+            <div class="actions">
+              <button class="dm-only" onclick="event.stopPropagation();rollInitiative()">Roll</button>
+              <button class="dm-only" onclick="event.stopPropagation();nextTurn()">Next</button>
+              <button class="side-section-toggle" type="button">-</button>
+            </div>
+          </div>
+          <div class="side-section-body">
+            <div id="turn-list"></div>
+            <div class="actions dm-only" style="margin-bottom:7px">
+              <button onclick="partyRest('short')" style="font-size:11px;padding:6px 8px">Short rest party</button>
+              <button onclick="partyRest('long')" style="font-size:11px;padding:6px 8px">Long rest party</button>
+            </div>
+            <div class="actions" style="margin-bottom:7px">
+              <button onclick="cycleTarget(-1)" style="font-size:11px;padding:6px 8px">Prev target</button>
+              <button onclick="cycleTarget(1)" style="font-size:11px;padding:6px 8px">Next target</button>
+            </div>
+            <button id="end-turn-btn" class="full-btn primary" onclick="endPlayerTurn()">End turn</button>
+            <button class="full-btn dm-only" onclick="clearInitiative()">Clear initiative</button>
+          </div>
+        </section>
+
+        <section class="side-section" data-section="players-online">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('players-online')">
+            <h3>Players online</h3>
+            <button class="side-section-toggle" type="button">-</button>
+          </div>
+          <div class="side-section-body">
+            <div id="players-list"></div>
+          </div>
+        </section>
+
+        <section class="side-section dm-only" data-section="campaign-backup">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('campaign-backup')">
+            <h3>Campaign backup</h3>
+            <button class="side-section-toggle" type="button">-</button>
+          </div>
+          <div class="side-section-body">
+            <button class="full-btn danger" onclick="undoLastDMAction()">Undo last DM action</button>
+            <button class="full-btn" onclick="exportCampaignBackup()">Export session backup</button>
+            <button class="full-btn" onclick="importCampaignBackup()">Import session backup</button>
+          </div>
+        </section>
+
+        <section class="side-section" data-section="tips">
+          <div class="panel-head side-section-head" onclick="toggleSidebarSection('tips')">
+            <h3>Tips</h3>
+            <button class="side-section-toggle" type="button">-</button>
+          </div>
+          <div class="side-section-body">
+            <div class="hint">
+              <div>Click a token to open its sheet.</div>
+              <div>Move mode places the active character.</div>
+              <div>Drag mode repositions tokens and map icons.</div>
+              <div>Hidden icons stay secret until revealed.</div>
+            </div>
+          </div>
+        </section>
       </div>
     </aside>
   </div>
@@ -1415,6 +1563,7 @@ const AUDIO_PACKS = {
       nat1:'audio/nat1.mp3',
       enemyDown:'audio/enemydown.mp3',
       turn:'audio/dice.mp3',
+      drawerOpen:'audio/ui/drawer_open.wav',
       rollSuspense:'audio/ui/roll_suspense.wav'
     }
   }
@@ -2514,6 +2663,11 @@ let sheetHoverPreview = false, sheetHoverInside = false;
 let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
+let sceneLibrary = [];
+let selectedSceneId = '';
+let activeSceneId = '';
+let activeSceneAppliedAt = 0;
+let pendingSceneStartPreset = 'center';
 let diceAnimTimers = [];
 let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, models:{}, loadings:{} };
 let dice3DRenderToken = 0;
@@ -3857,6 +4011,11 @@ function isRevealed(x,y){
     return d[3]>10;
   }catch(e){ return false; }
 }
+function enemyVisibleOnPlayerMap(enemy){
+  if(!enemy || enemy.kind!=='enemy') return false;
+  if(isDM()) return true;
+  return isRevealed(enemy.x,enemy.y);
+}
 function revealAllCharacters(){
   for(const ch of myCharacters.concat(Object.values(remoteCharacters))){
     const x=characterX(ch), y=characterY(ch);
@@ -4380,9 +4539,11 @@ function drawPlacedIcons(){
   ctx.save();
   for(const ic of placedIcons){
     const rev=isRevealed(ic.x,ic.y);
+    if(ic.kind==='enemy' && !isDM() && !rev) continue;
     if(ic.hidden&&!rev) continue;
     ctx.globalAlpha=1;
     const isBoss=ic.kind==='enemy' && ic.boss;
+    const showEnemyTacticalDetails=isDM();
     const iconSize=tokenDrawSize(ic,isBoss?46:30);
     const ringRadius=Math.max(isBoss?42:31,iconSize/2+8);
     const targetRadius=Math.max(isBoss?37:25,iconSize/2+4);
@@ -4428,8 +4589,8 @@ function drawPlacedIcons(){
       ctx.fillStyle=isBoss?'#ffe6a6':(ic.color||'#e06b62');
       ctx.textBaseline='top';
       const hpPct=Math.max(0,Math.min(1,ic.hp/Math.max(1,ic.maxHP)));
-      if(!isBoss) ctx.fillText(`${ic.name} AC ${ic.ac} HP ${ic.hp}/${ic.maxHP}`,ic.x,labelY);
-      if(!isBoss){
+      if(!isBoss && showEnemyTacticalDetails) ctx.fillText(`${ic.name} AC ${ic.ac} HP ${ic.hp}/${ic.maxHP}`,ic.x,labelY);
+      if(!isBoss && showEnemyTacticalDetails){
         ctx.fillStyle='rgba(8,10,12,.78)';
         ctx.fillRect(ic.x-barW/2,barY,barW,barH);
         ctx.fillStyle='rgba(98,20,20,.95)';
@@ -4437,7 +4598,7 @@ function drawPlacedIcons(){
         ctx.fillStyle='rgba(231,57,57,.95)';
         ctx.fillRect(ic.x-barW/2+1,barY+1,(barW-2)*hpPct,barH-2);
       }
-      if(isBoss){
+      if(isBoss && showEnemyTacticalDetails){
         const bossW=barW, bossH=9, bossY=barY;
         const text=`${ic.name}   AC ${ic.ac}   HP ${ic.hp}/${ic.maxHP}`;
         const metrics=ctx.measureText(text);
@@ -4481,6 +4642,7 @@ function drawPlacedIcons(){
     }
   }
   for(const ic of placedIcons){
+    if(ic.kind==='enemy' && !isDM()) continue;
     const rev=isRevealed(ic.x,ic.y);
     if(!ic.hidden||rev) continue;
     ctx.globalAlpha=0.18;
@@ -5986,7 +6148,7 @@ function iconAt(x,y){
 }
 function enemyAt(x,y){
   const ic=iconAt(x,y);
-  return ic?.kind==='enemy' ? ic : null;
+  return ic?.kind==='enemy' && enemyVisibleOnPlayerMap(ic) ? ic : null;
 }
 function effectAt(x,y){
   for(let i=areaEffects.length-1;i>=0;i--){
@@ -6823,6 +6985,296 @@ function copyCurrentMapPath(){
   showCritOverlay('Map path copied','roll','Map');
 }
 
+/* ===== NEW SECTION: DM Scene Deck ===== */
+const SCENE_START_PRESETS=[
+  {id:'top-left',label:'Top left',x:.14,y:.14},
+  {id:'top',label:'Top',x:.5,y:.14},
+  {id:'top-right',label:'Top right',x:.86,y:.14},
+  {id:'left',label:'Left',x:.14,y:.5},
+  {id:'center',label:'Center',x:.5,y:.5},
+  {id:'right',label:'Right',x:.86,y:.5},
+  {id:'bottom-left',label:'Bottom left',x:.14,y:.86},
+  {id:'bottom',label:'Bottom',x:.5,y:.86},
+  {id:'bottom-right',label:'Bottom right',x:.86,y:.86}
+];
+function sceneStartPresetById(id='center'){ return SCENE_START_PRESETS.find(p=>p.id===id) || SCENE_START_PRESETS[4]; }
+function sceneStartLabel(id='center'){ return id==='custom' ? 'Custom' : sceneStartPresetById(id).label; }
+function sceneStartAreaFromPreset(presetId='center',radius=90,width=mapWorldWidth,height=mapWorldHeight){
+  const preset=sceneStartPresetById(presetId);
+  return {
+    x:Math.round((Number(width)||mapWorldWidth)*preset.x),
+    y:Math.round((Number(height)||mapWorldHeight)*preset.y),
+    radius:Math.max(20,Math.min(320,Number(radius)||90))
+  };
+}
+function normalizeScene(raw={}){
+  const presetId=raw.startPreset || raw.startArea?.preset || 'center';
+  const radius=Math.max(20,Math.min(320,Number(raw.startArea?.radius)||90));
+  const hasExplicitArea=raw.startArea && Number.isFinite(Number(raw.startArea.x)) && Number.isFinite(Number(raw.startArea.y)) && !raw.startPreset && !raw.startArea?.preset;
+  const baseArea=(raw.startArea?.custom || hasExplicitArea)
+    ? {x:Number(raw.startArea?.x)||Math.round((Number(raw.mapWorldWidth)||mapWorldWidth)/2),y:Number(raw.startArea?.y)||Math.round((Number(raw.mapWorldHeight)||mapWorldHeight)/2),radius,custom:true,preset:'custom'}
+    : {...sceneStartAreaFromPreset(presetId,radius,Number(raw.mapWorldWidth)||mapWorldWidth,Number(raw.mapWorldHeight)||mapWorldHeight),preset:presetId};
+  return {
+    id:raw.id || 'scene_'+Date.now()+Math.random().toString(36).slice(2,7),
+    name:raw.name || 'Prepared Scene',
+    mapUrl:raw.mapUrl || '',
+    mapLabel:raw.mapLabel || hostedMapLabel(raw.mapUrl||''),
+    mapWorldWidth:Number(raw.mapWorldWidth)||mapWorldWidth,
+    mapWorldHeight:Number(raw.mapWorldHeight)||mapWorldHeight,
+    scenePreset:raw.scenePreset || 'neutral',
+    revealRadius:Number(raw.revealRadius)||revealRadius,
+    startPreset:baseArea.preset || presetId,
+    startArea:baseArea,
+    placedIcons:Array.isArray(raw.placedIcons) ? raw.placedIcons.map(hydratePlacedIcon) : [],
+    areaEffects:Array.isArray(raw.areaEffects) ? raw.areaEffects.map(hydrateAreaEffect) : [],
+    soundZones:Array.isArray(raw.soundZones) ? raw.soundZones.map(hydrateSoundZone) : [],
+    map3DObjects:Array.isArray(raw.map3DObjects) ? raw.map3DObjects.map(normalize3DObject) : [],
+    notes:raw.notes || '',
+    updatedAt:raw.updatedAt || new Date().toISOString()
+  };
+}
+function currentSceneStartArea(){
+  const input=document.getElementById('scene-start-radius');
+  const radius=Math.max(20,Math.min(320,Number(input?.value)||90));
+  const selected=sceneById(selectedSceneId);
+  const preset=selected?.startPreset || pendingSceneStartPreset || 'center';
+  if(preset==='custom' && selected?.startArea) return {...selected.startArea,radius,custom:true,preset:'custom'};
+  return sceneStartAreaFromPreset(preset,radius);
+}
+function buildSceneSnapshot(name){
+  if(!mapUrl) return null;
+  return normalizeScene({
+    name:name || mapLabel || hostedMapLabel(mapUrl),
+    mapUrl,
+    mapLabel:mapLabel || hostedMapLabel(mapUrl),
+    mapWorldWidth,
+    mapWorldHeight,
+    scenePreset,
+    revealRadius,
+    startArea:currentSceneStartArea(),
+    placedIcons:placedIcons.filter(icon=>icon.kind!=='character').map(icon=>JSON.parse(JSON.stringify(icon))),
+    areaEffects:areaEffects.map(fx=>JSON.parse(JSON.stringify(fx))),
+    soundZones:soundZones.map(zone=>JSON.parse(JSON.stringify(zone))),
+    map3DObjects:map3DObjects.map(obj=>JSON.parse(JSON.stringify(obj)))
+  });
+}
+function sceneById(id){ return sceneLibrary.find(scene=>scene.id===id); }
+function openSceneDeck(){
+  if(!isDM()) return requireDM();
+  document.getElementById('scene-deck-overlay')?.classList.add('show');
+  renderSceneDeck();
+}
+function closeSceneDeck(){ document.getElementById('scene-deck-overlay')?.classList.remove('show'); }
+function useCurrentViewAsSceneStart(){
+  const scene=sceneById(selectedSceneId);
+  const center=screenToWorld(canvas.width/2,canvas.height/2);
+  const input=document.getElementById('scene-start-radius');
+  const area={x:Math.round(center.x),y:Math.round(center.y),radius:Math.max(20,Math.min(320,Number(input?.value)||90)),custom:true,preset:'custom'};
+  if(scene){
+    scene.startPreset='custom';
+    scene.startArea=area;
+    scene.updatedAt=new Date().toISOString();
+    renderSceneDeck();
+    scheduleSave();
+  } else {
+    pendingSceneStartPreset='custom';
+  }
+  showCritOverlay('Scene start set','roll',`${area.x}, ${area.y}`);
+}
+function setSelectedSceneStartPreset(presetId='center'){
+  const scene=sceneById(selectedSceneId);
+  const input=document.getElementById('scene-start-radius');
+  const radius=Math.max(20,Math.min(320,Number(input?.value)||scene?.startArea?.radius||90));
+  if(scene){
+    scene.startPreset=presetId;
+    scene.startArea={...sceneStartAreaFromPreset(presetId,radius,scene.mapWorldWidth,scene.mapWorldHeight),preset:presetId};
+    scene.updatedAt=new Date().toISOString();
+    renderSceneDeck();
+    scheduleSave();
+  } else {
+    pendingSceneStartPreset=presetId;
+    selectedSceneId='';
+    renderSceneDeck();
+  }
+}
+function updateSelectedSceneStartRadius(){
+  const scene=sceneById(selectedSceneId);
+  if(!scene) return;
+  const input=document.getElementById('scene-start-radius');
+  const radius=Math.max(20,Math.min(320,Number(input?.value)||scene.startArea?.radius||90));
+  scene.startArea=scene.startPreset==='custom'
+    ? {...scene.startArea,radius}
+    : {...sceneStartAreaFromPreset(scene.startPreset||'center',radius,scene.mapWorldWidth,scene.mapWorldHeight),preset:scene.startPreset||'center'};
+  scene.updatedAt=new Date().toISOString();
+  renderSceneDeck();
+  scheduleSave();
+}
+function renderSceneDeck(){
+  const select=document.getElementById('scene-select');
+  if(select){
+    select.innerHTML=sceneLibrary.length
+      ? sceneLibrary.map(scene=>`<option value="${escapeAttr(scene.id)}" ${scene.id===selectedSceneId?'selected':''}>${escapeHtml(scene.name)}</option>`).join('')
+      : '<option value="">No scenes</option>';
+    if(selectedSceneId) select.value=selectedSceneId;
+  }
+  const list=document.getElementById('scene-deck-list');
+  const selected=sceneById(selectedSceneId) || sceneLibrary[0] || null;
+  if(selected && !selectedSceneId) selectedSceneId=selected.id;
+  if(list){
+    list.innerHTML=sceneLibrary.map(scene=>`
+      <button class="scene-card ${scene.id===selectedSceneId?'active':''}" onclick="selectedSceneId='${escapeAttr(scene.id)}';renderSceneDeck()">
+        <b>${escapeHtml(scene.name)}</b>
+        <span>${escapeHtml(scene.mapLabel||hostedMapLabel(scene.mapUrl))}</span>
+        <span>${scene.placedIcons.filter(icon=>icon.kind==='enemy').length} enemies · ${scene.soundZones.length} sounds · ${scene.areaEffects.length} effects · ${scene.map3DObjects.length} props</span>
+      </button>`).join('') || '<div class="map-helper">No prepared scenes yet. Set a hosted map, place enemies/effects/sounds, then capture it.</div>';
+  }
+  const nameInput=document.getElementById('scene-name-input');
+  if(nameInput && selected && document.activeElement!==nameInput) nameInput.value=selected.name;
+  const radius=document.getElementById('scene-start-radius');
+  if(radius && selected && document.activeElement!==radius) radius.value=selected.startArea.radius;
+  const startGrid=document.getElementById('scene-start-grid');
+  if(startGrid){
+    const activePreset=selected?.startPreset || selected?.startArea?.preset || pendingSceneStartPreset || 'center';
+    startGrid.innerHTML=SCENE_START_PRESETS.map(p=>`<button class="${activePreset===p.id?'active':''}" onclick="setSelectedSceneStartPreset('${p.id}')">${p.label}</button>`).join('');
+  }
+  const summary=document.getElementById('scene-deck-summary');
+  if(summary){
+    const s=selected;
+    summary.innerHTML=s ? `
+      <div><b>${s.placedIcons.filter(icon=>icon.kind==='enemy').length}</b><span>Enemies</span></div>
+      <div><b>${s.soundZones.length}</b><span>Sound zones</span></div>
+      <div><b>${s.areaEffects.length}</b><span>Area effects</span></div>
+      <div><b>${s.map3DObjects.length}</b><span>3D props</span></div>
+      <div><b>${escapeHtml(s.scenePreset)}</b><span>Mood</span></div>
+      <div><b>${escapeHtml(sceneStartLabel(s.startPreset))}</b><span>Start ${Math.round(s.startArea.x)}, ${Math.round(s.startArea.y)}</span></div>
+    ` : '<div><b>0</b><span>No scene selected</span></div>';
+  }
+}
+function captureCurrentScene(){
+  if(!isDM()) return requireDM();
+  const name=String(document.getElementById('scene-name-input')?.value||'').trim() || prompt('Scene name',mapLabel||'New scene');
+  if(!name) return;
+  const scene=buildSceneSnapshot(name);
+  if(!scene) return showCritOverlay('Use a hosted map before capturing scenes','roll','Scene Deck');
+  sceneLibrary.push(scene);
+  selectedSceneId=scene.id;
+  addChatMessage({kind:'scene',character:'DM',label:`Scene captured: ${scene.name}`,detail:`${scene.placedIcons.length} placeables, ${scene.soundZones.length} sound zones`});
+  renderSceneDeck();
+  saveState();
+}
+function updateSelectedSceneFromCurrent(){
+  if(!isDM()) return requireDM();
+  const current=sceneById(selectedSceneId);
+  if(!current) return captureCurrentScene();
+  const name=String(document.getElementById('scene-name-input')?.value||current.name).trim() || current.name;
+  const fresh=buildSceneSnapshot(name);
+  if(!fresh) return showCritOverlay('Use a hosted map before updating scenes','roll','Scene Deck');
+  fresh.id=current.id;
+  const index=sceneLibrary.findIndex(scene=>scene.id===current.id);
+  sceneLibrary[index]=fresh;
+  addChatMessage({kind:'scene',character:'DM',label:`Scene updated: ${fresh.name}`});
+  renderSceneDeck();
+  saveState();
+}
+function deleteSelectedScene(){
+  if(!isDM()) return requireDM();
+  const scene=sceneById(selectedSceneId);
+  if(!scene || !confirm(`Delete scene "${scene.name}"?`)) return;
+  sceneLibrary=sceneLibrary.filter(item=>item.id!==scene.id);
+  selectedSceneId=sceneLibrary[0]?.id || '';
+  renderSceneDeck();
+  saveState();
+}
+function placeLocalCharactersAtSceneStart(scene){
+  const area=scene?.startArea;
+  if(!area) return;
+  const chars=myCharacters.filter(ch=>canControlCharacter(ch));
+  const count=Math.max(1,chars.length);
+  chars.forEach((ch,index)=>{
+    const angle=(Math.PI*2*index)/count;
+    const radius=Math.min(34,Math.max(0,(Number(area.radius)||90)-28));
+    const x=Math.round(Number(area.x)+Math.cos(angle)*radius);
+    const y=Math.round(Number(area.y)+Math.sin(angle)*radius);
+    ch.position={x,y};
+    ch.x=x;
+    ch.y=y;
+    ch.updatedAt=new Date().toISOString();
+    revealAt(x,y,getCharacterRevealRadius(ch));
+  });
+  if(chars.length) syncAllCharacters();
+}
+function playNamedSceneWipe(label='Changing Scene',direction='left-to-right'){
+  const wipe=document.getElementById('scene-wipe');
+  if(!wipe) return;
+  wipe.className='scene-wipe';
+  wipe.dataset.label=label;
+  void wipe.offsetWidth;
+  wipe.classList.add('show',direction);
+  wrap.classList.add('scene-fading');
+  if(!audioState.muted){
+    try{
+      const sound=new Audio('audio/ui/scene_wipe.wav');
+      sound.volume=Math.max(0,Math.min(.8,(audioState.volume||0.65)*.75));
+      sound.play().catch(()=>{});
+    }catch(e){}
+  }
+  clearTimeout(playNamedSceneWipe.timer);
+  clearTimeout(playNamedSceneWipe.fadeTimer);
+  playNamedSceneWipe.fadeTimer=setTimeout(()=>wrap.classList.remove('scene-fading'),760);
+  playNamedSceneWipe.timer=setTimeout(()=>{ wipe.className='scene-wipe'; wipe.dataset.label=''; wrap.classList.remove('scene-fading'); },1080);
+}
+function applySceneSnapshot(scene,{announce=false,moveLocal=true,saveChange=true}={}){
+  scene=normalizeScene(scene);
+  activeSceneId=scene.id;
+  activeSceneAppliedAt=Date.now();
+  mapUrl=scene.mapUrl;
+  mapImageData='';
+  mapLabel=scene.mapLabel || hostedMapLabel(scene.mapUrl);
+  mapRevision=Date.now();
+  setMapWorldSize(scene.mapWorldWidth,scene.mapWorldHeight,false);
+  scenePreset=scene.scenePreset || 'neutral';
+  localStorage.setItem('dndScenePreset',scenePreset);
+  revealRadius=Number(scene.revealRadius)||revealRadius;
+  placedIcons=scene.placedIcons.map(hydratePlacedIcon);
+  areaEffects=scene.areaEffects.map(hydrateAreaEffect);
+  soundZones=scene.soundZones.map(hydrateSoundZone);
+  map3DObjects=scene.map3DObjects.map(normalize3DObject);
+  rebuild3DSceneObjects();
+  setLocalTarget(null);
+  activeEnemyUid=null;
+  combatMode=false;
+  turnOrder=[];
+  initiativeRolls={};
+  activeTurnIndex=0;
+  turnActionState={};
+  const finish=()=>{
+    initFog();
+    if(moveLocal) placeLocalCharactersAtSceneStart(scene);
+    revealAllCharacters();
+    setScenePreset(scenePreset);
+    updateAllPanels();
+    draw();
+    if(announce) addChatMessage({kind:'scene',character:'DM',label:`Scene transition: ${scene.name}`,detail:`Start area ready · ${scene.placedIcons.filter(icon=>icon.kind==='enemy').length} enemies`});
+    if(saveChange) saveState();
+  };
+  if(mapUrl) loadMapFromUrl(mapUrl,finish,true);
+  else finish();
+}
+function transitionToSelectedScene(){
+  if(!isDM()) return requireDM();
+  const scene=sceneById(selectedSceneId);
+  if(!scene) return showCritOverlay('Capture a scene first','roll','Scene Deck');
+  pushDMUndo('scene transition');
+  playNamedSceneWipe(scene.name,'left-to-right');
+  closeSceneDeck();
+  setTimeout(()=>{
+    applySceneSnapshot(scene,{announce:true,moveLocal:true,saveChange:true});
+    scheduleCloudSave(buildPersistedState(),true);
+    broadcastCloudState(buildPersistedState());
+    broadcast({type:'sceneApply',scene,activeSceneAppliedAt});
+  },520);
+}
+
 function compressMapFile(file){
   return new Promise((resolve,reject)=>{
     const url=URL.createObjectURL(file);
@@ -7237,10 +7689,47 @@ function updateSoundZonePlayback(force=false){
   setAmbientVolume((audioState.volume||0.65)*(zone.volume||.75)*(.12+strength*.26));
 }
 
+function sidebarSectionKey(id){ return `${STORAGE_PREFIX}:sidebarSection:${CLOUD_CAMPAIGN_ID}:${id}`; }
+function setSidebarSectionOpen(id,open){
+  const section=document.querySelector(`.side-section[data-section="${id}"]`);
+  if(!section) return;
+  section.classList.toggle('collapsed',!open);
+  const toggle=section.querySelector('.side-section-toggle');
+  if(toggle) toggle.textContent=open ? '-' : '+';
+  try{ localStorage.setItem(sidebarSectionKey(id),open?'1':'0'); }catch(e){}
+}
+function toggleSidebarSection(id){
+  const section=document.querySelector(`.side-section[data-section="${id}"]`);
+  if(!section) return;
+  const opening=section.classList.contains('collapsed');
+  setSidebarSectionOpen(id,opening);
+  if(opening) playSfx('drawerOpen');
+}
+function initSidebarSections(){
+  document.querySelectorAll('.side-section[data-section]').forEach(section=>{
+    const id=section.dataset.section;
+    const stored=localStorage.getItem(sidebarSectionKey(id));
+    const compactDefault=['tips','campaign-backup','place-icons','sound-zones','area-effects'].includes(id);
+    const open=stored==null ? !compactDefault : stored==='1';
+    section.classList.toggle('collapsed',!open);
+    const toggle=section.querySelector('.side-section-toggle');
+    if(toggle) toggle.textContent=open ? '-' : '+';
+  });
+}
+function refreshSidebarSectionBadges(){
+  const setAlert=(id,on)=>document.querySelector(`.side-section[data-section="${id}"]`)?.classList.toggle('compact-alert',!!on);
+  setAlert('turn-order',combatMode || turnOrder.length>0);
+  setAlert('enemies',isDM() && placedIcons.some(ic=>ic.kind==='enemy'));
+  setAlert('area-effects',isDM() && areaEffects.length>0);
+  setAlert('sound-zones',isDM() && soundZones.length>0);
+  setAlert('players-online',Object.keys(players||{}).length>0);
+}
+
 function updateAllPanels(){
   validateLocalTarget();
   updateRoleUI();
   updateMapLibraryUI();
+  renderSceneDeck();
   set3DModeButton();
   updateRPDock();
   updateCombatModeUI();
@@ -7256,6 +7745,7 @@ function updateAllPanels(){
   updateChatLog();
   updateQuickUsePopout();
   renderTradeWindow();
+  refreshSidebarSectionBadges();
   if(document.getElementById('campaign-notes-popout')?.classList.contains('show')) renderCampaignNotes();
   updateInitiativePrompt();
 }
@@ -7453,6 +7943,7 @@ function updateCombatPopout(){
     <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(actionFormulaLabel(item,defaultDie))}</span></span>
     <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
+  const spellActionHtml=(character,item,onClick,defaultDie)=>`<div class="action-cast-wrap">${upcastTabsHtml(character,item)}${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
   const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${actionIconHtml('Feature',item)}<span class="action-label-text">Feature: ${escapeHtml(item.name)}</span></span>
     <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} Â· ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
@@ -7503,7 +7994,7 @@ function updateCombatPopout(){
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
-      ${spells.map(s=>actionButtonHtml('Spell',s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
+      ${spells.map(s=>spellActionHtml(ch,s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')).join('')}
       ${features.map(f=>featureButtonHtml(f,`useCharacterFeature('${ch.id}','${f.id}')`)).join('')}
     </div>`;
 }
@@ -8361,7 +8852,7 @@ function clearTarget(){
   draw();
 }
 function visibleEnemies(){
-  return placedIcons.filter(ic=>ic.kind==='enemy' && (!ic.hidden || isRevealed(ic.x,ic.y)));
+  return placedIcons.filter(ic=>ic.kind==='enemy' && enemyVisibleOnPlayerMap(ic));
 }
 function cycleTarget(direction=1){
   const enemies=visibleEnemies();
@@ -8921,6 +9412,49 @@ function changeFeatureUse(id,name,delta){
 function spellSlotsAvailable(character,level){
   const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
   return Math.max(0,(slots[level]||0)-(Number(character?.spellSlotUsage?.[level])||0));
+}
+function romanSpellLevel(level){
+  return ({1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI',7:'VII',8:'VIII',9:'IX'})[Number(level)] || String(level||'');
+}
+function spellCastLevelOptions(character,item){
+  const base=Math.max(0,Number(item?.spellLevel)||0);
+  if(!character || base<=0) return [];
+  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  return SPELL_SLOT_LEVELS.filter(lvl=>lvl>=base && (slots[lvl]||0)>0);
+}
+function preparedCastLevel(character,item){
+  const base=Math.max(0,Number(item?.spellLevel)||0);
+  if(base<=0) return 0;
+  const options=spellCastLevelOptions(character,item);
+  const prepared=Math.max(base,Math.min(9,Number(item.castLevel)||base));
+  return options.includes(prepared) ? prepared : (options[0] || base);
+}
+function upcastTabsHtml(character,item){
+  const levels=spellCastLevelOptions(character,item);
+  if(!levels.length) return '';
+  const active=preparedCastLevel(character,item);
+  return `<div class="upcast-tabs" title="Prepare spell slot level">${levels.map(lvl=>{
+    const available=spellSlotsAvailable(character,lvl)>0;
+    const used=Number(character?.spellSlotUsage?.[lvl])||0;
+    const total=spellSlotsByLevel(character?.derived?.spellSlots||0)[lvl]||0;
+    return `<button type="button" class="${lvl===active?'active':''} ${available?'':'unavailable'}" title="Prepare level ${lvl} slot (${Math.max(0,total-used)}/${total} left)" onclick="event.stopPropagation();prepareSpellCastLevel('${character.id}','${item.id}',${lvl})">${romanSpellLevel(lvl)}</button>`;
+  }).join('')}</div>`;
+}
+function prepareSpellCastLevel(characterId,itemId,level){
+  const ch=characterById(characterId);
+  if(!ch) return;
+  if(!canControlCharacter(ch)) return showCritOverlay('Only the owner or DM can prepare this spell','roll','Locked');
+  const spell=(Array.isArray(ch.spells)?ch.spells:[]).find(item=>item.id===itemId);
+  if(!spell) return;
+  const base=Math.max(0,Number(spell.spellLevel)||0);
+  const lvl=Math.max(base,Math.min(9,Number(level)||base));
+  const levels=spellCastLevelOptions(ch,spell);
+  if(!levels.includes(lvl)) return showCritOverlay(`No level ${lvl} slots`,'fail',spell.name);
+  if(spellSlotsAvailable(ch,lvl)<=0) return showCritOverlay(`No level ${lvl} slots left`,'fail',spell.name);
+  spell.castLevel=lvl;
+  updateCombatPopout();
+  syncCharacter(ch);
+  scheduleSave();
 }
 function chooseCastLevel(character,item){
   const base=Math.max(0,Number(item.spellLevel)||0);
@@ -11104,6 +11638,10 @@ function buildPersistedState(){
     fogRevision,
     campaign:campaignInfo,
     campaignPortal,
+    sceneLibrary:sceneLibrary.map(normalizeScene),
+    selectedSceneId,
+    activeSceneId,
+    activeSceneAppliedAt,
     placedIcons:placedIcons.map(hydratePlacedIcon),
     areaEffects:areaEffects.map(hydrateAreaEffect),
     soundZones:soundZones.map(hydrateSoundZone),
@@ -11152,6 +11690,10 @@ function loadState(){
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
     campaignPortal=normalizeCampaignPortal(state.campaignPortal);
+    sceneLibrary=Array.isArray(state.sceneLibrary) ? state.sceneLibrary.map(normalizeScene) : [];
+    selectedSceneId=state.selectedSceneId || sceneLibrary[0]?.id || '';
+    activeSceneId=state.activeSceneId || '';
+    activeSceneAppliedAt=Number(state.activeSceneAppliedAt)||0;
     rpMode=state.rpMode===true;
     if(RP_BOARD_PRESETS[state.rpBoardId]){
       rpBoardId=state.rpBoardId;
@@ -11250,6 +11792,12 @@ function applyPersistedState(state){
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
   campaignPortal=normalizeCampaignPortal(state.campaignPortal);
+  sceneLibrary=Array.isArray(state.sceneLibrary) ? state.sceneLibrary.map(normalizeScene) : [];
+  selectedSceneId=state.selectedSceneId || sceneLibrary[0]?.id || '';
+  activeSceneId=state.activeSceneId || '';
+  activeSceneAppliedAt=Number(state.activeSceneAppliedAt)||0;
+  const sceneStartKey=`dndSceneApplied:${CLOUD_CAMPAIGN_ID}:${myId}`;
+  const shouldApplySceneStart=activeSceneId && activeSceneAppliedAt && localStorage.getItem(sceneStartKey)!==String(activeSceneAppliedAt);
   rpMode=state.rpMode===true;
   if(RP_BOARD_PRESETS[state.rpBoardId]){
     rpBoardId=state.rpBoardId;
@@ -11309,6 +11857,10 @@ function applyPersistedState(state){
   else if(needsAssetMap) loadCloudAssets();
   else { mapImg=null; draw(); }
   initFog();
+  if(shouldApplySceneStart){
+    placeLocalCharactersAtSceneStart(sceneById(activeSceneId));
+    localStorage.setItem(sceneStartKey,String(activeSceneAppliedAt));
+  }
   if(state.fogRevealData) loadRevealFromDataUrl(state.fogRevealData);
   else if(needsFogAsset) loadCloudAssets();
   else revealAllCharacters();
@@ -11723,6 +12275,16 @@ function connectWS(){
         } else if(msg.type==='rpMode'){
           const nextRpMode=msg.rpMode===true;
           if(nextRpMode!==rpMode) applyRPMode(nextRpMode,{animate:true,saveChange:false});
+        } else if(msg.type==='sceneApply'){
+          const incoming=Number(msg.activeSceneAppliedAt)||Date.now();
+          if(incoming>=activeSceneAppliedAt && msg.scene){
+            playNamedSceneWipe(msg.scene.name||'Scene','left-to-right');
+            setTimeout(()=>{
+              applySceneSnapshot(msg.scene,{announce:false,moveLocal:true,saveChange:false});
+              activeSceneAppliedAt=incoming;
+              localStorage.setItem(`dndSceneApplied:${CLOUD_CAMPAIGN_ID}:${myId}`,String(incoming));
+            },520);
+          }
         } else if(msg.type==='rpBoard'){
           if(RP_BOARD_PRESETS[msg.rpBoardId]) setRPBoard(msg.rpBoardId,false);
         } else if(msg.type==='characterRemove'){
@@ -11980,6 +12542,7 @@ ensureDefaultCharacter();
 ensureDefaultEnemies();
 loadLocalTarget();
 initSidebarResize();
+initSidebarSections();
 resize();
 updateAllPanels();
 initSupabaseCloud();
