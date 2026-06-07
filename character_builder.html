@@ -918,6 +918,17 @@ function itemStatBonuses(character){
   }
   return out;
 }
+function itemFlatBonuses(character){
+  return equippedItems(character).reduce((out,item)=>{
+    out.attackBonus+=Number(item.attackBonus)||0;
+    out.initiativeBonus+=Number(item.initiativeBonus)||0;
+    out.spellDcBonus+=Number(item.spellDcBonus)||0;
+    out.spellAttackBonus+=Number(item.spellAttackBonus)||0;
+    out.saveBonus+=Number(item.saveBonus)||0;
+    out.passivePerceptionBonus+=Number(item.passivePerceptionBonus)||0;
+    return out;
+  },{attackBonus:0,initiativeBonus:0,spellDcBonus:0,spellAttackBonus:0,saveBonus:0,passivePerceptionBonus:0});
+}
 function bestStat(stats={}){
   return ABILITIES.reduce((best,ab)=>(Number(stats[ab]||10)>Number(stats[best]||10)?ab:best),'STR');
 }
@@ -926,6 +937,7 @@ function calculateDerived(character){
   const level=Math.max(1,Math.min(20,Number(character.level)||1));
   const stats=statsWithRace(character);
   const itemStats=itemStatBonuses(character);
+  const itemBonuses=itemFlatBonuses(character);
   for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
   const con=abilityMod(stats.CON);
   const primary=abilityMod(stats[cls.primary]);
@@ -933,12 +945,16 @@ function calculateDerived(character){
   const hp=Math.max(level, cls.hitDie+con+(level-1)*(Math.ceil(cls.hitDie/2)+1+con));
   const resourceMax=cls.resourceFormula(level)+(cls.resource==='Mana'?Math.max(0,primary):0);
   const overrides=character.overrides||{};
-  const gearAC=equippedItems(character).reduce((sum,item)=>sum+(Number(item.acBonus)||0),0);
+  const equipped=equippedItems(character);
+  const baseArmor=equipped.filter(item=>Number(item.baseAC)>0).reduce((best,item)=>Math.max(best,Number(item.baseAC)||0),0);
+  const gearAC=equipped.reduce((sum,item)=>sum+(Number(item.acBonus)||0),0);
   return {
-    HP:Number(overrides.maxHP)||hp,maxHP:Number(overrides.maxHP)||hp,AC:Number(overrides.AC)||10+abilityMod(stats.DEX)+gearAC,initiative:abilityMod(stats.DEX),
-    attackBonus:Number.isFinite(Number(overrides.attackBonus))&&String(overrides.attackBonus).trim()!==''?Number(overrides.attackBonus):pb+primary,proficiencyBonus:pb,spellSlots:cls.spellSlots(level),
+    HP:Number(overrides.maxHP)||hp,maxHP:Number(overrides.maxHP)||hp,AC:Number(overrides.AC)||(baseArmor?baseArmor+gearAC:10+abilityMod(stats.DEX)+gearAC),initiative:abilityMod(stats.DEX)+itemBonuses.initiativeBonus,
+    attackBonus:Number.isFinite(Number(overrides.attackBonus))&&String(overrides.attackBonus).trim()!==''?Number(overrides.attackBonus):pb+primary+itemBonuses.attackBonus,proficiencyBonus:pb,spellSlots:cls.spellSlots(level),
+    spellSaveDC:8+pb+primary+itemBonuses.spellDcBonus,
+    spellAttackBonus:pb+primary+itemBonuses.spellAttackBonus,
     resourceName:cls.resource,resourceMax:Math.max(0,resourceMax),
-    passivePerception:10+abilityMod(stats.WIS)+pb,
+    passivePerception:10+abilityMod(stats.WIS)+pb+itemBonuses.passivePerceptionBonus,
     revealRadius:Math.min(190,28+pb*6+Math.max(0,abilityMod(stats.WIS))*3)
   };
 }
@@ -1045,6 +1061,7 @@ function normalizeActionItem(item={}){
     attackSave:item.attackSave||'',
     spellLevel,
     castLevel:Math.max(spellLevel,Math.min(9,Number(item.castLevel)||spellLevel)),
+    freeCast:item.freeCast===true,
     castingTime:item.castingTime||'',
     range:item.range||'',
     concentration:!!item.concentration,
@@ -1113,14 +1130,29 @@ function normalizeInventoryItem(item={}){
     qty:Math.max(1,Number(item.qty)||1),
     rarity:ITEM_RARITIES.includes(item.rarity)?item.rarity:'Common',
     slot:EQUIPMENT_SLOTS.includes(item.slot)?item.slot:'',
+    baseAC:Number(item.baseAC)||0,
     acBonus:Number(item.acBonus)||0,
+    attackBonus:Number(item.attackBonus)||0,
+    initiativeBonus:Number(item.initiativeBonus)||0,
+    spellDcBonus:Number(item.spellDcBonus)||0,
+    spellAttackBonus:Number(item.spellAttackBonus)||0,
+    saveBonus:Number(item.saveBonus)||0,
+    passivePerceptionBonus:Number(item.passivePerceptionBonus)||0,
     statBonuses,
+    damageDie:DAMAGE_DICE.includes(item.damageDie)?item.damageDie:'',
+    diceCount:Math.max(1,Math.min(20,Number(item.diceCount)||1)),
+    damageBonus:Number(item.damageBonus)||0,
+    itemType:['generic','weapon','armor','quest','consumable'].includes(item.itemType)?item.itemType:'generic',
+    healFormula:validDiceFormula(item.healFormula)?item.healFormula:'',
+    healBonus:Number(item.healBonus)||0,
+    grantedSpells:Array.isArray(item.grantedSpells)?item.grantedSpells.map(normalizeActionItem):[],
     ability:item.ability||'',
     bonusAction:item.bonusAction||'',
     description:item.description||''
   };
 }
 function inventoryWeaponProfile(item={}){
+  if(item.damageDie&&DAMAGE_DICE.includes(item.damageDie)) return {die:item.damageDie,count:Math.max(1,Math.min(20,Number(item.diceCount)||1)),bonus:Number(item.damageBonus)||0};
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
   if(!/(sword|blade|dagger|axe|mace|club|hammer|spear|javelin|bow|crossbow|staff|wand|rapier|scimitar|halberd|glaive|pike|flail|whip|sickle|sling|dart)/.test(text)) return null;
   let die='d6';
@@ -1129,7 +1161,7 @@ function inventoryWeaponProfile(item={}){
   else if(/shortsword|scimitar|mace|spear|quarterstaff|shortbow|handaxe/.test(text)) die='d6';
   else if(/dagger|club|sickle|dart|sling/.test(text)) die='d4';
   const rarityBonus={Common:0,Uncommon:1,Rare:2,'Very Rare':3,Legendary:4}[item.rarity]||0;
-  return {die,bonus:rarityBonus};
+  return {die,count:1,bonus:rarityBonus};
 }
 function canMakeInventoryWeapon(item={}){
   return !!inventoryWeaponProfile(item);
@@ -2480,12 +2512,15 @@ function changeSpellSlot(level,delta){
   scheduleSave();
 }
 function readInventoryItems(){
+  const existing=new Map((selected()?.inventory||[]).map(item=>[item.id,item]));
   return [...document.querySelectorAll('[data-inventory-row]')].map(row=>normalizeInventoryItem({
+    ...(existing.get(row.dataset.id)||{}),
     id:row.dataset.id,
     name:row.querySelector('[data-inventory-name]')?.value.trim(),
     qty:row.querySelector('[data-inventory-qty]')?.value,
     rarity:row.querySelector('[data-inventory-rarity]')?.value,
     slot:row.querySelector('[data-inventory-slot]')?.value,
+    baseAC:row.querySelector('[data-inventory-base-ac]')?.value,
     acBonus:row.querySelector('[data-inventory-ac]')?.value,
     statBonuses:Object.fromEntries(ABILITIES.map(ab=>[ab,row.querySelector(`[data-inventory-stat-${ab.toLowerCase()}]`)?.value])),
     ability:row.querySelector('[data-inventory-ability]')?.value.trim(),
@@ -2577,6 +2612,7 @@ function renderInventory(ch=selected()){
       <button onclick="removeInventoryItem('${item.id}')">Remove</button>
       ${weapon?`<button type="button" ${already?'disabled':''} onclick="makeInventoryWeaponFromInventory('${item.id}')">${already?'Weapon added':`Make weapon ${weapon.die}`}</button>`:''}
       <div><label>Equip slot</label><select data-inventory-slot><option value="">Inventory only</option>${EQUIPMENT_SLOTS.map(slot=>`<option value="${slot}" ${slot===item.slot?'selected':''}>${slot}</option>`).join('')}</select></div>
+      <div><label>Base AC</label><input data-inventory-base-ac type="number" value="${item.baseAC||0}" step="1"></div>
       <div><label>AC Bonus</label><input data-inventory-ac type="number" value="${item.acBonus}" step="1"></div>
       <div style="grid-column:span 2"><label>Stat Bonuses</label><div class="grid" style="grid-template-columns:repeat(6,1fr);gap:5px">${ABILITIES.map(ab=>`<input title="${ab}" data-inventory-stat-${ab.toLowerCase()} type="number" value="${item.statBonuses?.[ab]||0}" step="1">`).join('')}</div></div>
       <input data-inventory-ability value="${escapeHtml(item.ability||'')}" placeholder="Granted ability, e.g. Darkvision">
@@ -2690,6 +2726,7 @@ function makeInventoryWeaponFromInventory(itemId){
   ch.weapons.push(normalizeActionItem({
     name:item.name,
     die:profile.die,
+    diceCount:profile.count||1,
     bonus:profile.bonus,
     actionType:'damage',
     description:item.description || `Improvised weapon made from ${item.name}.`,

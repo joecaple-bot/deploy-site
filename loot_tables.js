@@ -2,6 +2,9 @@
    Add as many items as you like under each rarity bucket. */
 window.DND_LOOT_TABLES = {
   Common: [
+    {name:'Potion of Healing',qty:1,rarity:'Common',itemType:'consumable',healFormula:'2d4',healBonus:2,description:'Classic red healing potion. Restores 2d4 + 2 HP.'},
+    {name:'Healer Kit Refill',qty:1,rarity:'Common',itemType:'consumable',description:'Clean wraps, splints, and bitter antiseptic. Counts as mundane medical supplies.'},
+    {name:'Field Bandage Roll',qty:2,rarity:'Common',itemType:'consumable',healFormula:'1d4',healBonus:0,description:'Basic field dressing. Restores 1d4 HP in Moovables quick use.'},
     {name:'Bent Copper Ring',qty:1,rarity:'Common',description:'Cheap jewelry. Might sell for a few coins.'},
     {name:'Chipped Dagger',qty:1,rarity:'Common',description:'Rough backup blade. Not pretty, still sharp.'},
     {name:'Frayed Rope',qty:1,rarity:'Common',description:'About 20 feet of rope. Worn but usable.'},
@@ -29,7 +32,10 @@ window.DND_LOOT_TABLES = {
     {name:'Pocket Almanac',qty:1,rarity:'Common',description:'Weather guesses, moon phases, and farmer notes.'}
   ],
   Uncommon: [
+    {name:'Potion of Greater Healing',qty:1,rarity:'Uncommon',itemType:'consumable',healFormula:'4d4',healBonus:4,description:'A stronger healing potion. Restores 4d4 + 4 HP.'},
     {name:'Minor Healing Salve',qty:1,rarity:'Uncommon',description:'A weak salve. Restores 1d4 HP if the DM allows it.'},
+    {name:'Antitoxin Vial',qty:1,rarity:'Uncommon',itemType:'consumable',description:'A sharp herbal draught used against poison. Best handled by DM call.'},
+    {name:'Restorative Tonic',qty:1,rarity:'Uncommon',itemType:'consumable',healFormula:'2d4',healBonus:1,description:'A bitter tonic. Restores 2d4 + 1 HP.'},
     {name:'Odd Key',qty:1,rarity:'Uncommon',description:'No label. Surely opens something, somewhere.'},
     {name:'Silvered Arrowhead',qty:1,rarity:'Uncommon',description:'A single arrowhead treated with silver.'},
     {name:'Climbing Claws',qty:1,rarity:'Uncommon',slot:'Gloves',description:'Hooked finger grips for rough stone.'},
@@ -46,6 +52,8 @@ window.DND_LOOT_TABLES = {
     {name:'Grave Salt Pouch',qty:1,rarity:'Uncommon',description:'Useful in rituals against restless dead.'}
   ],
   Rare: [
+    {name:'Potion of Superior Healing',qty:1,rarity:'Rare',itemType:'consumable',healFormula:'8d4',healBonus:8,description:'A potent healing potion. Restores 8d4 + 8 HP.'},
+    {name:'Elixir of Health',qty:1,rarity:'Rare',itemType:'consumable',description:'A clean silver draught for disease and poison recovery. Best handled by DM call.'},
     {name:'Ring of the Split Step',qty:1,rarity:'Rare',slot:'Ring 1',description:'Once per rest, the wearer may make a quick evasive step.'},
     {name:'Goblet of Clean Water',qty:1,rarity:'Rare',description:'Water poured into it becomes drinkable after a minute.'},
     {name:'Cloak of Quiet Footfalls',qty:1,rarity:'Rare',slot:'Cloak',description:'Softens movement and helps with stealthy approaches.'},
@@ -58,6 +66,8 @@ window.DND_LOOT_TABLES = {
     {name:'Band of Borrowed Luck',qty:1,rarity:'Rare',slot:'Ring 2',description:'A ring that feels lucky until the bill comes due.'}
   ],
   'Very Rare': [
+    {name:'Potion of Supreme Healing',qty:1,rarity:'Very Rare',itemType:'consumable',healFormula:'10d4',healBonus:20,description:'A legendary-grade recovery potion. Restores 10d4 + 20 HP.'},
+    {name:'Phoenix Mercy Draught',qty:1,rarity:'Very Rare',itemType:'consumable',healFormula:'8d4',healBonus:12,description:'A warm golden draught used by battlefield medics. Restores 8d4 + 12 HP.'},
     {name:'Aegis Pendant',qty:1,rarity:'Very Rare',slot:'Pendant',acBonus:1,description:'A shield-shaped pendant that hums near danger.'},
     {name:'Stormglass Bracelet',qty:1,rarity:'Very Rare',slot:'Bracelet',description:'Clouds swirl inside the glass when magic is near.'},
     {name:'Boots of the Horizon Step',qty:1,rarity:'Very Rare',slot:'Boots',description:'A short burst of impossible distance once per rest.'},

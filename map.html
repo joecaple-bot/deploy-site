@@ -1521,6 +1521,7 @@ h3{
 <script src="vendor/three.min.js?v=124-models"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
+<script src="bg3_loot_items.js"></script>
 <script src="spell_data.js"></script>
 <script src="assets/spell-icons/spell_icon_atlas.js"></script>
 <script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
@@ -1591,7 +1592,7 @@ const LOOT_RARITY_WEIGHTS = {
   chest2:{Common:45,Uncommon:35,Rare:15,'Very Rare':4,Legendary:1},
   chest3:{Common:18,Uncommon:30,Rare:30,'Very Rare':17,Legendary:5}
 };
-const TRADER_TYPES = ['General','Arcane','Armorer','Alchemist'];
+const TRADER_TYPES = ['General','Arcane','Armorer','Alchemist','Medic'];
 const TRADER_LEVEL_WEIGHTS = {
   1:{Common:70,Uncommon:25,Rare:5,'Very Rare':0,Legendary:0},
   2:{Common:35,Uncommon:45,Rare:16,'Very Rare':4,Legendary:0},
@@ -1746,11 +1747,31 @@ function itemStatBonuses(character){
   }
   return out;
 }
+function itemFlatBonuses(character){
+  return equippedItems(character).reduce((out,item)=>{
+    out.attackBonus+=Number(item.attackBonus)||0;
+    out.initiativeBonus+=Number(item.initiativeBonus)||0;
+    out.spellDcBonus+=Number(item.spellDcBonus)||0;
+    out.spellAttackBonus+=Number(item.spellAttackBonus)||0;
+    out.saveBonus+=Number(item.saveBonus)||0;
+    out.passivePerceptionBonus+=Number(item.passivePerceptionBonus)||0;
+    return out;
+  },{attackBonus:0,initiativeBonus:0,spellDcBonus:0,spellAttackBonus:0,saveBonus:0,passivePerceptionBonus:0});
+}
+function armorAdjustedAC(character,stats){
+  const equipped=equippedItems(character);
+  const baseArmor=equipped
+    .filter(item=>Number(item.baseAC)>0)
+    .reduce((best,item)=>Math.max(best,Number(item.baseAC)||0),0);
+  const gearBonus=equipped.reduce((sum,item)=>sum+(Number(item.acBonus)||0),0);
+  return baseArmor ? baseArmor + gearBonus : 10 + abilityMod(stats.DEX) + gearBonus;
+}
 function calculateDerived(character){
   const cls=classDefFor(character);
   const level=Math.max(1,Math.min(20,Number(character.level)||1));
   const stats=statsWithRace(character);
   const itemStats=itemStatBonuses(character);
+  const itemBonuses=itemFlatBonuses(character);
   for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
   const con=abilityMod(stats.CON);
   const primary=abilityMod(stats[cls.primary]);
@@ -1760,20 +1781,19 @@ function calculateDerived(character){
   const hp=Math.max(level, firstLevelHp + laterHp);
   const resourceMax=cls.resourceFormula(level) + (cls.resource==='Mana' ? Math.max(0,primary) : 0);
   const overrides=character.overrides || {};
-  const gearAC=equippedItems(character).reduce((sum,item)=>sum+(Number(item.acBonus)||0),0);
   return {
     HP:Number(overrides.maxHP)||hp,
     maxHP:Number(overrides.maxHP)||hp,
-    AC:Number(overrides.AC)||10 + abilityMod(stats.DEX) + gearAC,
-    initiative:abilityMod(stats.DEX),
-    attackBonus:Number.isFinite(Number(overrides.attackBonus)) && String(overrides.attackBonus).trim()!=='' ? Number(overrides.attackBonus) : pb + primary,
+    AC:Number(overrides.AC)||armorAdjustedAC(character,stats),
+    initiative:abilityMod(stats.DEX)+itemBonuses.initiativeBonus,
+    attackBonus:Number.isFinite(Number(overrides.attackBonus)) && String(overrides.attackBonus).trim()!=='' ? Number(overrides.attackBonus) : pb + primary + itemBonuses.attackBonus,
     proficiencyBonus:pb,
     spellSlots:cls.spellSlots(level),
-    spellSaveDC:8 + pb + primary,
-    spellAttackBonus:pb + primary,
+    spellSaveDC:8 + pb + primary + itemBonuses.spellDcBonus,
+    spellAttackBonus:pb + primary + itemBonuses.spellAttackBonus,
     resourceName:cls.resource,
     resourceMax:Math.max(0,resourceMax),
-    passivePerception:10 + abilityMod(stats.WIS) + pb,
+    passivePerception:10 + abilityMod(stats.WIS) + pb + itemBonuses.passivePerceptionBonus,
     revealRadius:Math.min(190, 28 + pb*6 + Math.max(0,abilityMod(stats.WIS))*3)
   };
 }
@@ -1847,6 +1867,7 @@ function normalizeActionItem(item={}){
     attackSave:item.attackSave||'',
     spellLevel,
     castLevel:Math.max(spellLevel,Math.min(9,Number(item.castLevel)||spellLevel)),
+    freeCast:item.freeCast===true,
     castingTime:item.castingTime||'',
     range:item.range||'',
     concentration:!!item.concentration,
@@ -1954,7 +1975,7 @@ function normalizeTextItem(item={}){
 }
 function inventoryWeaponProfile(item={}){
   if(item.damageDie && DAMAGE_DICE.includes(item.damageDie)){
-    return {die:item.damageDie,bonus:Number(item.damageBonus)||0};
+    return {die:item.damageDie,count:Math.max(1,Math.min(20,Number(item.diceCount)||1)),bonus:Number(item.damageBonus)||0};
   }
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
   if(!/(sword|blade|dagger|axe|mace|club|hammer|spear|javelin|bow|crossbow|staff|wand|rapier|scimitar|halberd|glaive|pike|flail|whip|sickle|sling|dart)/.test(text)) return null;
@@ -1964,7 +1985,7 @@ function inventoryWeaponProfile(item={}){
   else if(/shortsword|scimitar|mace|spear|quarterstaff|shortbow|handaxe/.test(text)) die='d6';
   else if(/dagger|club|sickle|dart|sling/.test(text)) die='d4';
   const rarityBonus={Common:0,Uncommon:1,Rare:2,'Very Rare':3,Legendary:4}[item.rarity]||0;
-  return {die,bonus:rarityBonus};
+  return {die,count:1,bonus:rarityBonus};
 }
 function canMakeInventoryWeapon(item={}){
   return !!inventoryWeaponProfile(item);
@@ -1972,6 +1993,9 @@ function canMakeInventoryWeapon(item={}){
 function inventoryConsumableProfile(item={}){
   const text=`${item.name||''} ${item.description||''}`.toLowerCase();
   const rarity=item.rarity||'Common';
+  if(validDiceFormula(item.healFormula)){
+    return {type:'healing',label:'Heal',formula:item.healFormula,die:dieFromFormula(item.healFormula)||'d4',bonus:Number(item.healBonus)||Number(item.bonus)||0};
+  }
   const byRarity={
     Common:{die:'d4',bonus:0},
     Uncommon:{die:'d6',bonus:1},
@@ -1980,7 +2004,7 @@ function inventoryConsumableProfile(item={}){
     Legendary:{die:'d12',bonus:4}
   }[rarity] || {die:'d4',bonus:0};
   if(/(health|healing|heal|cure|restore|restorative|salve|potion|medicine|goodberry|tonic|draught|elixir|bandage|rations)/.test(text)){
-    return {type:'healing',label:'Heal',...byRarity};
+    return {type:'healing',label:'Heal',formula:'1'+byRarity.die,...byRarity};
   }
   if(/(bless|guidance|inspiration|bardic|haste|aid|shield of faith|protection)/.test(text)){
     const effect=/guidance/.test(text)?'Guidance':/bardic|inspiration/.test(text)?'Bardic Inspiration':/haste/.test(text)?'Haste':/shield of faith|protection/.test(text)?'Shield of Faith':'Bless';
@@ -1995,7 +2019,7 @@ function quickUseHtml(ch){
   return `<div class="quick-use"><h4>Quick Use</h4><div class="quick-use-list">${items.map(item=>{
     const profile=inventoryConsumableProfile(item);
     const qty=Math.max(1,Number(item.qty)||1);
-    return `<button title="${escapeHtml(item.description||item.name)}" onclick="useCharacterConsumable('${ch.id}','${item.id}')"><b>x${qty}</b> ${escapeHtml(item.name)} <span>${profile.type==='healing'?profile.die:profile.label}</span></button>`;
+    return `<button title="${escapeHtml(item.description||item.name)}" onclick="useCharacterConsumable('${ch.id}','${item.id}')"><b>x${qty}</b> ${escapeHtml(item.name)} <span>${profile.type==='healing'?(profile.formula||profile.die):profile.label}</span></button>`;
   }).join('')}</div></div>`;
 }
 function updateQuickUsePopout(){
@@ -2033,6 +2057,7 @@ function makeInventoryWeapon(characterId,itemId){
   const weapon=normalizeActionItem({
     name:item.name,
     die:profile.die,
+    diceCount:profile.count||1,
     bonus:profile.bonus,
     actionType:'damage',
     description:item.description || `Improvised weapon made from ${item.name}.`,
@@ -2055,14 +2080,14 @@ function useCharacterConsumable(characterId,itemId){
   const friendly=selectedTargetCharacter();
   const target=friendly || ch;
   if(profile.type==='healing'){
-    const roll=rollDiceExpression('1'+profile.die,profile.bonus);
+    const roll=rollDiceExpression(profile.formula||('1'+profile.die),profile.bonus);
     const before=target.currentHP ?? target.derived.HP;
     const after=Math.min(target.derived.HP,before+roll.total);
     target.currentHP=after;
     campaignStat('healingDone',Math.max(0,after-before));
     decrementInventoryItem(ch,item.id);
     addChatMessage({kind:'heal',character:ch.name,label:`Uses ${item.name}`,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
-    const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${profile.die} ${formatBonus(profile.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:'item'};
+    const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${profile.formula||profile.die} ${formatBonus(profile.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType:'item'};
     playSfx('heal');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
     playActionAnimation(ch,'spell',effect);
@@ -2095,10 +2120,21 @@ function normalizeInventoryItem(item={}){
     itemType,
     questItem:item.questItem===true || itemType==='quest',
     slot:EQUIPMENT_SLOTS.includes(item.slot) ? item.slot : '',
+    baseAC:Number(item.baseAC)||0,
     acBonus:Number(item.acBonus)||0,
+    attackBonus:Number(item.attackBonus)||0,
+    initiativeBonus:Number(item.initiativeBonus)||0,
+    spellDcBonus:Number(item.spellDcBonus)||0,
+    spellAttackBonus:Number(item.spellAttackBonus)||0,
+    saveBonus:Number(item.saveBonus)||0,
+    passivePerceptionBonus:Number(item.passivePerceptionBonus)||0,
     statBonuses,
     damageDie:DAMAGE_DICE.includes(item.damageDie) ? item.damageDie : '',
+    diceCount:Math.max(1,Math.min(20,Number(item.diceCount)||1)),
     damageBonus:Number(item.damageBonus)||0,
+    healFormula:validDiceFormula(item.healFormula) ? item.healFormula : '',
+    healBonus:Number(item.healBonus)||0,
+    grantedSpells:Array.isArray(item.grantedSpells) ? item.grantedSpells.map(normalizeActionItem) : [],
     ability:item.ability || '',
     bonusAction:item.bonusAction || '',
     description:item.description || '',
@@ -2142,8 +2178,9 @@ function decrementInventoryById(ch,itemId,qty=1){
 function addInventoryItem(ch,item){
   ch.inventory=Array.isArray(ch.inventory)?ch.inventory:[];
   const incoming=normalizeInventoryItem(item);
-  const stackable=!incoming.acBonus && !incoming.damageDie && !incoming.questItem && !['weapon','armor','quest'].includes(incoming.itemType);
-  const existing=stackable ? ch.inventory.find(x=>x.name===incoming.name && x.rarity===incoming.rarity && x.slot===incoming.slot && !x.acBonus && !x.damageDie && !x.questItem) : null;
+  const hasItemBonuses=incoming.baseAC || incoming.acBonus || incoming.attackBonus || incoming.initiativeBonus || incoming.spellDcBonus || incoming.spellAttackBonus || incoming.saveBonus || incoming.passivePerceptionBonus || Object.values(incoming.statBonuses||{}).some(Boolean);
+  const stackable=!hasItemBonuses && !incoming.damageDie && !incoming.questItem && !(incoming.grantedSpells||[]).length && !['weapon','armor','quest'].includes(incoming.itemType);
+  const existing=stackable ? ch.inventory.find(x=>x.name===incoming.name && x.rarity===incoming.rarity && x.slot===incoming.slot && !x.baseAC && !x.acBonus && !x.attackBonus && !x.initiativeBonus && !x.spellDcBonus && !x.spellAttackBonus && !x.saveBonus && !x.passivePerceptionBonus && !x.damageDie && !x.questItem && !(x.grantedSpells||[]).length) : null;
   if(existing) existing.qty=Math.max(1,Number(existing.qty)||1)+Math.max(1,Number(incoming.qty)||1);
   else ch.inventory.push(incoming);
 }
@@ -2270,8 +2307,24 @@ function equippedAbilityRows(character){
     const rows=[];
     if(item.ability) rows.push({name:item.ability,description:`From ${item.name}`});
     if(item.bonusAction) rows.push({name:`Bonus: ${item.bonusAction}`,description:`From ${item.name}`});
+    if(Array.isArray(item.grantedSpells)) item.grantedSpells.forEach(spell=>rows.push({name:`Spell: ${spell.name}`,description:`From ${item.name}`}));
     return rows;
   });
+}
+function equippedSpellActions(character){
+  return equippedItems(character).flatMap(item=>(item.grantedSpells||[]).map(spell=>{
+    const match=spellCatalogue().find(entry=>String(entry.name||'').toLowerCase()===String(spell.name||'').toLowerCase());
+    const catalogueAction=match ? spellToEnemyActionItem(match) : {};
+    return normalizeActionItem({
+      ...catalogueAction,
+      ...spell,
+      name:spell.name || catalogueAction.name,
+      sourceItemId:item.id,
+      sourceClass:'Item',
+      freeCast:spell.freeCast!==false,
+      description:spell.description || catalogueAction.description || `Granted by ${item.name}`
+    });
+  }));
 }
 function spellSlotControls(character){
   const slots=spellSlotsByLevel(character.derived?.spellSlots||0);
@@ -2661,7 +2714,7 @@ let tokenLock = false;
 let hoveredTokenId = null, hoverSheetTimer = null;
 let sheetHoverPreview = false, sheetHoverInside = false;
 let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
-let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null;
+let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null, spellHoverPreview = null, lastMouseWorld = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
 let sceneLibrary = [];
 let selectedSceneId = '';
@@ -4129,6 +4182,7 @@ function draw(){
   drawAnimatedFogLayer(world);
   drawImpactDecals();
   drawLivePings();
+  drawSpellHoverPreview();
   drawMeasureAndTemplates();
   drawPlacedIcons();
   drawAreaEffects();
@@ -4502,6 +4556,76 @@ function drawMeasureAndTemplates(){
   ctx.font='800 12px Inter, Segoe UI, sans-serif';
   ctx.textAlign='center';
   ctx.fillText(`${Math.round(dist)} px / ${Math.round(dist/5)} ft`,(draft.x1+draft.x2)/2,(draft.y1+draft.y2)/2-8);
+  ctx.restore();
+}
+
+function spellPreviewPalette(item={}){
+  const text=`${item.name||''} ${item.effect||''} ${item.description||''}`.toLowerCase();
+  if(text.includes('fire') || text.includes('burning')) return {stroke:'rgba(255,139,52,.95)',fill:'rgba(255,86,32,.18)',glow:'rgba(255,112,40,.28)'};
+  if(text.includes('poison') || text.includes('acid') || text.includes('grease')) return {stroke:'rgba(126,255,112,.9)',fill:'rgba(84,220,90,.16)',glow:'rgba(84,220,90,.24)'};
+  if(text.includes('ice') || text.includes('cold') || text.includes('frost')) return {stroke:'rgba(134,220,255,.94)',fill:'rgba(80,190,255,.15)',glow:'rgba(80,190,255,.22)'};
+  if(text.includes('lightning') || text.includes('thunder')) return {stroke:'rgba(178,150,255,.95)',fill:'rgba(126,92,255,.16)',glow:'rgba(126,92,255,.24)'};
+  if(item.actionType==='healing') return {stroke:'rgba(112,255,174,.95)',fill:'rgba(80,220,140,.14)',glow:'rgba(80,220,140,.22)'};
+  return {stroke:'rgba(255,224,145,.95)',fill:'rgba(255,196,86,.13)',glow:'rgba(255,196,86,.22)'};
+}
+function drawSpellHoverPreview(){
+  if(!spellHoverPreview) return;
+  const caster=spellHoverPreview.casterKind==='enemy' ? enemyByUid(spellHoverPreview.casterId) : characterById(spellHoverPreview.casterId);
+  if(!caster) return;
+  const item=spellHoverPreview.item || {};
+  const origin=entityPoint(caster);
+  if(origin.x==null) return;
+  const radius=Math.max(20,Math.min(320,Number(spellHoverPreview.radius)||normalizedAoeRadius(item)||0));
+  if(!radius) return;
+  const pal=spellPreviewPalette(item);
+  const targetEnemy=selectedTargetUid ? enemyByUid(selectedTargetUid) : null;
+  const targetCharacter=selectedTargetCharacter();
+  const targetPoint=entityPoint(targetEnemy || targetCharacter || {});
+  const fallback=lastMouseWorld || origin;
+  const aim={x:Number(targetPoint.x ?? fallback.x ?? origin.x),y:Number(targetPoint.y ?? fallback.y ?? origin.y)};
+  ctx.save();
+  ctx.globalAlpha=.96;
+  ctx.lineWidth=2;
+  ctx.setLineDash([10,7]);
+  ctx.shadowColor=pal.glow;
+  ctx.shadowBlur=18;
+  ctx.strokeStyle=pal.stroke;
+  ctx.fillStyle=pal.fill;
+  if(spellHoverPreview.shape==='cone'){
+    const angle=Math.atan2(aim.y-origin.y,aim.x-origin.x);
+    const spread=Math.PI/5;
+    ctx.beginPath();
+    ctx.moveTo(origin.x,origin.y);
+    ctx.arc(origin.x,origin.y,radius,angle-spread,angle+spread);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(origin.x,origin.y);
+    ctx.lineTo(origin.x+Math.cos(angle)*radius,origin.y+Math.sin(angle)*radius);
+    ctx.strokeStyle='rgba(255,244,207,.45)';
+    ctx.stroke();
+    ctx.fillStyle='#fff4cf';
+    ctx.font='800 12px Inter, Segoe UI, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(`${item.name || 'Cone'} preview`,origin.x+Math.cos(angle)*radius*.58,origin.y+Math.sin(angle)*radius*.58-8);
+  } else {
+    const center=aim;
+    ctx.beginPath();
+    ctx.arc(center.x,center.y,radius,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(center.x,center.y,4,0,Math.PI*2);
+    ctx.fillStyle=pal.stroke;
+    ctx.fill();
+    ctx.fillStyle='#fff4cf';
+    ctx.font='800 12px Inter, Segoe UI, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(`${item.name || 'Area'} preview`,center.x,center.y-radius-10);
+  }
   ctx.restore();
 }
 
@@ -4983,6 +5107,42 @@ function selectedTargetCharacter(){
 }
 function isAoeAction(item){
   return item && item.targetMode && item.targetMode!=='single' && Number(item.aoeRadius)>0;
+}
+function spellPreviewShape(item={}){
+  const radius=Number(item.aoeRadius)||normalizedAoeRadius(item)||0;
+  if(!radius) return '';
+  if(isConeAction(item)) return 'cone';
+  if(isAoeAction(item) || item.targetMode==='all' || item.targetMode==='enemies' || item.targetMode==='allies' || isGreaseAction(item)) return 'circle';
+  return '';
+}
+function setSpellHoverPreview(caster,casterKind,item){
+  if(!caster || !item || rpMode){
+    clearSpellHoverPreview();
+    return;
+  }
+  const shape=spellPreviewShape(item);
+  const radius=Number(item.aoeRadius)||normalizedAoeRadius(item)||0;
+  if(!shape || !radius){
+    clearSpellHoverPreview();
+    return;
+  }
+  spellHoverPreview={casterId:caster.id||caster.uid,casterKind,item:{...item},shape,radius};
+  draw();
+}
+function previewCharacterSpellTemplate(characterId,itemId){
+  const ch=characterById(characterId);
+  const item=[...(ch?.spells||[]),...equippedSpellActions(ch||{})].find(s=>String(s.id)===String(itemId));
+  setSpellHoverPreview(ch,'character',item);
+}
+function previewEnemySpellTemplate(enemyUid,itemId){
+  const enemy=enemyByUid(enemyUid);
+  const item=(enemy?.spells||[]).find(s=>String(s.id)===String(itemId));
+  setSpellHoverPreview(enemy,'enemy',item);
+}
+function clearSpellHoverPreview(){
+  if(!spellHoverPreview) return;
+  spellHoverPreview=null;
+  draw();
 }
 function isConeAction(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''}`.toLowerCase();
@@ -6282,7 +6442,8 @@ function saveBonusForEntry(entry,ability='DEX'){
   if(entry?.kind==='character'){
     const stats=statsWithRace(entry.entity);
     const itemStats=itemStatBonuses(entry.entity);
-    return abilityMod((stats[ab]||10)+(itemStats[ab]||0));
+    const itemBonuses=itemFlatBonuses(entry.entity);
+    return abilityMod((stats[ab]||10)+(itemStats[ab]||0)) + itemBonuses.saveBonus;
   }
   return Number(entry?.entity?.savingThrows?.[ab] ?? 0) || 0;
 }
@@ -6659,6 +6820,8 @@ canvas.addEventListener('mousemove',e=>{
   if(isPanning){ movePan(sx,sy); return; }
   if(rpMode) return;
   const {x,y}=screenToWorld(sx,sy);
+  lastMouseWorld={x,y};
+  if(spellHoverPreview) draw();
   if(isDragging && dragTarget==='soundPaint'){
     const last=lastSoundPaintPoint || {x,y};
     const spacing=Math.max(36,soundZoneRadius*.62);
@@ -6737,6 +6900,10 @@ canvas.addEventListener('mouseup',()=>{
 
 canvas.addEventListener('mouseleave',()=>{
   if(isPanning) endPan();
+  hoveredTokenId=null;
+  clearTimeout(hoverSheetTimer);
+  scheduleHoverSheetHide();
+  clearSpellHoverPreview();
   if(isDragging && dragTarget==='soundPaint'){
     isDragging=false;
     dragTarget=null;
@@ -7898,7 +8065,7 @@ function updateActiveSummary(){
     ${deathControls}
     <div class="action-buttons">
       ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">\u2694 ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">\u2726 ${escapeHtml(s.name)}</button>`).join('')}
+      ${[...(ch.spells||[]),...equippedSpellActions(ch)].map(s=>`<button title="${escapeHtml(s.name)}" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(ch.id)}','${escapeAttr(s.id)}')" onmouseleave="clearSpellHoverPreview()" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">\u2726 ${escapeHtml(s.name)}</button>`).join('')}
     </div>
     <div class="action-buttons">
       ${ABILITIES.map(ab=>`<button onclick="rollSavingThrow('${ch.id}','${ab}')">${ab} Save</button>`).join('')}
@@ -7909,7 +8076,7 @@ function updateActiveSummary(){
     </div>
     <div class="sheet-detail">
       <h4>Equipped Gear</h4>
-      <div class="compact-list">${equipped.slice(0,10).map(item=>`<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name||'Item')}</span><span>${escapeHtml(item.slot||'Gear')} ${item.acBonus?`AC ${formatSigned(item.acBonus)}`:''}</span></div>`).join('') || '<div><span>No gear equipped</span><span></span></div>'}</div>
+      <div class="compact-list">${equipped.slice(0,10).map(item=>`<div class="${rarityClass(item.rarity)}"><span>${escapeHtml(item.name||'Item')}</span><span>${escapeHtml(item.slot||'Gear')} ${item.baseAC?`AC ${item.baseAC}`:''}${item.acBonus?` ${formatSigned(item.acBonus)}`:''}</span></div>`).join('') || '<div><span>No gear equipped</span><span></span></div>'}</div>
     </div>
     <div class="sheet-detail">
       <h4>Inventory</h4>
@@ -7943,7 +8110,8 @@ function updateCombatPopout(){
     <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(actionFormulaLabel(item,defaultDie))}</span></span>
     <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
-  const spellActionHtml=(character,item,onClick,defaultDie)=>`<div class="action-cast-wrap">${upcastTabsHtml(character,item)}${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
+  const spellActionHtml=(character,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,item)}${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
+  const enemySpellActionHtml=(enemy,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewEnemySpellTemplate('${escapeAttr(enemy.uid)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
   const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${actionIconHtml('Feature',item)}<span class="action-label-text">Feature: ${escapeHtml(item.name)}</span></span>
     <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} Â· ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
@@ -7964,7 +8132,7 @@ function updateCombatPopout(){
       <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''} <button onclick="clearActiveEnemy()" style="font-size:10px;padding:2px 5px">Release control</button></div>
       <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')`,'d6')).join('')}
-        ${spells.map(s=>actionButtonHtml('Spell',s,`rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')`,'d6')).join('')}
+        ${spells.map(s=>enemySpellActionHtml(activeEnemy,s,`rollEnemyAction('${activeEnemy.uid}','spell','${s.id}')`,'d6')).join('')}
         ${bonusActions.map(a=>actionButtonHtml('Bonus',a,`rollEnemyAction('${activeEnemy.uid}','bonusAction','${a.id}')`,'d4')).join('')}
       </div>
       ${(!weapons.length&&!spells.length&&!bonusActions.length)?'<div class="combat-empty">This enemy has no actions yet. Edit the enemy stat block to add weapons, spells, or bonus actions.</div>':''}`;
@@ -7977,7 +8145,7 @@ function updateCombatPopout(){
     return;
   }
   const weapons=Array.isArray(ch.weapons)?ch.weapons:[];
-  const spells=Array.isArray(ch.spells)?ch.spells:[];
+  const spells=[...(Array.isArray(ch.spells)?ch.spells:[]),...equippedSpellActions(ch)];
   const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>item.actionCost&&item.actionCost!=='passive');
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   const friendly=selectedTargetCharacter();
@@ -8647,6 +8815,7 @@ function itemMatchesTraderType(item,type='General'){
   if(type==='Arcane') return /spell|wand|focus|crystal|scroll|ink|rune|magic|bead|pearl|charm|compass|cloak|ring/.test(text);
   if(type==='Armorer') return !!item.slot || /armor|helm|boot|glove|shield|blade|dagger|arrow|chestplate|guard|cloak|ring/.test(text);
   if(type==='Alchemist') return /salve|vial|potion|oil|salt|powder|bead|ration|water|perfume|medicine|herb|smoke|ember/.test(text);
+  if(type==='Medic') return item.itemType==='consumable' || /health|healing|heal|cure|restore|restorative|salve|potion|medicine|bandage|tonic|draught|elixir|goodberry|herb|antidote|remedy/.test(text);
   return true;
 }
 function itemMatchesTraderContext(item,trader={}){
@@ -8656,6 +8825,7 @@ function itemMatchesTraderContext(item,trader={}){
   const rules=[
     {when:/blacksmith|smith|forge|weapon|blade|sword|axe|bow|armor|armour|shield/.test(context),match:/armor|armour|helm|boot|glove|shield|blade|dagger|arrow|chestplate|guard|weapon|ring|cloak/.test(text)||!!item.slot},
     {when:/alchemist|potion|poison|medicine|herb|salve|elixir|vial/.test(context),match:/salve|vial|potion|oil|salt|powder|bead|ration|water|perfume|medicine|herb|smoke|ember/.test(text)},
+    {when:/medic|healer|doctor|surgeon|clinic|hospital|temple healer|triage|wounded|apothecary/.test(context),match:/health|healing|heal|cure|restore|restorative|salve|potion|medicine|bandage|tonic|draught|elixir|goodberry|herb|antidote|remedy/.test(text)},
     {when:/wizard|mage|arcane|spell|scroll|library|sage|enchanter/.test(context),match:/spell|wand|focus|crystal|scroll|ink|rune|magic|bead|pearl|charm|compass|cloak|ring/.test(text)},
     {when:/undercity|thief|smuggler|rogue|criminal|black market|sewer/.test(context),match:/lockpick|key|smoke|dagger|pouch|note|map|mirror|charm|ring|cloak|poison|vial/.test(text)}
   ];
@@ -8709,8 +8879,8 @@ function ensureTraderStock(trader){
 function traderPersonalityFallback(trader){
   const context=trader.description||`${trader.traderType} trader`;
   const type=trader.traderType||'General';
-  const nameBits={General:'Marn',Arcane:'Veyra',Armorer:'Borin',Alchemist:'Sella'};
-  const titleBits={General:'the Practical',Arcane:'the Bright-Eyed',Armorer:'of the Anvil',Alchemist:'of the Little Vials'};
+  const nameBits={General:'Marn',Arcane:'Veyra',Armorer:'Borin',Alchemist:'Sella',Medic:'Merrow'};
+  const titleBits={General:'the Practical',Arcane:'the Bright-Eyed',Armorer:'of the Anvil',Alchemist:'of the Little Vials',Medic:'of the Clean Needle'};
   return {
     name:nameBits[type]||'Rowan',
     title:titleBits[type]||'the Trader',
@@ -10017,7 +10187,8 @@ function rollCharacterAction(characterId,type,itemId,options={}){
   const ch=characterById(characterId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
-  const item=(ch[type+'s']||[]).find(x=>x.id===itemId);
+  const collection=type==='spell' ? [...(ch.spells||[]),...equippedSpellActions(ch)] : (ch[type+'s']||[]);
+  const item=collection.find(x=>x.id===itemId);
   if(!item) return;
   const actionCost=item.actionCost||inferActionCost(item);
   if(!canUseTurnAction(ch,actionCost)) return;
@@ -10026,8 +10197,8 @@ function rollCharacterAction(characterId,type,itemId,options={}){
   if(type==='spell' && isGreaseAction(item) && !options.greaseMode){
     return showGreaseCastChoice(characterId,type,itemId);
   }
-  const castLevel=type==='spell' ? chooseCastLevel(ch,item) : 0;
-  if(type==='spell' && Number(item.spellLevel)>0){
+  const castLevel=type==='spell' ? (item.freeCast ? Number(item.castLevel)||Number(item.spellLevel)||0 : chooseCastLevel(ch,item)) : 0;
+  if(type==='spell' && Number(item.spellLevel)>0 && !item.freeCast){
     if(!castLevel) return showCritOverlay('No spell slot available','fail','Spell slots');
     if(!spendSpellSlot(ch,castLevel)) return showCritOverlay(`No L${castLevel} slots left`,'fail','Spell slots');
   }
