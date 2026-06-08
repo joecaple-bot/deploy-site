@@ -840,6 +840,7 @@ const RACE_DEFS={
   Triton:{mods:{STR:1,CON:1,CHA:1},traits:['Amphibious','Control Air and Water','Guardians of the Depths']}
 };
 const DAMAGE_DICE=['d4','d6','d8','d10','d12'];
+const BONUS_DAMAGE_TYPES=['','Fire','Poison','Radiant','Force','Psychic','Bludgeoning','Slashing','Piercing','Cold','Lightning','Acid','Necrotic','Thunder'];
 const ACTION_TYPES=['damage','healing','buff','utility'];
 const ACTION_COSTS=['action','bonus','reaction','free','passive'];
 const TARGET_MODES=['single','enemies','allies','all','cone'];
@@ -1041,6 +1042,9 @@ function normalizeActionItem(item={}){
   const cost=inferActionCost(item);
   const diceCount=Math.max(1,Math.min(20,Number(item.diceCount)||diceCountFromFormula(item.damageFormula)||1));
   const die=DAMAGE_DICE.includes(item.die)?item.die:dieFromFormula(item.damageFormula)||'d6';
+  const bonusDamageCount=Math.max(0,Math.min(20,Number(item.bonusDamageCount)||diceCountFromFormula(item.bonusDamageFormula)||0));
+  const bonusDamageDie=DAMAGE_DICE.includes(item.bonusDamageDie)?item.bonusDamageDie:dieFromFormula(item.bonusDamageFormula)||'d4';
+  const bonusDamageType=BONUS_DAMAGE_TYPES.includes(item.bonusDamageType)?item.bonusDamageType:'';
   const spellLevel=Math.max(0,Math.min(9,Number(item.spellLevel)||0));
   const targetMode=overrides.targetMode||item.targetMode;
   return {
@@ -1049,6 +1053,10 @@ function normalizeActionItem(item={}){
     die,
     diceCount,
     damageFormula:validDiceFormula(item.damageFormula)?item.damageFormula:`${diceCount}${die}`,
+    bonusDamageFormula:bonusDamageCount>0?`${bonusDamageCount}${bonusDamageDie}`:'',
+    bonusDamageCount,
+    bonusDamageDie,
+    bonusDamageType,
     upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType)?(overrides.actionType||item.actionType):inferred,
@@ -1812,6 +1820,9 @@ function readActionItems(type){
     attackSave:row.dataset.attackSave||'',
     spellLevel:row.querySelector(`[data-${type}-spell-level]`)?.value,
     castLevel:row.querySelector(`[data-${type}-cast-level]`)?.value,
+    bonusDamageCount:row.querySelector(`[data-${type}-bonus-damage-count]`)?.value,
+    bonusDamageDie:row.querySelector(`[data-${type}-bonus-damage-die]`)?.value,
+    bonusDamageType:row.querySelector(`[data-${type}-bonus-damage-type]`)?.value,
     upcastDice:row.dataset.upcastDice||'',
     castingTime:row.dataset.castingTime||'',
     range:row.dataset.range||'',
@@ -1846,6 +1857,11 @@ function renderActionList(type,items){
       <div><label>Save DC</label><input data-${type}-save-dc type="number" min="0" max="30" value="${Number(item.saveDC)||0}" placeholder="0"></div>
       <div><label>Save type</label><select data-${type}-save-ability><option value="" ${!item.saveAbility?'selected':''}>None</option>${ABILITIES.map(ab=>`<option value="${ab}" ${ab===item.saveAbility?'selected':''}>${ab}</option>`).join('')}</select></div>
       <div><label>Save result</label><select data-${type}-save-half><option value="false" ${!item.saveHalf?'selected':''}>No damage</option><option value="true" ${item.saveHalf?'selected':''}>Half damage</option></select></div>
+      ${type==='weapon'?`
+      <div><label>Bonus damage dice</label><input data-${type}-bonus-damage-count type="number" min="0" max="20" value="${Number(item.bonusDamageCount)||0}" placeholder="0"></div>
+      <div><label>Bonus damage die</label><select data-${type}-bonus-damage-die>${DAMAGE_DICE.map(d=>`<option ${d===(item.bonusDamageDie||'d4')?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div><label>Bonus damage type</label><select data-${type}-bonus-damage-type>${BONUS_DAMAGE_TYPES.map(t=>`<option value="${escapeHtml(t)}" ${t===(item.bonusDamageType||'')?'selected':''}>${t||'None'}</option>`).join('')}</select></div>
+      `:`<input data-${type}-bonus-damage-count type="hidden" value="${Number(item.bonusDamageCount)||0}"><input data-${type}-bonus-damage-die type="hidden" value="${escapeHtml(item.bonusDamageDie||'d4')}"><input data-${type}-bonus-damage-type type="hidden" value="${escapeHtml(item.bonusDamageType||'')}">`}
       <div style="grid-column:span 2"><label>Effect / status</label><input data-${type}-effect value="${escapeHtml(item.effect||'')}" placeholder="Bless, Guidance, Bardic Inspiration, Healing"></div>
       <textarea data-${type}-desc placeholder="Range, save DC, effect, damage type">${escapeHtml(item.description||'')}</textarea>
     </div>`).join('') || `<div class="muted">No ${type==='weapon'?'weapons':'spells'} yet.</div>`;

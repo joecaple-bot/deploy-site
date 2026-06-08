@@ -269,6 +269,7 @@ h3{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;le
   linear-gradient(135deg,#7d5426,#d8b16b 42%,#8a5c2b);
 border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px rgba(0,0,0,.52),0 0 0 1px rgba(255,230,170,.08) inset;overflow:hidden}
 #combat-popout.collapsed .combat-body{display:none}
+#combat-popout.merged-into-sheet{display:none}
 #combat-popout:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);opacity:.28;pointer-events:none}
 .combat-top{position:relative;display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid rgba(202,168,107,.32);background:linear-gradient(90deg,rgba(17,20,25,.94),rgba(37,31,24,.82))}
 .combat-top b{font-family:Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:.01em;color:#fff2d0;text-shadow:0 1px 0 #000,0 0 12px rgba(202,168,107,.25);margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -276,6 +277,19 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-body{position:relative;padding:12px}
 .combat-meta{font-size:10px;color:#d9c59b;margin-bottom:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .combat-meta button{border-color:rgba(202,168,107,.35);background:rgba(13,16,20,.7)}
+.combat-character-card{display:grid;grid-template-columns:48px 1fr auto;gap:11px;align-items:center;margin-bottom:10px;padding:8px;border:1px solid rgba(202,168,107,.28);border-radius:12px;background:linear-gradient(135deg,rgba(255,177,68,.11),rgba(0,0,0,.28));box-shadow:inset 0 0 0 1px rgba(255,236,188,.035)}
+.combat-character-card .token-thumb,.combat-character-card .fallback-token{width:44px;height:44px;font-size:32px}
+.combat-character-name{font-family:Georgia,'Times New Roman',serif;font-weight:900;color:#fff1cf;font-size:16px;text-shadow:0 1px 0 #000}
+.combat-character-sub{font-size:11px;color:#cdbb91;margin-top:2px}
+.combat-health-track{height:6px;border-radius:999px;background:rgba(3,5,7,.72);border:1px solid rgba(202,168,107,.24);overflow:hidden;margin-top:6px}
+.combat-health-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#b62432,#e55d45,#4ca3ff);box-shadow:0 0 10px rgba(74,162,255,.32)}
+.combat-ac-badge{min-width:48px;padding:7px 8px;border:1px solid rgba(202,168,107,.48);border-radius:12px;background:rgba(7,8,10,.72);text-align:center;color:#ffe9b6;font-family:Georgia,'Times New Roman',serif}
+.combat-ac-badge b{display:block;font-size:17px}
+.combat-ac-badge span{display:block;font-size:9px;text-transform:uppercase;color:#bfa879}
+.combat-stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+.combat-stat-strip .mini-stat{padding:7px 5px}
+.combat-status-strip{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 9px}
+.combat-status-strip .pill{font-size:10px;padding:3px 7px}
 .combat-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:visible}
 .combat-actions button{position:relative;font-family:Georgia,'Times New Roman',serif;font-size:12px;padding:7px 9px;text-align:left;min-width:0;overflow:visible;white-space:nowrap;background:linear-gradient(180deg,rgba(26,30,37,.94),rgba(13,15,19,.96));border-color:rgba(202,168,107,.32);transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease;z-index:1}
 .combat-actions button .action-label{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -415,6 +429,25 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #sheet-popup.enemy{border-color:rgba(224,107,98,.7);box-shadow:0 22px 80px rgba(80,0,0,.45)}
 #sheet-popup.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
 #sheet-popup.resizable{resize:both;overflow:auto;min-width:250px;min-height:220px;max-width:calc(100% - 24px);max-height:calc(100% - 24px)}
+#sheet-popup.combat-sheet{width:min(500px,calc(100% - 24px));padding:0;background:
+  linear-gradient(180deg,rgba(28,24,20,.96),rgba(10,10,10,.97)),
+  radial-gradient(circle at 18% 8%,rgba(255,179,66,.18),transparent 34%);
+  border-color:rgba(220,164,77,.68);box-shadow:0 28px 100px rgba(0,0,0,.78),0 0 30px rgba(255,145,45,.16),inset 0 0 0 1px rgba(255,236,188,.06)}
+#sheet-popup.combat-sheet.resizable{min-width:360px;min-height:330px}
+#sheet-popup.combat-sheet .sheet-top{padding:13px 14px 10px;border-bottom:1px solid rgba(202,168,107,.28)}
+#sheet-popup.combat-sheet .mini-stat-row,
+#sheet-popup.combat-sheet .ability-list,
+#sheet-popup.combat-sheet .pill-row,
+#sheet-popup.combat-sheet .compact-list,
+#sheet-popup.combat-sheet .sheet-detail,
+#sheet-popup.combat-sheet .sheet-actions{margin-left:14px;margin-right:14px}
+#sheet-popup.combat-sheet .sheet-combat-panel{margin:10px 14px 0;padding:10px;border:1px solid rgba(202,168,107,.34);border-radius:10px;background:linear-gradient(180deg,rgba(8,10,13,.55),rgba(5,6,8,.76));box-shadow:inset 0 0 0 1px rgba(255,236,188,.04)}
+#sheet-popup.combat-sheet .sheet-combat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;color:#ffe4aa;font-family:Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+#sheet-popup.combat-sheet .sheet-combat-head span{font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:10px;color:#cdbb91;text-transform:none;letter-spacing:0}
+#sheet-popup.combat-sheet .combat-actions{grid-template-columns:1fr;max-height:330px;overflow:auto;padding-right:3px}
+#sheet-popup.combat-sheet .combat-actions button{min-height:46px}
+#sheet-popup.combat-sheet .combat-actions .action-spell-icon{--icon-size:38px}
+#sheet-popup.combat-sheet .sheet-actions{padding:10px 0 12px}
 .sheet-top{cursor:grab;user-select:none}
 .sheet-top:active{cursor:grabbing}
 .sheet-window-tools{display:flex;gap:4px;margin-left:auto}
@@ -628,6 +661,69 @@ h3{
   content:"";position:absolute;inset:8px;pointer-events:none;z-index:4;border-radius:18px;
   border:1px solid rgba(202,151,74,.24);
   box-shadow:0 0 0 1px rgba(255,230,170,.045) inset,0 0 36px rgba(240,128,32,.08) inset;
+}
+.map-tool-dock{
+  position:absolute;
+  left:14px;
+  top:18px;
+  z-index:72;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:10px 8px;
+  border:1px solid rgba(202,168,107,.48);
+  border-radius:18px;
+  background:
+    linear-gradient(180deg,rgba(31,24,16,.82),rgba(9,8,7,.78)),
+    radial-gradient(circle at 50% 0%,rgba(255,179,58,.18),transparent 70%);
+  box-shadow:
+    0 18px 54px rgba(0,0,0,.46),
+    0 0 0 1px rgba(255,231,172,.08) inset,
+    0 0 26px rgba(255,154,46,.08) inset;
+  backdrop-filter:blur(8px);
+}
+.map-tool-dock:before{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border:1px solid rgba(255,220,154,.1);
+  border-radius:14px;
+  pointer-events:none;
+}
+.map-tool-btn{
+  position:relative;
+  width:42px;
+  height:42px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  border:1px solid rgba(202,168,107,.34);
+  background:linear-gradient(180deg,rgba(27,22,16,.92),rgba(8,8,9,.94));
+  color:#f2d59a;
+  font-size:20px;
+  line-height:1;
+  box-shadow:0 6px 16px rgba(0,0,0,.32),0 0 0 1px rgba(255,230,170,.055) inset;
+  transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease,color .14s ease;
+}
+.map-tool-btn:hover,.map-tool-btn:focus-visible{
+  transform:translateY(-1px);
+  color:#fff1c5;
+  border-color:rgba(255,214,128,.82);
+  box-shadow:0 0 18px rgba(255,171,55,.28),0 8px 20px rgba(0,0,0,.38),0 0 0 1px rgba(255,230,170,.12) inset;
+}
+.map-tool-btn.active{
+  color:#fff7d6;
+  border-color:rgba(255,207,111,.95);
+  background:linear-gradient(180deg,rgba(122,76,22,.82),rgba(26,16,7,.98));
+  box-shadow:0 0 20px rgba(255,170,49,.34),0 0 0 1px rgba(255,236,174,.2) inset;
+}
+.map-tool-btn.dm-only-tool{display:grid}
+body:not(.dm-mode) .map-tool-btn.dm-only-tool{display:none!important}
+body.rp-mode .map-tool-dock{display:none}
+@media(max-width:900px){
+  .map-tool-dock{left:8px;top:10px;gap:6px;padding:8px 6px;border-radius:15px}
+  .map-tool-btn{width:36px;height:36px;font-size:17px;border-radius:9px}
 }
 #sidebar{
   position:relative;
@@ -916,6 +1012,16 @@ h3{
   <div id="main">
     <div id="canvas-wrap">
       <canvas id="c"></canvas>
+      <div id="map-tool-dock" class="map-tool-dock" aria-label="Map tools">
+        <button id="dock-tool-move" class="map-tool-btn active" onclick="setMode('move')" title="Select / cursor" aria-label="Select / cursor">⌖</button>
+        <button id="dock-tool-pan" class="map-tool-btn" onclick="setMode('pan')" title="Pan / hand" aria-label="Pan / hand">☝</button>
+        <button id="dock-tool-grid" class="map-tool-btn" onclick="toggleGridOverlay()" title="Grid overlay" aria-label="Grid overlay">▦</button>
+        <button id="dock-tool-measure" class="map-tool-btn" onclick="setMode('measure')" title="Measure" aria-label="Measure">◷</button>
+        <button id="dock-tool-3d" class="map-tool-btn dm-only-tool" onclick="toggle3DEditMode()" title="Place / edit 3D props" aria-label="Place / edit 3D props">◇</button>
+        <button id="dock-tool-fog" class="map-tool-btn dm-only-tool" onclick="resetFog()" title="Reset fog view" aria-label="Reset fog view">◉</button>
+        <button id="dock-tool-lighting" class="map-tool-btn dm-only-tool" onclick="openSceneDeck()" title="Lighting and scenes" aria-label="Lighting and scenes">♢</button>
+        <button id="dock-tool-settings" class="map-tool-btn" onclick="resetView()" title="Reset view / tool options" aria-label="Reset view / tool options">⚙</button>
+      </div>
       <div id="rp-ambience-layer" class="rp-ambience-layer">
         <span class="rp-smoke s1"></span>
         <span class="rp-smoke s2"></span>
@@ -1650,6 +1756,7 @@ const RACE_DEFS = {
 };
 const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled','Slipped'];
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
+const BONUS_DAMAGE_TYPES = ['','Fire','Poison','Radiant','Force','Psychic','Bludgeoning','Slashing','Piercing','Cold','Lightning','Acid','Necrotic','Thunder'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
 const ACTION_COSTS = ['action','bonus','reaction','free','passive'];
 const TARGET_MODES = ['single','enemies','allies','all','cone'];
@@ -1847,6 +1954,9 @@ function normalizeActionItem(item={}){
   const cost=inferActionCost(item);
   const diceCount=Math.max(1,Math.min(20,Number(item.diceCount)||diceCountFromFormula(item.damageFormula)||1));
   const die=DAMAGE_DICE.includes(item.die) ? item.die : dieFromFormula(item.damageFormula)||'d6';
+  const bonusDamageCount=Math.max(0,Math.min(20,Number(item.bonusDamageCount)||diceCountFromFormula(item.bonusDamageFormula)||0));
+  const bonusDamageDie=DAMAGE_DICE.includes(item.bonusDamageDie) ? item.bonusDamageDie : dieFromFormula(item.bonusDamageFormula)||'d4';
+  const bonusDamageType=BONUS_DAMAGE_TYPES.includes(item.bonusDamageType) ? item.bonusDamageType : '';
   const spellLevel=Math.max(0,Math.min(9,Number(item.spellLevel)||0));
   const targetMode=overrides.targetMode||item.targetMode;
   return {
@@ -1855,6 +1965,10 @@ function normalizeActionItem(item={}){
     die,
     diceCount,
     damageFormula:validDiceFormula(item.damageFormula)?item.damageFormula:`${diceCount}${die}`,
+    bonusDamageFormula:bonusDamageCount>0?`${bonusDamageCount}${bonusDamageDie}`:'',
+    bonusDamageCount,
+    bonusDamageDie,
+    bonusDamageType,
     upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType) ? (overrides.actionType||item.actionType) : inferred,
@@ -1903,6 +2017,19 @@ function inferSaveHalfDamage(item={}){
 }
 function diceFormulaForAction(item={}){
   return diceFormulaAtLevel(item,Number(item.castLevel)||Number(item.spellLevel)||0);
+}
+function bonusDamageFormulaForAction(item={}){
+  const count=Math.max(0,Math.min(20,Number(item.bonusDamageCount)||diceCountFromFormula(item.bonusDamageFormula)||0));
+  if(!count) return '';
+  const die=DAMAGE_DICE.includes(item.bonusDamageDie) ? item.bonusDamageDie : dieFromFormula(item.bonusDamageFormula)||'d4';
+  return `${count}${die}`;
+}
+function actionFormulaSummary(item={},defaultDie='d6'){
+  const base=diceFormulaForAction(item)||defaultDie;
+  const flat=Number(item.bonus)?` ${formatBonus(item.bonus)}`:'';
+  const rider=bonusDamageFormulaForAction(item);
+  const riderType=item.bonusDamageType ? ` ${item.bonusDamageType}` : '';
+  return `${base}${flat}${rider?` + ${rider}${riderType}`:''}`;
 }
 function diceFormulaAtLevel(item={},castLevel=0){
   const base=validDiceFormula(item.damageFormula)?item.damageFormula:`${Math.max(1,Number(item.diceCount)||1)}${DAMAGE_DICE.includes(item.die)?item.die:'d6'}`;
@@ -2348,6 +2475,9 @@ function hydrateActionItem(raw={}){
   const inferred=overrides.actionType||inferActionType(raw);
   const diceCount=Math.max(1,Math.min(20,Number(raw.diceCount)||diceCountFromFormula(raw.damageFormula)||1));
   const die=DAMAGE_DICE.includes(raw.die) ? raw.die : dieFromFormula(raw.damageFormula)||'d6';
+  const bonusDamageCount=Math.max(0,Math.min(20,Number(raw.bonusDamageCount)||diceCountFromFormula(raw.bonusDamageFormula)||0));
+  const bonusDamageDie=DAMAGE_DICE.includes(raw.bonusDamageDie) ? raw.bonusDamageDie : dieFromFormula(raw.bonusDamageFormula)||'d4';
+  const bonusDamageType=BONUS_DAMAGE_TYPES.includes(raw.bonusDamageType) ? raw.bonusDamageType : '';
   const spellLevel=Math.max(0,Math.min(9,Number(raw.spellLevel)||0));
   const targetMode=overrides.targetMode||raw.targetMode;
   return {
@@ -2356,6 +2486,10 @@ function hydrateActionItem(raw={}){
     die,
     diceCount,
     damageFormula:validDiceFormula(raw.damageFormula)?raw.damageFormula:`${diceCount}${die}`,
+    bonusDamageFormula:bonusDamageCount>0?`${bonusDamageCount}${bonusDamageDie}`:'',
+    bonusDamageCount,
+    bonusDamageDie,
+    bonusDamageType,
     upcastDice:validDiceFormula(raw.upcastDice)?raw.upcastDice:'',
     bonus:Number(raw.bonus)||0,
     actionType:ACTION_TYPES.includes(overrides.actionType||raw.actionType) ? (overrides.actionType||raw.actionType) : inferred,
@@ -2662,6 +2796,7 @@ let rpModeBg = new Image();
 rpModeBg.src = (RP_BOARD_PRESETS[rpBoardId] || RP_BOARD_PRESETS.tavern).src;
 rpModeBg.onload = ()=>{ if(rpMode) draw(); };
 let mode = 'move';
+let showMapGrid = localStorage.getItem(`${STORAGE_PREFIX}:grid:${CLOUD_CAMPAIGN_ID}`) === '1';
 let selectedMapIcon = MAP_ICONS[6];
 let revealRadius = 30;
 let fogRevision = 0;
@@ -2952,7 +3087,39 @@ function movePan(x,y){
 }
 function endPan(){
   isPanning=false;
-  canvas.style.cursor=mode==='drag'?'grab':'crosshair';
+  canvas.style.cursor=['drag','pan'].includes(mode)?'grab':'crosshair';
+}
+function updateMapToolDock(){
+  const modeButtons={
+    move:'dock-tool-move',
+    pan:'dock-tool-pan',
+    measure:'dock-tool-measure'
+  };
+  Object.values(modeButtons).forEach(id=>document.getElementById(id)?.classList.remove('active'));
+  document.getElementById(modeButtons[mode])?.classList.add('active');
+  document.getElementById('dock-tool-grid')?.classList.toggle('active',showMapGrid);
+  document.getElementById('dock-tool-3d')?.classList.toggle('active',map3DEditMode);
+}
+function toggleGridOverlay(){
+  showMapGrid=!showMapGrid;
+  localStorage.setItem(`${STORAGE_PREFIX}:grid:${CLOUD_CAMPAIGN_ID}`,showMapGrid?'1':'0');
+  updateMapToolDock();
+  draw();
+}
+function drawMapGrid(world){
+  if(!showMapGrid) return;
+  const step=50;
+  ctx.save();
+  ctx.lineWidth=1/camera.scale;
+  ctx.strokeStyle='rgba(255,225,154,.18)';
+  ctx.beginPath();
+  for(let x=0;x<=world.width;x+=step){ ctx.moveTo(x,0); ctx.lineTo(x,world.height); }
+  for(let y=0;y<=world.height;y+=step){ ctx.moveTo(0,y); ctx.lineTo(world.width,y); }
+  ctx.stroke();
+  ctx.lineWidth=1.5/camera.scale;
+  ctx.strokeStyle='rgba(255,190,90,.22)';
+  ctx.strokeRect(0,0,world.width,world.height);
+  ctx.restore();
 }
 
 const MAP3D_TYPES = {
@@ -3073,6 +3240,7 @@ function set3DModeButton(){
     layer.classList.toggle('show',map3DMode);
     layer.classList.toggle('editing',map3DMode && map3DEditMode);
   }
+  updateMapToolDock();
 }
 function toggle3DMapMode(){
   map3DMode=!map3DMode;
@@ -4177,6 +4345,7 @@ function draw(){
     ctx.fillStyle='#8f98a8';
     ctx.fillText('The active character reveals fog while exploring',world.width/2,world.height/2+16);
   }
+  drawMapGrid(world);
   ensureAnimatedFogPlaying();
   drawSceneMood(world);
   drawAnimatedFogLayer(world);
@@ -5298,11 +5467,12 @@ function setMode(m){
   mode=m;
   ['btn-move','btn-drag','btn-place','btn-effect','btn-sound','btn-ping','btn-measure','btn-line','btn-cone'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById('btn-'+m)?.classList.add('active');
-  canvas.style.cursor = m==='drag' ? 'grab' : 'crosshair';
+  canvas.style.cursor = ['drag','pan'].includes(m) ? 'grab' : 'crosshair';
   measureDraft=null;
   templateDraft=null;
   hideSheet();
   hideRadialMenu();
+  updateMapToolDock();
 }
 function isDM(){ return userRole==='dm'; }
 function canControlCharacter(ch){
@@ -5385,6 +5555,7 @@ function updateRoleUI(){
   ['btn-place','btn-effect'].forEach(id=>document.getElementById(id)?.toggleAttribute('disabled',!isDM()));
   updateRPBoardMenu();
   applyRPBoardMood();
+  updateMapToolDock();
 }
 function toggleRPMode(){
   if(!isDM()) return requireDM();
@@ -6065,8 +6236,9 @@ function prepareSheetWindow(pop,x,y,{keepPosition=false,dock=false}={}){
 function closeSheet(){
   const pop=document.getElementById('sheet-popup');
   if(!pop) return;
-  pop.classList.remove('show','pinned');
+  pop.classList.remove('show','pinned','combat-sheet');
   delete pop.dataset.sheetIdentity;
+  setCombatPopoutMerged(false);
   sheetPinned=false;
   sheetHoverPreview=false;
   sheetHoverInside=false;
@@ -6747,7 +6919,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
 }
 
 canvas.addEventListener('mousedown',e=>{
-  if(e.button===1){
+  if(e.button===1 || (e.button===0 && mode==='pan')){
     e.preventDefault();
     beginPan(e.clientX-canvas.getBoundingClientRect().left,e.clientY-canvas.getBoundingClientRect().top);
     return;
@@ -6838,7 +7010,7 @@ canvas.addEventListener('mousemove',e=>{
   }
   if(!isDragging){
     const hit=tokenLock?activeCharacterAt(x,y):playerAt(x,y);
-    canvas.style.cursor=hit?'pointer':(mode==='drag'?'grab':'crosshair');
+    canvas.style.cursor=hit?'pointer':(['drag','pan'].includes(mode)?'grab':'crosshair');
     if(hit){
       if(hoveredTokenId!==hit.id){
         hoveredTokenId=hit.id;
@@ -6866,7 +7038,7 @@ canvas.addEventListener('mousemove',e=>{
 });
 
 canvas.addEventListener('mouseup',()=>{
-  if(isPanning){ endPan(); return; }
+  if(isPanning){ endPan(); suppressNextCanvasClick=true; return; }
   if(isDragging && dragTarget==='soundPaint'){
     isDragging=false;
     dragTarget=null;
@@ -6892,7 +7064,7 @@ canvas.addEventListener('mouseup',()=>{
     if(dragTarget && dragTarget.kind==='enemy') checkGreaseEntryForEntity(dragTarget,'enemy');
     isDragging=false;
     dragTarget=null;
-    canvas.style.cursor=mode==='drag'?'grab':'crosshair';
+    canvas.style.cursor=['drag','pan'].includes(mode)?'grab':'crosshair';
     updateAllPanels();
     scheduleSave();
   }
@@ -6939,6 +7111,10 @@ canvas.addEventListener('touchstart',e=>{
   const sx=t.clientX-r.left, sy=t.clientY-r.top;
   const {x,y}=screenToWorld(sx,sy);
   if(rpMode) return;
+  if(mode==='pan'){
+    beginPan(sx,sy);
+    return;
+  }
   if(mode==='sound'){
     if(!isDM()) return requireDM();
     pushDMUndo('paint sound zone');
@@ -6974,6 +7150,12 @@ canvas.addEventListener('touchstart',e=>{
 canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
   touchMoved=true;
+  if(isPanning){
+    const t=e.touches[0];
+    const r=canvas.getBoundingClientRect();
+    movePan(t.clientX-r.left,t.clientY-r.top);
+    return;
+  }
   if(!isDragging) return;
   const t=e.touches[0];
   const r=canvas.getBoundingClientRect();
@@ -7008,6 +7190,11 @@ canvas.addEventListener('touchmove',e=>{
 },{passive:false});
 canvas.addEventListener('touchend',e=>{
   e.preventDefault();
+  if(isPanning){
+    endPan();
+    touchMoved=false;
+    return;
+  }
   if(isDragging && dragTarget==='soundPaint'){
     isDragging=false;
     dragTarget=null;
@@ -8088,6 +8275,85 @@ function updateActiveSummary(){
     </div>
     <div class="hint" style="margin-top:8px">Last d20: ${lastRoll ? `${lastRoll.total} (${lastRoll.character})` : 'None yet'}</div>`;
 }
+function setCombatPopoutMerged(merged){
+  const pop=document.getElementById('combat-popout');
+  if(pop) pop.classList.toggle('merged-into-sheet', !!merged);
+}
+function sheetActionIconHtml(prefix,item){
+  if(prefix==='Spell') return window.MoovablesSpellIcons?.html(item?.name,22,'action-spell-icon') || '<span class="spell-icon fallback">*</span>';
+  if(prefix==='Weapon') return '<span class="spell-icon weapon">X</span>';
+  return '<span class="spell-icon feature">*</span>';
+}
+function sheetActionFormulaLabel(item,defaultDie){
+  return actionFormulaSummary(item,defaultDie);
+}
+function sheetActionButtonHtml(prefix,item,onClick,defaultDie){
+  return `<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
+    <span class="action-label">${sheetActionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(sheetActionFormulaLabel(item,defaultDie))}</span></span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} - ${escapeHtml(item.actionType||'damage')} ${escapeHtml(actionFormulaSummary(item,defaultDie))}${isAoeAction(item)?` - AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+  </button>`;
+}
+function sheetSpellActionHtml(character,item,onClick,defaultDie){
+  return `<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,item)}${sheetActionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
+}
+function sheetFeatureButtonHtml(item,onClick){
+  return `<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
+    <span class="action-label">${sheetActionIconHtml('Feature',item)}<span class="action-label-text">Feature: ${escapeHtml(item.name)}</span></span>
+    <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} - ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+  </button>`;
+}
+function sheetTurnUseLabel(id){
+  return turnActionState.actorId===id?`${turnActionState.actionTaken?' - action used':''}${turnActionState.bonusActionTaken?' - bonus used':''}${turnActionState.reactionTaken?' - reaction used':''}`:'';
+}
+function combatCharacterSummaryHtml(ch){
+  const d=ch.derived || calculateDerived(ch);
+  const maxHP=Math.max(1,Number(d.HP)||1);
+  const hp=Math.max(0,Number(ch.currentHP ?? maxHP));
+  const hpPct=Math.max(0,Math.min(100,(hp/maxHP)*100));
+  const statuses=normalizeStatuses(ch.statuses).slice(0,6);
+  const statusHtml=statuses.length ? `<div class="combat-status-strip">${statuses.map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>` : '';
+  return `<div class="combat-character-card">
+    <div class="combat-avatar">${tokenThumbHtml(ch,ch.icon)}</div>
+    <div>
+      <div class="combat-character-name">${escapeHtml(ch.name)}</div>
+      <div class="combat-character-sub">L${ch.level} ${escapeHtml(ch.race||'')} ${ch.subclass?`${escapeHtml(ch.subclass)} `:''}${escapeHtml(ch.class||'')}</div>
+      <div class="combat-health-track"><div class="combat-health-fill" style="width:${hpPct}%"></div></div>
+    </div>
+    <div class="combat-ac-badge"><b>${d.AC}</b><span>AC</span></div>
+  </div>
+  <div class="combat-stat-strip">
+    <div class="mini-stat"><b>${hp}/${maxHP}</b><span>HP</span></div>
+    <div class="mini-stat"><b>${d.initiative>=0?'+':''}${d.initiative}</b><span>Init</span></div>
+    <div class="mini-stat"><b>${d.attackBonus>=0?'+':''}${d.attackBonus}</b><span>Atk</span></div>
+    <div class="mini-stat"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
+  </div>${statusHtml}`;
+}
+function characterCombatPanelHtml(ch){
+  const weapons=Array.isArray(ch.weapons)?ch.weapons:[];
+  const spells=[...(Array.isArray(ch.spells)?ch.spells:[]),...equippedSpellActions(ch)];
+  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>item.actionCost&&item.actionCost!=='passive');
+  const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
+  const friendly=selectedTargetCharacter();
+  const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
+  const moveUsed=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
+  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn - move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${sheetTurnUseLabel(ch.id)}` : 'Waiting for turn') : 'Free mode';
+  const actions=[
+    ...weapons.map(w=>sheetActionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')),
+    ...spells.map(s=>sheetSpellActionHtml(ch,s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')),
+    ...features.map(f=>sheetFeatureButtonHtml(f,`useCharacterFeature('${ch.id}','${f.id}')`))
+  ].join('');
+  return `<div class="sheet-combat-panel">
+    <div class="sheet-combat-head"><b>Actions</b><span>${turnLabel}</span></div>
+    <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
+    ${actions?`<div class="combat-actions">${actions}</div>`:`<div class="combat-empty">No weapons, spells, or active features yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`}
+  </div>`;
+}
+function compactHoverActionButtonsHtml(ch){
+  return `<div class="action-buttons">
+      ${(ch.weapons||[]).slice(0,2).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">Weapon: ${escapeHtml(w.name)}</button>`).join('')}
+      ${(ch.spells||[]).slice(0,2).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">Spell: ${escapeHtml(s.name)}</button>`).join('')}
+    </div>`;
+}
 function toggleCombatPopout(){
   const pop=document.getElementById('combat-popout');
   if(!pop) return;
@@ -8105,10 +8371,10 @@ function updateCombatPopout(){
     if(prefix==='Weapon') return '<span class="spell-icon weapon">⚔</span>';
     return '<span class="spell-icon feature">✦</span>';
   };
-  const actionFormulaLabel=(item,defaultDie)=>`${diceFormulaForAction(item)||defaultDie}${Number(item.bonus)?` ${formatBonus(item.bonus)}`:''}`;
+  const actionFormulaLabel=(item,defaultDie)=>actionFormulaSummary(item,defaultDie);
   const actionButtonHtml=(prefix,item,onClick,defaultDie)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(actionFormulaLabel(item,defaultDie))}</span></span>
-    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(diceFormulaForAction(item)||defaultDie)} ${formatBonus(item.bonus)}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(actionFormulaSummary(item,defaultDie))}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
   const spellActionHtml=(character,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,item)}${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
   const enemySpellActionHtml=(enemy,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewEnemySpellTemplate('${escapeAttr(enemy.uid)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
@@ -8154,10 +8420,11 @@ function updateCombatPopout(){
   const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn · move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${turnUseLabel(ch.id)}` : 'Waiting for turn') : 'Free mode';
   title.textContent=`${ch.name} actions`;
   if(!weapons.length&&!spells.length&&!features.length){
-    body.innerHTML=`<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons, spells, or active features on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
+    body.innerHTML=`${combatCharacterSummaryHtml(ch)}<div class="combat-meta">${turnLabel}</div><div class="combat-meta">Target: ${targetLabel}</div><div class="combat-empty">No weapons, spells, or active features on this character yet.<br><button class="primary" onclick="goToCharacters()">Open builder</button></div>`;
     return;
   }
   body.innerHTML=`
+    ${combatCharacterSummaryHtml(ch)}
     <div class="combat-meta">${turnLabel}</div>
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
@@ -8668,6 +8935,8 @@ function showSheet(ch,x,y,{hover=false}={}){
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('character',ch.id)) return;
   pop.classList.remove('enemy');
+  pop.classList.toggle('combat-sheet', !hover);
+  setCombatPopoutMerged(!hover);
   sheetHoverPreview=hover;
   const d=ch.derived || calculateDerived(ch);
   const isLocalSheet=myCharacters.some(local=>local.id===ch.id);
@@ -8688,6 +8957,7 @@ function showSheet(ch,x,y,{hover=false}={}){
   const deathControls=(ch.currentHP??d.HP)<=0 && ch.isMe ? `<div class="death-row"><button onclick="markDeathSave('${ch.id}','success')">Death save \u2713 ${death.success||0}/3</button><button class="danger" onclick="markDeathSave('${ch.id}','fail')">Fail ${death.fail||0}/3</button></div>` : '';
   const restControls='';
   const statusList=normalizeStatuses(ch.statuses);
+  const actionPanel=hover ? compactHoverActionButtonsHtml(ch) : characterCombatPanelHtml(ch);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${tokenThumbHtml(ch,ch.icon)}</div>
@@ -8704,10 +8974,7 @@ function showSheet(ch,x,y,{hover=false}={}){
       <div class="mini-stat"><b>${Math.max(0,Number(ch.gold)||0)} gp</b><span>Gold</span></div>
     </div>
     <div class="ability-list">${[...(RACE_DEFS[ch.race]?.traits||['Custom lineage']),...(classDefFor(ch).abilities||['Custom class'])].map(t=>`<span class="ability">${t}</span>`).join('')}</div>
-    <div class="action-buttons">
-      ${(ch.weapons||[]).map(w=>`<button title="${escapeHtml(w.description||w.name)}" onclick="rollCharacterAction('${ch.id}','weapon','${w.id}')">\u2694 ${escapeHtml(w.name)}</button>`).join('')}
-      ${(ch.spells||[]).map(s=>`<button title="${escapeHtml(s.description||s.name)}" onclick="rollCharacterAction('${ch.id}','spell','${s.id}')">\u2726 ${escapeHtml(s.name)}</button>`).join('')}
-    </div>
+    ${actionPanel}
     <div class="pill-row">${statusList.map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>
     <div class="compact-list" style="margin-top:7px">${activeRollBuffs(ch,'check').map(b=>`<div><span>${escapeHtml(b.label)} ready</span><span>+1d${b.die}</span></div>`).join('')}</div>
     ${rollStateControlsHtml(ch,'character')}
@@ -8722,7 +8989,9 @@ function showSheet(ch,x,y,{hover=false}={}){
 function showEnemySheet(enemy,x,y){
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('enemy',enemy.uid)) return;
+  pop.classList.remove('combat-sheet');
   pop.classList.add('enemy');
+  setCombatPopoutMerged(false);
   sheetHoverPreview=false;
   const dm=isDM();
   pop.innerHTML=`
@@ -8769,7 +9038,8 @@ function showIconSheet(icon,x,y){
   if(icon.kind==='trader') return showTraderSheet(icon,x,y);
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('icon',icon.uid)) return;
-  pop.classList.remove('enemy');
+  pop.classList.remove('enemy','combat-sheet');
+  setCombatPopoutMerged(false);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${cleanEmoji(icon.icon||icon.em,'\u{1F4CD}')}</div>
@@ -8790,7 +9060,8 @@ function showChestSheet(chest,x,y){
   const loot=chest.opened ? ensureChestLoot(chest) : [];
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('chest',chest.uid)) return;
-  pop.classList.remove('enemy');
+  pop.classList.remove('enemy','combat-sheet');
+  setCombatPopoutMerged(false);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${chest.opened?'\u{1F9F0}':cleanEmoji(chest.icon||chest.em,'\u{1F4E6}')}</div>
@@ -8967,7 +9238,8 @@ function showTraderSheet(trader,x,y){
   const p=trader.personality||null;
   const contextLine=traderContextLine(trader,ch);
   const pop=document.getElementById('sheet-popup');
-  pop.classList.remove('enemy');
+  pop.classList.remove('enemy','combat-sheet');
+  setCombatPopoutMerged(false);
   pop.innerHTML=`
     <div class="sheet-top">
       <div class="sheet-icon">${cleanEmoji(trader.icon||trader.em,'\u{1F4B0}')}</div>
@@ -10159,8 +10431,15 @@ function removeStatusNamed(entity,name){
 function sneakAttackFormula(ch){
   return `${Math.max(1,Math.ceil((Number(ch?.level)||1)/2))}d6`;
 }
-function applyDamageRiders(ch,target,critical=false){
+function applyDamageRiders(ch,target,critical=false,item=null){
   const riders=[];
+  const bonusFormula=bonusDamageFormulaForAction(item||{});
+  if(bonusFormula){
+    const roll=rollDiceExpression(bonusFormula,0);
+    const amount=critical ? roll.total*2 : roll.total;
+    const type=item?.bonusDamageType ? ` ${item.bonusDamageType}` : '';
+    riders.push({name:`Bonus${type} damage`,formula:bonusFormula,roll,amount});
+  }
   if(hasStatusNamed(ch,'Sneak Attack ready')){
     const formula=sneakAttackFormula(ch);
     const roll=rollDiceExpression(formula,0);
@@ -10294,7 +10573,7 @@ function rollCharacterAction(characterId,type,itemId,options={}){
   const fumble=isAttackFumble(attack);
   const hitTarget=target && !fumble && (critical || attack.total>=target.ac);
   const rolledDamage=damage.total;
-  const riderResult=hitTarget ? applyDamageRiders(ch,target,critical) : {total:0,detail:'',riders:[]};
+  const riderResult=hitTarget ? applyDamageRiders(ch,target,critical,castItem) : {total:0,detail:'',riders:[]};
   const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) + riderResult.total : 0;
   const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   const hpBefore=target ? target.hp : null;
@@ -10332,7 +10611,7 @@ function rollCharacterAction(characterId,type,itemId,options={}){
     ? {text:`${ch.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Double damage'}
     : fumble
       ? {text:`${ch.name} fumbles and takes ${backfireDamage}`,overlayType:'fail',title:'Backfire'}
-      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:`${diceFormulaForAction(item)} ${formatBonus(item.bonus)}`};
+      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage||rolledDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:actionFormulaSummary(castItem)};
   playSfx(critical?'nat20':fumble?'nat1':hitTarget?'hit':'miss');
   if(hitTarget && target?.hp<=0) playSfx('enemyDown');
   showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:ch.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
