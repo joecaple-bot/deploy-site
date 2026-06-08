@@ -1040,6 +1040,7 @@ function normalizeActionItem(item={}){
   const overrides=spellControlOverrides(item);
   const inferred=overrides.actionType||inferActionType(item);
   const cost=inferActionCost(item);
+  const hasExplicitDamageDice=item.diceCount!==undefined || item.die!==undefined;
   const diceCount=Math.max(1,Math.min(20,Number(item.diceCount)||diceCountFromFormula(item.damageFormula)||1));
   const die=DAMAGE_DICE.includes(item.die)?item.die:dieFromFormula(item.damageFormula)||'d6';
   const bonusDamageCount=Math.max(0,Math.min(20,Number(item.bonusDamageCount)||diceCountFromFormula(item.bonusDamageFormula)||0));
@@ -1052,7 +1053,7 @@ function normalizeActionItem(item={}){
     name:item.name||'New action',
     die,
     diceCount,
-    damageFormula:validDiceFormula(item.damageFormula)?item.damageFormula:`${diceCount}${die}`,
+    damageFormula:hasExplicitDamageDice||!validDiceFormula(item.damageFormula)?`${diceCount}${die}`:item.damageFormula,
     bonusDamageFormula:bonusDamageCount>0?`${bonusDamageCount}${bonusDamageDie}`:'',
     bonusDamageCount,
     bonusDamageDie,
