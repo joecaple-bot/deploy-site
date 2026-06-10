@@ -2988,15 +2988,6 @@ function initSupabaseCloud(){
   if(cloudChannel) cloudClient.removeChannel(cloudChannel);
   cloudChannel=cloudClient
     .channel(`campaign-state:${CLOUD_CAMPAIGN_ID}`)
-    .on('postgres_changes',{
-      event:'*',
-      schema:'public',
-      table:CLOUD_TABLE,
-      filter:`id=eq.${CLOUD_CAMPAIGN_ID}`
-    },payload=>{
-      if(payload.new?.updated_by===CLOUD_CLIENT_ID) return;
-      if(payload.new?.state) applyCloudState(payload.new.state);
-    })
     .on('broadcast',{event:'state'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
       if(payload.payload?.state) applyCloudState(payload.payload.state);
@@ -3067,19 +3058,11 @@ async function pollCloudState(){
 function scheduleCloudSave(nextState=state,immediate=false){
   if(applyingCloudState||!cloudReady) return;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer=setTimeout(()=>saveCloudState(nextState),immediate?0:350);
+  cloudSaveTimer=setTimeout(()=>saveCloudState(nextState),immediate?0:1200);
 }
 async function saveCloudState(nextState){
   if(!cloudReady||applyingCloudState) return;
   let remoteState=latestCloudState;
-  try{
-    const {data}=await cloudClient.from(CLOUD_TABLE).select('state,updated_at').eq('id',CLOUD_CAMPAIGN_ID).maybeSingle();
-    if(data?.state){
-      remoteState=data.state;
-      latestCloudState=data.state;
-      if(data.updated_at) cloudLastUpdated=data.updated_at;
-    }
-  }catch(e){}
   nextState=mergeBuilderStateBeforeSave(nextState,remoteState);
   const updatedAt=new Date().toISOString();
   await cloudClient.from(CLOUD_TABLE).upsert({

@@ -2805,6 +2805,7 @@ let showMapGrid = localStorage.getItem(`${STORAGE_PREFIX}:grid:${CLOUD_CAMPAIGN_
 let selectedMapIcon = MAP_ICONS[6];
 let revealRadius = 30;
 let fogRevision = 0;
+let fogRevealEvents = [];
 let placedIcons = [];
 let enemyTemplates = [];
 let selectedEnemyId = null;
@@ -2884,6 +2885,7 @@ let cloudPollTimer = null;
 let cloudLastUpdated = '';
 let cloudIdleTimer = null;
 let cloudPausedForIdle = false;
+let cloudFogAssetPruned = false;
 let critTimer = null;
 let campaignInfo = null;
 let campaignPortal = {publicNotes:'',dmNotes:'',recaps:[],sessions:[]};
@@ -4212,7 +4214,29 @@ function initFog(){
   fogCtx.fillRect(0,0,fogCanvas.width,fogCanvas.height);
   revealCtx.clearRect(0,0,revealCanvas.width,revealCanvas.height);
 }
-function revealAt(x,y,r){
+function normalizeFogRevealEvents(events=[]){
+  return (Array.isArray(events)?events:[])
+    .filter(ev=>ev && typeof ev==='object')
+    .map(ev=>{
+      if(ev.kind==='clearAll' || ev.kind==='reset') return {kind:ev.kind,at:Number(ev.at)||Date.now()};
+      return {
+        kind:'circle',
+        x:Math.round(Number(ev.x)||0),
+        y:Math.round(Number(ev.y)||0),
+        r:Math.max(1,Math.round(Number(ev.r)||0)),
+        at:Number(ev.at)||Date.now()
+      };
+    })
+    .filter(ev=>ev.kind!=='circle' || (ev.r>0 && Number.isFinite(ev.x) && Number.isFinite(ev.y)))
+    .slice(-900);
+}
+function recordFogReveal(x,y,r){
+  const ev={kind:'circle',x:Math.round(x),y:Math.round(y),r:Math.round(r),at:Date.now()};
+  const last=fogRevealEvents[fogRevealEvents.length-1];
+  if(last?.kind==='circle' && Math.hypot(ev.x-last.x,ev.y-last.y)<Math.max(10,ev.r*.25) && Math.abs(ev.r-last.r)<8) return;
+  fogRevealEvents=normalizeFogRevealEvents([...fogRevealEvents,ev]);
+}
+function drawRevealCircle(x,y,r){
   revealCtx.save();
   const g=revealCtx.createRadialGradient(x,y,0,x,y,r);
   g.addColorStop(0,'rgba(0,0,0,1)');
@@ -4223,7 +4247,26 @@ function revealAt(x,y,r){
   revealCtx.arc(x,y,r,0,Math.PI*2);
   revealCtx.fill();
   revealCtx.restore();
+}
+function revealAt(x,y,r,{record=true}={}){
+  drawRevealCircle(x,y,r);
+  if(record) recordFogReveal(x,y,r);
   applyReveal();
+}
+function replayFogRevealEvents(events=fogRevealEvents){
+  initFog();
+  for(const ev of normalizeFogRevealEvents(events)){
+    if(ev.kind==='clearAll'){
+      revealCtx.fillStyle='rgba(0,0,0,1)';
+      revealCtx.fillRect(0,0,revealCanvas.width,revealCanvas.height);
+    } else if(ev.kind==='reset'){
+      revealCtx.clearRect(0,0,revealCanvas.width,revealCanvas.height);
+    } else {
+      drawRevealCircle(ev.x,ev.y,ev.r);
+    }
+  }
+  applyReveal();
+  draw();
 }
 function applyReveal(){
   fogCtx.save();
@@ -6409,6 +6452,7 @@ function clearFog(){
   pushDMUndo('clear fog');
   revealCtx.fillStyle='rgba(0,0,0,1)';
   revealCtx.fillRect(0,0,revealCanvas.width,revealCanvas.height);
+  fogRevealEvents=normalizeFogRevealEvents([{kind:'clearAll',at:Date.now()}]);
   applyReveal();
   draw();
   syncFogNow('clear');
@@ -6418,6 +6462,7 @@ function resetFog(){
   if(!isDM()) return requireDM();
   pushDMUndo('reset fog');
   initFog();
+  fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
   revealAllCharacters();
   draw();
   syncFogNow('reset');
@@ -6425,13 +6470,8 @@ function resetFog(){
 }
 async function syncFogNow(reason='fog'){
   fogRevision=Date.now();
-  try{
-    await saveCloudAssets(true);
-  }catch(err){
-    console.warn('Fog asset sync failed',err);
-  }
   scheduleCloudSave(buildPersistedState(),true);
-  broadcast({type:'fogRefresh',fogRevision,reason});
+  broadcast({type:'fogRefresh',fogRevision,reason,fogRevealEvents:normalizeFogRevealEvents(fogRevealEvents)});
   broadcastCloudFog(fogRevision,reason);
 }
 function showConfirm(){ if(!isDM()) return requireDM(); document.getElementById('confirm-overlay').classList.add('show'); }
@@ -6444,6 +6484,7 @@ function doHardReset(){
   mapRevision=Date.now();
   rpMode=false;
   fogRevision=Date.now();
+  fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
   mapWorldLocked=false;
   setMapWorldSize(canvas.width || 1280, canvas.height || 720, false);
   placedIcons=[];
@@ -6806,18 +6847,18 @@ function handleSlippedStartOfTurn(id){
   });
   showCritOverlay(`${entryLabel(entry)} ${stoodUp?'gets up':'stays slipped'}`,stoodUp?'success':'fail','Grease');
 }
-function moveCharacterOnMap(ch,nextX,nextY,{announce=true}={}){
+function moveCharacterOnMap(ch,nextX,nextY,{announce=true,persist=true}={}){
   if(!ch) return false;
   if(!canMoveCharacterNow(ch) || !canSpendMovement(ch,nextX,nextY)) return false;
   const fromX=characterX(ch), fromY=characterY(ch);
   setCharacterPosition(ch,nextX,nextY);
   revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
-  syncCharacter(ch);
+  syncCharacter(ch,{persist});
   recordTurnMovement(ch,fromX,fromY,characterX(ch),characterY(ch));
   checkGreaseEntryForEntity(ch,'character',{x:fromX,y:fromY});
   if(announce) updateAllPanels();
   draw();
-  scheduleSave();
+  if(persist) scheduleSave();
   return true;
 }
 function handleCanvasTap(x,y,screenX=x,screenY=y){
@@ -7032,12 +7073,11 @@ canvas.addEventListener('mousemove',e=>{
   if(dragTarget==='player'){
     const active=getActiveCharacter();
     if(!active) return;
-    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false});
+    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false});
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
     broadcast({type:'iconUpdate',icon:dragTarget});
-    scheduleSave();
   }
   draw();
 });
@@ -7184,12 +7224,11 @@ canvas.addEventListener('touchmove',e=>{
   if(dragTarget==='player'){
     const active=getActiveCharacter();
     if(!active) return;
-    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false});
+    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false});
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
     broadcast({type:'iconUpdate',icon:dragTarget});
-    scheduleSave();
   }
   draw();
 },{passive:false});
@@ -7245,10 +7284,11 @@ document.getElementById('img-input').addEventListener('change',async e=>{
     mapRevision=Date.now();
     loadMapFromDataUrl(mapImageData,()=>{
       initFog();
+      fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
       revealAllCharacters();
       draw();
       saveState();
-      saveCloudAssets(true);
+      saveCloudAssets({includeFog:false,includeMap:true});
       updateMapLibraryUI();
       closeMapLibrary();
     },true);
@@ -7261,10 +7301,11 @@ document.getElementById('img-input').addEventListener('change',async e=>{
       mapRevision=Date.now();
       loadMapFromDataUrl(mapImageData,()=>{
         initFog();
+        fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
         revealAllCharacters();
         draw();
         saveState();
-        saveCloudAssets(true);
+        saveCloudAssets({includeFog:false,includeMap:true});
         updateMapLibraryUI();
         closeMapLibrary();
       },true);
@@ -7294,10 +7335,11 @@ function switchHostedMap(url,label=hostedMapLabel(url)){
   mapRevision=Date.now();
   loadMapFromUrl(mapUrl,()=>{
     initFog();
+    fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
     revealAllCharacters();
     draw();
     saveState();
-    saveCloudAssets(true);
+    saveCloudAssets({includeFog:false,includeMap:true});
     updateMapLibraryUI();
     closeMapLibrary();
   },true);
@@ -7608,6 +7650,7 @@ function applySceneSnapshot(scene,{announce=false,moveLocal=true,saveChange=true
   turnActionState={};
   const finish=()=>{
     initFog();
+    fogRevealEvents=normalizeFogRevealEvents([{kind:'reset',at:Date.now()}]);
     if(moveLocal) placeLocalCharactersAtSceneStart(scene);
     revealAllCharacters();
     setScenePreset(scenePreset);
@@ -12060,7 +12103,7 @@ function importCampaignBackup(){
         applyPersistedState(state);
         addChatMessage({kind:'backup',character:'DM',label:'Session backup imported',detail:file.name});
         saveState();
-        saveCloudAssets(true);
+        saveCloudAssets({includeFog:false,includeMap:!!(mapImageData||mapUrl)});
         scheduleCloudSave(buildPersistedState(),true);
       }catch(e){
         showCritOverlay('Import failed','fail');
@@ -12091,6 +12134,7 @@ function buildPersistedState(){
     mapWorldWidth,
     mapWorldHeight,
     fogRevision,
+    fogRevealEvents:normalizeFogRevealEvents(fogRevealEvents),
     campaign:campaignInfo,
     campaignPortal,
     sceneLibrary:sceneLibrary.map(normalizeScene),
@@ -12119,7 +12163,7 @@ function buildPersistedState(){
     turnActionState,
     tradeOffers:normalizeTradeOffers(tradeOffers),
     chatMessages:chatMessages.slice(-40),
-    fogRevealData: revealCanvas.width ? revealCanvas.toDataURL('image/png') : ''
+    fogRevealData: ''
   };
 }
 function saveState(){
@@ -12160,6 +12204,7 @@ function loadState(){
     mapRevision=Number(state.mapRevision)||0;
     if(Number(state.mapWorldWidth) && Number(state.mapWorldHeight)) setMapWorldSize(state.mapWorldWidth,state.mapWorldHeight,false);
     fogRevision=Number(state.fogRevision)||0;
+    fogRevealEvents=normalizeFogRevealEvents(state.fogRevealEvents||[]);
     placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
     areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
     soundZones=Array.isArray(state.soundZones) ? state.soundZones.map(hydrateSoundZone) : [];
@@ -12190,7 +12235,8 @@ function loadState(){
     syncSoundZoneControls();
     if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
     else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
-    if(state.fogRevealData) setTimeout(()=>loadRevealFromDataUrl(state.fogRevealData),80);
+    if(fogRevealEvents.length) setTimeout(()=>replayFogRevealEvents(),80);
+    else if(state.fogRevealData) setTimeout(()=>loadRevealFromDataUrl(state.fogRevealData),80);
     return true;
   }catch(e){ return false; }
 }
@@ -12277,7 +12323,9 @@ function applyPersistedState(state){
     mapRevision=incomingMapRevision || mapRevision;
   }
   const needsFogAsset=incomingFogRevision && incomingFogRevision>fogRevision;
+  const incomingFogEvents=normalizeFogRevealEvents(state.fogRevealEvents||[]);
   fogRevision=Math.max(fogRevision,incomingFogRevision);
+  fogRevealEvents=incomingFogEvents.length ? incomingFogEvents : fogRevealEvents;
   placedIcons=Array.isArray(state.placedIcons) ? state.placedIcons.map(hydratePlacedIcon) : [];
   areaEffects=Array.isArray(state.areaEffects) ? state.areaEffects.map(hydrateAreaEffect) : [];
   soundZones=Array.isArray(state.soundZones) ? state.soundZones.map(hydrateSoundZone) : [];
@@ -12309,15 +12357,16 @@ function applyPersistedState(state){
   updateAllPanels();
   if(mapUrl) loadMapFromUrl(mapUrl,()=>draw());
   else if(mapImageData) loadMapFromDataUrl(mapImageData,()=>draw());
-  else if(needsAssetMap) loadCloudAssets();
+  else if(needsAssetMap) loadCloudAssets({map:true,fog:false});
   else { mapImg=null; draw(); }
   initFog();
   if(shouldApplySceneStart){
     placeLocalCharactersAtSceneStart(sceneById(activeSceneId));
     localStorage.setItem(sceneStartKey,String(activeSceneAppliedAt));
   }
-  if(state.fogRevealData) loadRevealFromDataUrl(state.fogRevealData);
-  else if(needsFogAsset) loadCloudAssets();
+  if(incomingFogEvents.length) replayFogRevealEvents(incomingFogEvents);
+  else if(state.fogRevealData) loadRevealFromDataUrl(state.fogRevealData);
+  else if(needsFogAsset) loadCloudAssets({map:false,fog:true});
   else revealAllCharacters();
   draw();
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
@@ -12387,15 +12436,6 @@ function initSupabaseCloud(){
   if(cloudChannel) cloudClient.removeChannel(cloudChannel);
   cloudChannel = cloudClient
     .channel(`campaign-state:${CLOUD_CAMPAIGN_ID}`)
-    .on('postgres_changes',{
-      event:'*',
-      schema:'public',
-      table:CLOUD_TABLE,
-      filter:`id=eq.${CLOUD_CAMPAIGN_ID}`
-    },payload=>{
-      if(payload.new?.updated_by===CLOUD_CLIENT_ID) return;
-      if(payload.new?.state){ latestCloudState=payload.new.state; applyPersistedState(payload.new.state); }
-    })
     .on('broadcast',{event:'state'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
       if(payload.payload?.state){ latestCloudState=payload.payload.state; applyPersistedState(payload.payload.state); }
@@ -12409,7 +12449,13 @@ function initSupabaseCloud(){
       const incoming=Number(payload.payload?.fogRevision)||Date.now();
       if(incoming>=fogRevision){
         fogRevision=incoming;
-        loadCloudAssets();
+        const events=normalizeFogRevealEvents(payload.payload?.fogRevealEvents||[]);
+        if(events.length){
+          fogRevealEvents=events;
+          replayFogRevealEvents(events);
+        } else {
+          loadCloudAssets({map:false,fog:true});
+        }
       }
     })
     .subscribe();
@@ -12461,10 +12507,10 @@ async function loadCloudState(){
     latestCloudState=stripCloudState(data.state);
     applyPersistedState(data.state);
     if(data.state.mapImageData || data.state.fogRevealData){
-      await saveCloudAssets(true);
+      await saveCloudAssets({includeFog:false,includeMap:!!data.state.mapImageData});
       scheduleCloudSave(data.state,true);
     } else if(data.state.mapRevision && !mapImageData && !data.state.mapUrl){
-      loadCloudAssets();
+      loadCloudAssets({map:true,fog:false});
     }
   }
   else scheduleCloudSave(buildPersistedState(),true);
@@ -12485,7 +12531,7 @@ async function pollCloudState(){
 function scheduleCloudSave(state=buildPersistedState(),immediate=false){
   if(applyingCloudState || !cloudReady) return;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer=setTimeout(()=>saveCloudState(state), immediate ? 0 : 350);
+  cloudSaveTimer=setTimeout(()=>saveCloudState(state), immediate ? 0 : 1200);
 }
 async function saveCloudState(state){
   if(!cloudReady || applyingCloudState) return;
@@ -12501,6 +12547,7 @@ async function saveCloudState(state){
   cloudLastUpdated=updatedAt;
   latestCloudState=state;
   broadcastCloudState(state);
+  pruneLegacyCloudFogAsset(state);
 }
 function mergeCloudStateBeforeSave(state){
   if(!latestCloudState) return state;
@@ -12521,43 +12568,63 @@ function stripCloudState(state){
   const {mapImageData:_mapImageData,fogRevealData:_fogRevealData,...lightState}=state || {};
   return {...lightState,assetMode:'split-v1'};
 }
-async function loadCloudAssets(){
+async function loadCloudAssets({map=true,fog=true}={}){
   if(!cloudReady) return;
+  const columns=['map_revision','updated_at'];
+  if(map) columns.push('map_image_data');
+  if(fog) columns.push('fog_reveal_data');
   const {data,error}=await cloudClient
     .from(CLOUD_ASSETS_TABLE)
-    .select('map_image_data,map_revision,fog_reveal_data,updated_at')
+    .select(columns.join(','))
     .eq('id',CLOUD_CAMPAIGN_ID)
     .maybeSingle();
   if(error || !data) return;
   const assetRevision=Number(data.map_revision)||0;
-  if(!mapUrl && data.map_image_data && (!mapImageData || assetRevision>=mapRevision)){
+  if(map && !mapUrl && data.map_image_data && (!mapImageData || assetRevision>=mapRevision)){
     mapImageData=data.map_image_data;
     mapRevision=assetRevision;
     loadMapFromDataUrl(mapImageData,()=>draw());
   }
-  if(data.fog_reveal_data) setTimeout(()=>loadRevealFromDataUrl(data.fog_reveal_data),80);
-  if(data.fog_reveal_data) fogRevision=Math.max(fogRevision,assetRevision);
+  if(fog && data.fog_reveal_data) setTimeout(()=>loadRevealFromDataUrl(data.fog_reveal_data),80);
+  if(fog && data.fog_reveal_data) fogRevision=Math.max(fogRevision,assetRevision);
   try{ localStorage.setItem(storageKey(),JSON.stringify(buildPersistedState())); }catch(e){}
 }
-async function saveCloudAssets(includeFog=false){
-  if(!cloudReady || (!mapImageData && !includeFog)) return;
+async function saveCloudAssets(options=false){
+  const includeFog=typeof options==='object' ? !!options.includeFog : !!options;
+  const includeMap=typeof options==='object' ? !!options.includeMap : !includeFog;
+  if(!cloudReady || (!mapImageData && !includeFog && !includeMap)) return;
   const asset={
     id:CLOUD_CAMPAIGN_ID,
     map_revision:Math.max(Number(mapRevision)||0,Number(fogRevision)||0) || Date.now(),
     updated_by:CLOUD_CLIENT_ID,
     updated_at:new Date().toISOString()
   };
-  if(mapUrl) asset.map_image_data=null;
-  else if(mapImageData) asset.map_image_data=mapImageData;
+  if(includeMap){
+    if(mapUrl) asset.map_image_data=null;
+    else if(mapImageData) asset.map_image_data=mapImageData;
+  }
   if(includeFog && revealCanvas.width) asset.fog_reveal_data=revealCanvas.toDataURL('image/png');
+  else if(includeMap) asset.fog_reveal_data=null;
   await cloudClient.from(CLOUD_ASSETS_TABLE).upsert(asset);
+}
+async function pruneLegacyCloudFogAsset(state=latestCloudState){
+  if(cloudFogAssetPruned || !cloudReady || !state?.fogRevealEvents?.length) return;
+  cloudFogAssetPruned=true;
+  try{
+    await cloudClient.from(CLOUD_ASSETS_TABLE).upsert({
+      id:CLOUD_CAMPAIGN_ID,
+      fog_reveal_data:null,
+      updated_by:CLOUD_CLIENT_ID,
+      updated_at:new Date().toISOString()
+    });
+  }catch(e){}
 }
 function broadcastCloudFog(fogRevision,reason='fog'){
   if(!cloudReady || !cloudChannel) return;
   cloudChannel.send({
     type:'broadcast',
     event:'fog-refresh',
-    payload:{fogRevision,reason,updated_by:CLOUD_CLIENT_ID}
+    payload:{fogRevision,reason,fogRevealEvents:normalizeFogRevealEvents(fogRevealEvents),updated_by:CLOUD_CLIENT_ID}
   });
 }
 function broadcastCloudState(state){
@@ -12586,13 +12653,13 @@ function broadcast(msg){
   const str=JSON.stringify(msg);
   if(ws&&wsReady) ws.send(str); else pendingMsgs.push(str);
 }
-function syncCharacter(ch){
+function syncCharacter(ch,{persist=true}={}){
   if(!ch) return;
   ch.derived=calculateDerived(ch);
   ch.updatedAt=new Date().toISOString();
   if(canControlCharacter(ch)) characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:Date.now()};
   broadcast({type:'characterState',character:ch,characterClaims});
-  scheduleSave();
+  if(persist) scheduleSave();
 }
 function syncAllCharacters(){
   reconcileLocalClaims();
@@ -12716,7 +12783,13 @@ function connectWS(){
           const incoming=Number(msg.fogRevision)||Date.now();
           if(incoming>=fogRevision){
             fogRevision=incoming;
-            loadCloudAssets();
+            const events=normalizeFogRevealEvents(msg.fogRevealEvents||[]);
+            if(events.length){
+              fogRevealEvents=events;
+              replayFogRevealEvents(events);
+            } else {
+              loadCloudAssets({map:false,fog:true});
+            }
           }
         } else if(msg.type==='combatMode'){
           combatMode=msg.combatMode===true;
