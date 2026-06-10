@@ -1940,6 +1940,7 @@ function hydrateCharacter(raw={}){
     bonusActions:Array.isArray(raw.bonusActions) ? raw.bonusActions.map(normalizeTextItem) : [],
     spellSlotUsage:raw.spellSlotUsage && typeof raw.spellSlotUsage==='object' ? raw.spellSlotUsage : {},
     featureUsage:raw.featureUsage && typeof raw.featureUsage==='object' ? raw.featureUsage : {},
+    levelUpBackups:Array.isArray(raw.levelUpBackups) ? raw.levelUpBackups.slice(0,3) : [],
     updatedAt:raw.updatedAt || '',
     owner:raw.owner || myId
   };

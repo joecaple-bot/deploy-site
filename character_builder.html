@@ -1027,6 +1027,7 @@ function hydrateCharacter(raw={}){
     bonusActions:Array.isArray(raw.bonusActions)?raw.bonusActions.map(normalizeTextItem):[],
     spellSlotUsage:raw.spellSlotUsage&&typeof raw.spellSlotUsage==='object'?raw.spellSlotUsage:{},
     featureUsage:raw.featureUsage&&typeof raw.featureUsage==='object'?raw.featureUsage:{},
+    levelUpBackups:Array.isArray(raw.levelUpBackups)?raw.levelUpBackups.slice(0,3):[],
     accountOwnerUserId:raw.accountOwnerUserId||'',
     updatedAt:raw.updatedAt||'',
     owner:raw.owner||BUILDER_PLAYER_ID
@@ -1252,7 +1253,7 @@ function preserveBuilderAuthoredFields(local={},merged={}){
   const keep=[
     'name','race','class','subclass','level','background','alignment','notes','stats','skills',
     'overrides','weapons','spells','abilities','bonusActions','icon','color','tokenArt','tokenScale',
-    'accountOwnerUserId','owner','updatedAt'
+    'levelUpBackups','accountOwnerUserId','owner','updatedAt'
   ];
   const out={...merged};
   for(const key of keep){
@@ -1563,6 +1564,7 @@ function setup(){
     document.getElementById(id).addEventListener('input',()=>{renderLive();scheduleSave()});
     document.getElementById(id).addEventListener('change',()=>{renderLive();scheduleSave()});
   });
+  document.getElementById('level').addEventListener('change',()=>{levelUpDraft=null;document.getElementById('level-up-overlay')?.classList.remove('show')});
   document.getElementById('class').addEventListener('change',()=>renderSubclassOptions());
   readStorage();
   renderAll();
@@ -1638,6 +1640,7 @@ function readFormFor(existing=null){
     spellSlotUsage:readSpellSlotUsage(),
     abilities:readTextItems('ability'),
     bonusActions:readTextItems('bonus-action'),
+    levelUpBackups:Array.isArray(existing?.levelUpBackups)?existing.levelUpBackups.slice(0,3):[],
     accountOwnerUserId:authUser?.id||existing?.accountOwnerUserId||'',
     owner:BUILDER_PLAYER_ID
   };
@@ -2026,10 +2029,12 @@ function renderSpellCatalogue(ch=selected()){
   const levels=[...new Set(spells.map(s=>Number(s.level)||0))].sort((a,b)=>a-b);
   const currentLevel=levelSelect.value;
   levelSelect.innerHTML=levels.map(l=>`<option value="${l}" ${String(l)===currentLevel?'selected':''}>${l===0?'Cantrips':`Level ${l}`}</option>`).join('') || '<option>No class spells</option>';
+  if(levels.length && !levels.some(l=>String(l)===String(levelSelect.value))) levelSelect.value=String(levels[0]);
   const chosenLevel=Number(levelSelect.value||levels[0]||0);
   const options=spells.filter(s=>Number(s.level)===chosenLevel);
   const currentSpell=spellSelect.value;
   spellSelect.innerHTML=options.map(spell=>`<option value="${escapeAttr(spell.name)}" ${spell.name===currentSpell?'selected':''}>${escapeHtml(spell.name)} · ${escapeHtml(spell.actionCost||'action')}</option>`).join('');
+  if(options.length && !options.some(spell=>spell.name===spellSelect.value)) spellSelect.value=options[0].name;
   const picked=options.find(s=>s.name===spellSelect.value)||options[0];
   preview.textContent=picked ? `${cls} ${picked.level===0?'cantrip':`level ${picked.level}`} · ${picked.castingTime||'action'} · ${picked.actionType} · ${picked.range||'range varies'}` : `${cls} has no spells available at this level.`;
   const showPicked=()=>{
@@ -2064,7 +2069,8 @@ function removeActionItem(type,id){
   syncActionItemsToCharacter();
   const ch=selected();
   ch[type+'s']=(ch[type+'s']||[]).filter(item=>item.id!==id);
-  renderActionItems();
+  renderActionItems(ch);
+  renderLive();
   scheduleSave();
 }
 function skillLabel(skill){return skill.replace(/([a-z])([A-Z])/g,'$1 $2')}
@@ -2258,6 +2264,41 @@ function closeLevelUpModal(){
   document.getElementById('level-up-overlay')?.classList.remove('show');
   levelUpDraft=null;
 }
+function levelUpBackupSnapshot(ch){
+  const copy=JSON.parse(JSON.stringify(hydrateCharacter(ch||{})));
+  delete copy.levelUpBackups;
+  return copy;
+}
+function pushLevelUpBackup(ch,before,nextLevel){
+  if(!ch||!before) return;
+  ch.levelUpBackups=[
+    {
+      id:'level_'+Date.now()+Math.random().toString(36).slice(2,6),
+      fromLevel:Number(before.level)||1,
+      toLevel:Number(nextLevel)||Number(ch.level)||1,
+      createdAt:new Date().toISOString(),
+      character:before
+    },
+    ...(Array.isArray(ch.levelUpBackups)?ch.levelUpBackups:[])
+  ].slice(0,3);
+}
+function revertLastLevelUp(){
+  commitForm();
+  const ch=selected();
+  const backup=ch?.levelUpBackups?.[0];
+  if(!ch||!backup?.character) return toast('No level-up backup found');
+  if(!confirm(`Revert ${ch.name} from level ${ch.level} back to level ${backup.fromLevel}?`)) return;
+  const restored=hydrateCharacter({
+    ...backup.character,
+    levelUpBackups:(ch.levelUpBackups||[]).slice(1)
+  });
+  const i=state.myCharacters.findIndex(c=>c.id===ch.id);
+  if(i>=0) state.myCharacters[i]=restored;
+  selectedId=restored.id;
+  levelUpDraft=null;
+  renderAll();
+  writeStorage('Level-up reverted',{skipCommit:true});
+}
 function renderLevelUpModal(){
   const overlay=document.getElementById('level-up-overlay');
   const ch=selected();
@@ -2352,6 +2393,7 @@ function applyLevelUpModal(){
   if(!ch||!draft) return;
   syncTextItemsToCharacter();
   syncActionItemsToCharacter();
+  const beforeLevelUp=levelUpBackupSnapshot(ch);
   const hpChoice=document.querySelector('input[name="level-hp"]:checked')?.value;
   const hp=hpChoice==='custom'?Number(document.getElementById('level-custom-hp')?.value)||draft.averageHP:Number(hpChoice)||draft.averageHP;
   document.getElementById('level').value=draft.nextLevel;
@@ -2394,6 +2436,7 @@ function applyLevelUpModal(){
   }
   ch.level=draft.nextLevel;
   ch.currentHP=Math.max(Math.max(draft.minHP,hp),Number(ch.currentHP)||0);
+  pushLevelUpBackup(ch,beforeLevelUp,draft.nextLevel);
   renderTextItems('ability',ch.abilities);
   renderActionItems(ch);
   closeLevelUpModal();
@@ -2430,6 +2473,7 @@ function renderLevelHelper(ch=selected()){
   el.innerHTML=`
     <div class="level-actions">
       <button class="primary" onclick="levelUpSelected()">Level up +1</button>
+      ${(ch.levelUpBackups||[]).length?`<button class="danger" onclick="revertLastLevelUp()">Revert last level-up</button>`:''}
       <button onclick="addSuggestedAbility('Level ${ch.level} Feature','Describe the new feature gained at level ${ch.level}.')">Add level feature</button>
       ${cls.spellSlots(ch.level)>0?`<button onclick="addSuggestedSpell('New Spell','d6')">Add spell</button>`:''}
     </div>
