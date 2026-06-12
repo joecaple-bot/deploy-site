@@ -132,7 +132,7 @@ async function joinCampaign(idArg='',passArg=''){
 }
 function unlockKey(id){return `${CAMPAIGN_UNLOCK_PREFIX}:${id}`}
 async function loadCampaigns(){
-  const {data}=await client.from(CLOUD_TABLE).select('id,state,updated_at').order('updated_at',{ascending:false}).limit(30);
+  const {data}=await client.from(CLOUD_TABLE).select('id,updated_at').order('updated_at',{ascending:false}).limit(30);
   campaigns=data||[];
   renderCampaigns();
 }
@@ -141,7 +141,7 @@ function renderCampaigns(){
   const el=document.getElementById('campaign-list');
   el.innerHTML=campaigns.map(row=>{
     const meta=row.state?.campaign||{};
-    const locked=!!meta.passwordHash&&!localStorage.getItem(unlockKey(row.id));
+    const locked=false;
     return `<div class="campaign ${row.id===current?'active':''}">
       <div><div class="name">${escapeHtml(meta.name||row.id)} ${locked?'🔒':''}</div><div class="meta">${escapeHtml(row.id)} · ${new Date(row.updated_at).toLocaleString()}</div></div>
       <div class="actions"><button onclick="prepareJoin('${row.id}')">Join</button><button onclick="openMap('${row.id}')">Map</button></div>

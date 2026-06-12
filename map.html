@@ -1776,6 +1776,7 @@ const SUPABASE_URL = 'https://timefqpkuuiggxysjqap.supabase.co';
 const SUPABASE_PUBLIC_KEY = 'sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
 const CLOUD_TABLE = 'campaign_states';
 const CLOUD_ASSETS_TABLE = 'campaign_assets';
+const CLOUD_STORE_UPLOADED_MAP_ASSETS = false;
 const CLOUD_FALLBACK_POLL_MS = 10000;
 const CLOUD_IDLE_MS = 5 * 60 * 1000;
 const CLOUD_CLIENT_ID = 'client_' + Math.random().toString(36).slice(2,10);
@@ -1941,6 +1942,8 @@ function hydrateCharacter(raw={}){
     spellSlotUsage:raw.spellSlotUsage && typeof raw.spellSlotUsage==='object' ? raw.spellSlotUsage : {},
     featureUsage:raw.featureUsage && typeof raw.featureUsage==='object' ? raw.featureUsage : {},
     levelUpBackups:Array.isArray(raw.levelUpBackups) ? raw.levelUpBackups.slice(0,3) : [],
+    campaignId:raw.campaignId || '',
+    campaignIds:Array.isArray(raw.campaignIds) ? raw.campaignIds.filter(Boolean).map(String) : (raw.campaignId ? [String(raw.campaignId)] : []),
     updatedAt:raw.updatedAt || '',
     owner:raw.owner || myId
   };
@@ -1948,6 +1951,29 @@ function hydrateCharacter(raw={}){
   if(!hasCurrentHP) character.currentHP=character.derived.HP;
   character.currentHP=Math.max(0,Math.min(character.derived.HP,character.currentHP));
   return character;
+}
+function characterCampaignIds(ch){
+  const ids=new Set();
+  if(ch?.campaignId) ids.add(String(ch.campaignId));
+  if(Array.isArray(ch?.campaignIds)) ch.campaignIds.forEach(id=>{ if(id) ids.add(String(id)); });
+  return [...ids];
+}
+function characterBelongsToCurrentCampaign(ch,{allowLegacy=true}={}){
+  const ids=characterCampaignIds(ch);
+  if(!ids.length) return allowLegacy;
+  return ids.includes(CLOUD_CAMPAIGN_ID);
+}
+function stampCharacterForCurrentCampaign(ch){
+  const hydrated=hydrateCharacter(ch);
+  const ids=new Set(characterCampaignIds(hydrated));
+  ids.add(CLOUD_CAMPAIGN_ID);
+  return hydrateCharacter({...hydrated,campaignId:CLOUD_CAMPAIGN_ID,campaignIds:[...ids]});
+}
+function campaignScopedCharacters(characters=[],options={}){
+  const allowLegacy=options.allowLegacy!==false;
+  return (characters||[])
+    .filter(ch=>characterBelongsToCurrentCampaign(ch,{allowLegacy}))
+    .map(stampCharacterForCurrentCampaign);
 }
 function normalizeActionItem(item={}){
   const overrides=spellControlOverrides(item);
@@ -2861,6 +2887,7 @@ let sceneLibrary = [];
 let selectedSceneId = '';
 let activeSceneId = '';
 let activeSceneAppliedAt = 0;
+let sceneDeletedIds = {};
 let pendingSceneStartPreset = 'center';
 let diceAnimTimers = [];
 let dice3DState = { renderer:null, scene:null, camera:null, group:null, mesh:null, edges:null, frame:null, models:{}, loadings:{} };
@@ -4228,7 +4255,7 @@ function normalizeFogRevealEvents(events=[]){
       };
     })
     .filter(ev=>ev.kind!=='circle' || (ev.r>0 && Number.isFinite(ev.x) && Number.isFinite(ev.y)))
-    .slice(-900);
+    .slice(-360);
 }
 function recordFogReveal(x,y,r){
   const ev={kind:'circle',x:Math.round(x),y:Math.round(y),r:Math.round(r),at:Date.now()};
@@ -4443,6 +4470,8 @@ function remoteCharacterKey(ch){
 }
 function storeRemoteCharacter(ch){
   if(!ch || !ch.id) return null;
+  if(!characterBelongsToCurrentCampaign(ch,{allowLegacy:true})) return null;
+  ch=stampCharacterForCurrentCampaign(ch);
   const key=remoteCharacterKey(ch);
   if(ch.owner && remoteCharacters[ch.id]?.owner===ch.owner) delete remoteCharacters[ch.id];
   remoteCharacters[key]=ch;
@@ -5315,6 +5344,17 @@ function setLocalTarget(uid){
     else localStorage.removeItem(LOCAL_TARGET_KEY);
   }catch(e){}
 }
+function localTargetLabel(uid=selectedTargetUid){
+  const enemy=uid ? enemyByUid(uid) : null;
+  if(enemy) return enemy.name || 'Enemy';
+  const character=uid ? characterById(uid) : null;
+  if(character) return character.name || 'Character';
+  return '';
+}
+function showLocalTargetToast(uid=selectedTargetUid){
+  const label=localTargetLabel(uid);
+  if(label) showCritOverlay(`Target: ${label}`,'roll','Local Target');
+}
 function validateLocalTarget(){
   if(selectedTargetUid && !enemyByUid(selectedTargetUid) && !characterById(selectedTargetUid)) setLocalTarget(null);
 }
@@ -5600,7 +5640,7 @@ function updateRoleUI(){
     rpBtn.textContent=rpMode?'RP mode: On':'RP mode: Off';
     rpBtn.classList.toggle('active',rpMode);
   }
-  ['btn-place','btn-effect'].forEach(id=>document.getElementById(id)?.toggleAttribute('disabled',!isDM()));
+  ['btn-drag','btn-place','btn-effect','btn-sound','btn-3d-edit'].forEach(id=>document.getElementById(id)?.toggleAttribute('disabled',!isDM()));
   updateRPBoardMenu();
   applyRPBoardMood();
   updateMapToolDock();
@@ -6893,7 +6933,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
   if(enemy){
     setLocalTarget(enemy.uid);
     updateAllPanels();
-    addChatMessage({kind:'target',character:'Table',label:`Target set: ${enemy.name}`});
+    showLocalTargetToast(enemy.uid);
     updateCombatPopout();
     showEnemySheet(enemy,screenX,screenY);
     draw();
@@ -6902,7 +6942,7 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
   if(hit){
     setLocalTarget(hit.id);
     updateAllPanels();
-    addChatMessage({kind:'target',character:'Table',label:`Target set: ${hit.p.name}`});
+    showLocalTargetToast(hit.id);
     updateCombatPopout();
     showRadialMenu(hit.p,screenX,screenY);
     draw();
@@ -6946,7 +6986,9 @@ function handleCanvasTap(x,y,screenX=x,screenY=y){
     if(ic.kind==='trader') Object.assign(ic,hydratePlacedIcon(ic));
     if(ic.id==='chest') Object.assign(ic,hydratePlacedIcon({...ic,kind:'chest',name:`Level ${ic.chestLevel||1} Chest`}));
     placedIcons.push(ic);
+    if(ic.kind==='enemy') ensureEnemyInCombat(ic,{roll:true,announce:true,broadcastChange:false});
     broadcast({type:'icon',icon:ic});
+    if(ic.kind==='enemy') syncCombatState({persist:false,broadcastChange:true});
     draw();
     scheduleSave();
   } else if(mode==='effect'){
@@ -7460,6 +7502,42 @@ function buildSceneSnapshot(name){
   });
 }
 function sceneById(id){ return sceneLibrary.find(scene=>scene.id===id); }
+function sceneUpdatedMs(scene){
+  const value=scene?.updatedAt;
+  if(typeof value==='number') return value;
+  const parsed=Date.parse(value||'');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function normalizeSceneDeletedIds(raw={}){
+  const clean={};
+  for(const [id,value] of Object.entries(raw||{})){
+    if(!id) continue;
+    const stamp=typeof value==='number' ? value : Date.parse(value||'');
+    clean[id]=Number.isFinite(stamp) ? stamp : Date.now();
+  }
+  return clean;
+}
+function mergeSceneDeletedIds(...lists){
+  const merged={};
+  for(const list of lists){
+    for(const [id,stamp] of Object.entries(normalizeSceneDeletedIds(list))){
+      merged[id]=Math.max(Number(merged[id])||0,Number(stamp)||0);
+    }
+  }
+  return merged;
+}
+function mergeSceneLibraries(localScenes=[],remoteScenes=[]){
+  const byId=new Map();
+  const deleted=mergeSceneDeletedIds(sceneDeletedIds,latestCloudState?.sceneDeletedIds);
+  for(const raw of [...remoteScenes,...localScenes]){
+    const scene=normalizeScene(raw||{});
+    if(!scene.id) continue;
+    if((Number(deleted[scene.id])||0) >= sceneUpdatedMs(scene)) continue;
+    const existing=byId.get(scene.id);
+    if(!existing || sceneUpdatedMs(scene)>=sceneUpdatedMs(existing)) byId.set(scene.id,scene);
+  }
+  return Array.from(byId.values()).sort((a,b)=>sceneUpdatedMs(b)-sceneUpdatedMs(a));
+}
 function openSceneDeck(){
   if(!isDM()) return requireDM();
   document.getElementById('scene-deck-overlay')?.classList.add('show');
@@ -7581,6 +7659,7 @@ function deleteSelectedScene(){
   if(!isDM()) return requireDM();
   const scene=sceneById(selectedSceneId);
   if(!scene || !confirm(`Delete scene "${scene.name}"?`)) return;
+  sceneDeletedIds[scene.id]=Date.now();
   sceneLibrary=sceneLibrary.filter(item=>item.id!==scene.id);
   selectedSceneId=sceneLibrary[0]?.id || '';
   renderSceneDeck();
@@ -9329,15 +9408,13 @@ function clearActiveEnemy(){
 }
 function setTarget(uid){
   setLocalTarget(uid);
-  const enemy=enemyByUid(uid);
-  if(enemy) addChatMessage({kind:'target',character:'Table',label:`Target set: ${enemy.name}`});
-  const character=characterById(uid);
-  if(character) addChatMessage({kind:'target',character:'Table',label:`Target set: ${character.name}`});
+  showLocalTargetToast(uid);
   updateCombatPopout();
   draw();
 }
 function clearTarget(){
   setLocalTarget(null);
+  showCritOverlay('Target cleared','roll','Local Target');
   updateCombatPopout();
   draw();
 }
@@ -9692,6 +9769,7 @@ function killEnemy(uid){
   pushDMUndo('remove enemy');
   noteEnemyDefeated(enemy,'DM');
   placedIcons=placedIcons.filter(ic=>ic.uid!==uid);
+  removeFromCombatOrder(uid,{broadcastChange:false});
   if(selectedTargetUid===uid) setLocalTarget(null);
   if(activeEnemyUid===uid) activeEnemyUid=null;
   hideSheet();
@@ -9721,6 +9799,7 @@ function deleteMapIcon(uid){
   if(!icon) return;
   pushDMUndo('remove map icon');
   placedIcons=placedIcons.filter(ic=>ic.uid!==uid);
+  if(icon.kind==='enemy') removeFromCombatOrder(uid,{broadcastChange:false});
   hideSheet();
   broadcast({type:'iconDelete',uid});
   draw();
@@ -11832,6 +11911,51 @@ function showCritOverlay(text='Critical success',type='success',titleText=''){
   clearTimeout(critTimer);
   critTimer=setTimeout(()=>overlay.classList.remove('show'),2100);
 }
+function combatStatePayload(){
+  return {combatMode,initiativeRolls,turnOrder,activeTurnIndex,turnActionState};
+}
+function syncCombatState({persist=true,broadcastChange=true}={}){
+  turnOrder=turnOrder.filter(id=>turnEntityById(id));
+  if(activeTurnIndex>=turnOrder.length) activeTurnIndex=Math.max(0,turnOrder.length-1);
+  if(broadcastChange) broadcast({type:'combatState',...combatStatePayload()});
+  updateAllPanels();
+  if(persist) scheduleSave();
+}
+function enemyInitiativeBonus(enemy){
+  return enemyStatMod(enemy,'DEX');
+}
+function sortTurnOrderByInitiative(ids,preferredCurrentId=turnOrder[activeTurnIndex]||''){
+  const sorted=[...new Set(ids.filter(Boolean))].filter(id=>turnEntityById(id)).sort((a,b)=>(initiativeRolls[b]||0)-(initiativeRolls[a]||0));
+  const currentIndex=preferredCurrentId ? sorted.indexOf(preferredCurrentId) : -1;
+  turnOrder=sorted;
+  activeTurnIndex=currentIndex>=0 ? currentIndex : Math.min(activeTurnIndex,Math.max(0,turnOrder.length-1));
+}
+function ensureEnemyInCombat(enemy,{roll=true,announce=false,broadcastChange=true}={}){
+  if(!combatMode || !enemy?.uid || enemy.hp<=0) return false;
+  const before=turnOrder.join('|');
+  const currentId=turnOrder[activeTurnIndex] || '';
+  if(initiativeRolls[enemy.uid]==null && roll){
+    const init=rollDiceExpression('1d20',enemyInitiativeBonus(enemy));
+    initiativeRolls[enemy.uid]=init.total;
+    if(announce) addChatMessage({kind:'initiative',character:'DM',label:`${enemy.name} joins initiative ${init.total}`,detail:`1d20 ${formatBonus(enemyInitiativeBonus(enemy))}`});
+  } else if(initiativeRolls[enemy.uid]==null) {
+    initiativeRolls[enemy.uid]=enemyInitiativeBonus(enemy);
+  }
+  sortTurnOrderByInitiative([...turnOrder,enemy.uid],currentId);
+  const changed=before!==turnOrder.join('|');
+  if(changed && broadcastChange) syncCombatState({persist:true,broadcastChange:true});
+  return changed;
+}
+function removeFromCombatOrder(id,{broadcastChange=true}={}){
+  if(!id) return;
+  const currentId=turnOrder[activeTurnIndex] || '';
+  const before=turnOrder.join('|');
+  turnOrder=turnOrder.filter(item=>item!==id);
+  delete initiativeRolls[id];
+  const currentIndex=currentId ? turnOrder.indexOf(currentId) : -1;
+  activeTurnIndex=currentIndex>=0 ? currentIndex : Math.min(activeTurnIndex,Math.max(0,turnOrder.length-1));
+  if(before!==turnOrder.join('|')) syncCombatState({persist:true,broadcastChange});
+}
 function addToTurnOrder(id){
   if(!turnOrder.includes(id)) turnOrder.push(id);
   updateTurnOrder();
@@ -11934,10 +12058,10 @@ function rollPlayerInitiative(id=activeCharacterId){
   if(!ch) return;
   const roll=rollDiceExpression('1d20',ch.derived?.initiative||0);
   initiativeRolls[ch.id]=roll.total;
+  const currentId=turnOrder[activeTurnIndex] || '';
   const enemyIds=turnOrder.filter(id=>enemyByUid(id));
   const characterIds=Object.values(allCharactersById()).map(ch=>ch.id).filter(id=>initiativeRolls[id]!=null);
-  turnOrder=[...new Set([...enemyIds,...characterIds])].sort((a,b)=>(initiativeRolls[b]||0)-(initiativeRolls[a]||0));
-  activeTurnIndex=Math.max(0,Math.min(activeTurnIndex,turnOrder.length-1));
+  sortTurnOrderByInitiative([...enemyIds,...characterIds],currentId);
   addChatMessage({kind:'initiative',character:ch.name,label:`Initiative ${roll.total}`,detail:`1d20 ${formatBonus(ch.derived?.initiative||0)}`});
   broadcast({type:'initiativeRoll',characterId:ch.id,total:roll.total,character:ch});
   playSfx(sfxForRoll(roll.rolls[0],true));
@@ -12120,8 +12244,9 @@ function scheduleSave(){
 function buildPersistedState(){
   reconcileLocalClaims();
   const partyById={};
-  for(const ch of Object.values(remoteCharacters)) partyById[ch.id]=hydrateCharacter(ch);
-  for(const ch of myCharacters) partyById[ch.id]=hydrateCharacter({...ch,owner:myId,claimedBy:myId});
+  myCharacters=campaignScopedCharacters(myCharacters);
+  for(const ch of campaignScopedCharacters(Object.values(remoteCharacters))) partyById[ch.id]=stampCharacterForCurrentCampaign(ch);
+  for(const ch of myCharacters) partyById[ch.id]=stampCharacterForCurrentCampaign({...ch,owner:myId,claimedBy:myId});
   const partyCharacters=pruneGeneratedDefaultGhosts(Object.values(partyById));
   return {
     version:1,
@@ -12138,6 +12263,7 @@ function buildPersistedState(){
     campaign:campaignInfo,
     campaignPortal,
     sceneLibrary:sceneLibrary.map(normalizeScene),
+    sceneDeletedIds:normalizeSceneDeletedIds(sceneDeletedIds),
     selectedSceneId,
     activeSceneId,
     activeSceneAppliedAt,
@@ -12151,7 +12277,7 @@ function buildPersistedState(){
     soundZoneRadius,
     enemyTemplates,
     selectedEnemyId,
-    myCharacters,
+    myCharacters:myCharacters.map(stampCharacterForCurrentCampaign),
     partyCharacters,
     characterClaims,
     activeCharacterId,
@@ -12189,8 +12315,10 @@ function loadState(){
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
     campaignPortal=normalizeCampaignPortal(state.campaignPortal);
-    sceneLibrary=Array.isArray(state.sceneLibrary) ? state.sceneLibrary.map(normalizeScene) : [];
+    sceneDeletedIds=mergeSceneDeletedIds(sceneDeletedIds,state.sceneDeletedIds);
+    sceneLibrary=mergeSceneLibraries(Array.isArray(state.sceneLibrary) ? state.sceneLibrary : [], sceneLibrary);
     selectedSceneId=state.selectedSceneId || sceneLibrary[0]?.id || '';
+    if(selectedSceneId && !sceneById(selectedSceneId)) selectedSceneId=sceneLibrary[0]?.id || '';
     activeSceneId=state.activeSceneId || '';
     activeSceneAppliedAt=Number(state.activeSceneAppliedAt)||0;
     rpMode=state.rpMode===true;
@@ -12216,7 +12344,7 @@ function loadState(){
     enemyTemplates=Array.isArray(state.enemyTemplates) ? state.enemyTemplates.map(hydrateEnemyTemplate) : [];
     selectedEnemyId=state.selectedEnemyId || enemyTemplates[0]?.id || null;
     activeEnemyUid=null;
-    myCharacters=(state.myCharacters || []).map(hydrateCharacter);
+    myCharacters=campaignScopedCharacters(state.myCharacters || []);
     characterClaims=normalizeCharacterClaims(state.characterClaims);
     reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || myCharacters[0]?.id || null;
@@ -12243,8 +12371,8 @@ function loadState(){
 function applyCharacterStateFromCampaign(state){
   const ownerId=state.myId || state.ownerId || '';
   characterClaims=normalizeCharacterClaims(state.characterClaims || characterClaims);
-  const incomingParty=pruneGeneratedDefaultGhosts(Array.isArray(state.partyCharacters) ? state.partyCharacters : []);
-  const incomingLocal=pruneGeneratedDefaultGhosts(Array.isArray(state.myCharacters) ? state.myCharacters : []);
+  const incomingParty=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.partyCharacters) ? state.partyCharacters : []));
+  const incomingLocal=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.myCharacters) ? state.myCharacters : []));
   const allIncoming=pruneGeneratedDefaultGhosts(incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner})));
   const incomingIds=new Set(allIncoming.map(ch=>ch.id).filter(Boolean));
   if(incomingIds.size){
@@ -12258,7 +12386,7 @@ function applyCharacterStateFromCampaign(state){
     });
   }
   if(ownerId===myId){
-    myCharacters=incomingLocal.map(ch=>hydrateCharacter({...ch,owner:myId}));
+    myCharacters=incomingLocal.map(ch=>stampCharacterForCurrentCampaign({...ch,owner:myId}));
     reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || activeCharacterId || myCharacters[0]?.id || null;
   }
@@ -12266,14 +12394,14 @@ function applyCharacterStateFromCampaign(state){
     const chOwner=raw.owner || ownerId;
     const claim=characterClaim(raw.id);
     if(chOwner===myId || claim?.owner===myId){
-      const local=hydrateCharacter({...raw,owner:myId,claimedBy:myId});
+      const local=stampCharacterForCurrentCampaign({...raw,owner:myId,claimedBy:myId});
       const idx=myCharacters.findIndex(ch=>ch.id===local.id);
       if(idx>=0) myCharacters[idx]=local;
       else myCharacters.push(local);
       continue;
     }
     if(!chOwner) continue;
-    const ch=hydrateCharacter({...raw,owner:chOwner});
+    const ch=stampCharacterForCurrentCampaign({...raw,owner:chOwner});
     storeRemoteCharacter(ch);
   }
   if(activeCharacterId && !myCharacters.some(ch=>ch.id===activeCharacterId)){
@@ -12293,8 +12421,10 @@ function applyPersistedState(state){
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
   campaignPortal=normalizeCampaignPortal(state.campaignPortal);
-  sceneLibrary=Array.isArray(state.sceneLibrary) ? state.sceneLibrary.map(normalizeScene) : [];
-  selectedSceneId=state.selectedSceneId || sceneLibrary[0]?.id || '';
+  sceneDeletedIds=mergeSceneDeletedIds(sceneDeletedIds,state.sceneDeletedIds);
+  sceneLibrary=mergeSceneLibraries(Array.isArray(state.sceneLibrary) ? state.sceneLibrary : [], sceneLibrary);
+  selectedSceneId=state.selectedSceneId || selectedSceneId || sceneLibrary[0]?.id || '';
+  if(selectedSceneId && !sceneById(selectedSceneId)) selectedSceneId=sceneLibrary[0]?.id || '';
   activeSceneId=state.activeSceneId || '';
   activeSceneAppliedAt=Number(state.activeSceneAppliedAt)||0;
   const sceneStartKey=`dndSceneApplied:${CLOUD_CAMPAIGN_ID}:${myId}`;
@@ -12438,7 +12568,7 @@ function initSupabaseCloud(){
     .channel(`campaign-state:${CLOUD_CAMPAIGN_ID}`)
     .on('broadcast',{event:'state'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
-      if(payload.payload?.state){ latestCloudState=payload.payload.state; applyPersistedState(payload.payload.state); }
+      pollCloudState();
     })
     .on('broadcast',{event:'live-effect'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
@@ -12454,7 +12584,7 @@ function initSupabaseCloud(){
           fogRevealEvents=events;
           replayFogRevealEvents(events);
         } else {
-          loadCloudAssets({map:false,fog:true});
+          pollCloudState();
         }
       }
     })
@@ -12561,12 +12691,22 @@ function mergeCloudStateBeforeSave(state){
   if(remoteFogRev>localFogRev) state={...state,fogRevision:remoteFogRev};
   if(latestCloudState.campaign && !state.campaign) state.campaign=latestCloudState.campaign;
   if(latestCloudState.campaignPortal && !state.campaignPortal) state.campaignPortal=latestCloudState.campaignPortal;
+  state.sceneDeletedIds=mergeSceneDeletedIds(state.sceneDeletedIds,latestCloudState.sceneDeletedIds);
+  state.sceneLibrary=mergeSceneLibraries(state.sceneLibrary||[],latestCloudState.sceneLibrary||[]);
+  if(!state.selectedSceneId && latestCloudState.selectedSceneId) state.selectedSceneId=latestCloudState.selectedSceneId;
+  if(!state.activeSceneId && latestCloudState.activeSceneId) state.activeSceneId=latestCloudState.activeSceneId;
+  if(!state.activeSceneAppliedAt && latestCloudState.activeSceneAppliedAt) state.activeSceneAppliedAt=latestCloudState.activeSceneAppliedAt;
   state.tradeOffers=mergeTradeOffers(state.tradeOffers||[],latestCloudState.tradeOffers||[]);
   return state;
 }
 function stripCloudState(state){
   const {mapImageData:_mapImageData,fogRevealData:_fogRevealData,...lightState}=state || {};
-  return {...lightState,assetMode:'split-v1'};
+  return {
+    ...lightState,
+    fogRevealEvents:normalizeFogRevealEvents(lightState.fogRevealEvents||[]),
+    chatMessages:Array.isArray(lightState.chatMessages) ? lightState.chatMessages.slice(-30) : [],
+    assetMode:'split-v1'
+  };
 }
 async function loadCloudAssets({map=true,fog=true}={}){
   if(!cloudReady) return;
@@ -12600,7 +12740,7 @@ async function saveCloudAssets(options=false){
     updated_at:new Date().toISOString()
   };
   if(includeMap){
-    if(mapUrl) asset.map_image_data=null;
+    if(mapUrl || !CLOUD_STORE_UPLOADED_MAP_ASSETS) asset.map_image_data=null;
     else if(mapImageData) asset.map_image_data=mapImageData;
   }
   if(includeFog && revealCanvas.width) asset.fog_reveal_data=revealCanvas.toDataURL('image/png');
@@ -12624,7 +12764,7 @@ function broadcastCloudFog(fogRevision,reason='fog'){
   cloudChannel.send({
     type:'broadcast',
     event:'fog-refresh',
-    payload:{fogRevision,reason,fogRevealEvents:normalizeFogRevealEvents(fogRevealEvents),updated_by:CLOUD_CLIENT_ID}
+    payload:{fogRevision,reason,updated_by:CLOUD_CLIENT_ID}
   });
 }
 function broadcastCloudState(state){
@@ -12633,7 +12773,7 @@ function broadcastCloudState(state){
   cloudChannel.send({
     type:'broadcast',
     event:'state',
-    payload:{state,updated_by:CLOUD_CLIENT_ID}
+    payload:{updated_at:cloudLastUpdated,stateVersion:state.version||1,updated_by:CLOUD_CLIENT_ID}
   });
 }
 function broadcastCloudEffect(effect){
@@ -12655,6 +12795,7 @@ function broadcast(msg){
 }
 function syncCharacter(ch,{persist=true}={}){
   if(!ch) return;
+  ch=stampCharacterForCurrentCampaign(ch);
   ch.derived=calculateDerived(ch);
   ch.updatedAt=new Date().toISOString();
   if(canControlCharacter(ch)) characterClaims[ch.id]={owner:myId,label:ch.name||'Player',updatedAt:Date.now()};
@@ -12663,7 +12804,7 @@ function syncCharacter(ch,{persist=true}={}){
 }
 function syncAllCharacters(){
   reconcileLocalClaims();
-  broadcast({type:'partyState',characters:pruneGeneratedDefaultGhosts(myCharacters),characterClaims});
+  broadcast({type:'partyState',characters:pruneGeneratedDefaultGhosts(campaignScopedCharacters(myCharacters)),characterClaims});
 }
 function connectWS(){
   const dot=document.getElementById('dot'), stxt=document.getElementById('status-txt');
@@ -12711,7 +12852,11 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='icon'){
-          if(!placedIcons.some(i=>i.uid===msg.icon.uid)) placedIcons.push(hydratePlacedIcon(msg.icon));
+          if(!placedIcons.some(i=>i.uid===msg.icon.uid)){
+            const icon=hydratePlacedIcon(msg.icon);
+            placedIcons.push(icon);
+            if(icon.kind==='enemy') ensureEnemyInCombat(icon,{roll:false,announce:false,broadcastChange:false});
+          }
           draw();
           scheduleSave();
         } else if(msg.type==='iconUpdate'){
@@ -12745,6 +12890,7 @@ function connectWS(){
           scheduleSave();
         } else if(msg.type==='iconDelete'){
           placedIcons=placedIcons.filter(ic=>ic.uid!==msg.uid);
+          removeFromCombatOrder(msg.uid,{broadcastChange:false});
           if(selectedTargetUid===msg.uid) setLocalTarget(null);
           if(activeEnemyUid===msg.uid) activeEnemyUid=null;
           hideSheet();
@@ -12800,6 +12946,15 @@ function connectWS(){
           updateAllPanels();
           draw();
           scheduleSave();
+        } else if(msg.type==='combatState'){
+          combatMode=msg.combatMode===true;
+          initiativeRolls=msg.initiativeRolls||initiativeRolls;
+          turnOrder=Array.isArray(msg.turnOrder)?msg.turnOrder:turnOrder;
+          activeTurnIndex=Number(msg.activeTurnIndex)||0;
+          turnActionState=msg.turnActionState||{};
+          updateAllPanels();
+          draw();
+          scheduleSave();
         } else if(msg.type==='rpMode'){
           const nextRpMode=msg.rpMode===true;
           if(nextRpMode!==rpMode) applyRPMode(nextRpMode,{animate:true,saveChange:false});
@@ -12824,8 +12979,7 @@ function connectWS(){
         } else if(msg.type==='initiativeRoll'){
           if(msg.characterId) initiativeRolls[msg.characterId]=Number(msg.total)||0;
           if(msg.character) storeRemoteCharacter(hydrateCharacter({...msg.character,owner:msg.from}));
-          const ids=[...new Set([...turnOrder,msg.characterId].filter(Boolean))];
-          turnOrder=ids.sort((a,b)=>(initiativeRolls[b]||0)-(initiativeRolls[a]||0));
+          sortTurnOrderByInitiative([...turnOrder,msg.characterId],turnOrder[activeTurnIndex]||'');
           updateAllPanels();
           scheduleSave();
         } else if(msg.type==='turnAdvance'){

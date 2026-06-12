@@ -1029,6 +1029,8 @@ function hydrateCharacter(raw={}){
     featureUsage:raw.featureUsage&&typeof raw.featureUsage==='object'?raw.featureUsage:{},
     levelUpBackups:Array.isArray(raw.levelUpBackups)?raw.levelUpBackups.slice(0,3):[],
     accountOwnerUserId:raw.accountOwnerUserId||'',
+    campaignId:raw.campaignId||'',
+    campaignIds:Array.isArray(raw.campaignIds)?raw.campaignIds.filter(Boolean).map(String):(raw.campaignId?[String(raw.campaignId)]:[]),
     updatedAt:raw.updatedAt||'',
     owner:raw.owner||BUILDER_PLAYER_ID
   };
@@ -1036,6 +1038,38 @@ function hydrateCharacter(raw={}){
   if(!hasCurrentHP) character.currentHP=character.derived.HP;
   character.currentHP=Math.max(0,Math.min(character.derived.HP,character.currentHP));
   return character;
+}
+function characterCampaignIds(ch){
+  const ids=new Set();
+  if(ch?.campaignId) ids.add(String(ch.campaignId));
+  if(Array.isArray(ch?.campaignIds)) ch.campaignIds.forEach(id=>{ if(id) ids.add(String(id)); });
+  return [...ids];
+}
+function characterInCurrentCampaign(ch){
+  if(!authUser) return true;
+  return campaignCharacterIds.has(ch?.id) || characterCampaignIds(ch).includes(CLOUD_CAMPAIGN_ID);
+}
+function characterBelongsToCurrentCampaign(ch,{allowLegacy=true}={}){
+  const ids=characterCampaignIds(ch);
+  if(!ids.length) return allowLegacy;
+  return ids.includes(CLOUD_CAMPAIGN_ID);
+}
+function stampCharacterForCurrentCampaign(ch){
+  const hydrated=hydrateCharacter(ch);
+  const ids=new Set(characterCampaignIds(hydrated));
+  ids.add(CLOUD_CAMPAIGN_ID);
+  return hydrateCharacter({...hydrated,campaignId:CLOUD_CAMPAIGN_ID,campaignIds:[...ids]});
+}
+function removeCurrentCampaignFromCharacter(ch){
+  const hydrated=hydrateCharacter(ch);
+  const ids=characterCampaignIds(hydrated).filter(id=>id!==CLOUD_CAMPAIGN_ID);
+  return hydrateCharacter({...hydrated,campaignId:ids[0]||'',campaignIds:ids});
+}
+function campaignScopedCharacters(characters=[]){
+  return (characters||[])
+    .filter(ch=>!isDefaultGhostCharacter(ch))
+    .filter(characterInCurrentCampaign)
+    .map(stampCharacterForCurrentCampaign);
 }
 function normalizeActionItem(item={}){
   const overrides=spellControlOverrides(item);
@@ -1362,13 +1396,15 @@ async function loadAccountCharacters(){
   if(!client||!authUser) return;
   const {data,error}=await client.from('account_characters').select('id,character,updated_at').eq('owner_user_id',authUser.id).order('updated_at',{ascending:false});
   if(error){toast('Account character sync failed');return;}
+  const {data:campaignLinks}=await client.from('campaign_characters').select('character_id').eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('owner_user_id',authUser.id).eq('active',true);
+  campaignCharacterIds=new Set((campaignLinks||[]).map(row=>row.character_id));
   const accountChars=mergeCampaignRuntimeIntoCharacters((data||[]).map(row=>accountCharacterPayload({
     ...row.character,
     id:row.id,
     updatedAt:row.character?.updatedAt||row.updated_at||''
-  })),latestCloudState).filter(Boolean);
-  const {data:campaignLinks}=await client.from('campaign_characters').select('character_id').eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('owner_user_id',authUser.id).eq('active',true);
-  campaignCharacterIds=new Set((campaignLinks||[]).map(row=>row.character_id));
+  })),latestCloudState)
+    .filter(Boolean)
+    .map(ch=>campaignCharacterIds.has(ch.id) ? stampCharacterForCurrentCampaign(ch) : hydrateCharacter(ch));
   const offerImport=shouldOfferLocalImport(accountChars);
   if(offerImport){
     accountSyncEnabled=false;
@@ -1405,6 +1441,17 @@ async function saveAccountCharacters(){
     };
   });
   if(rows.length) await client.from('account_characters').upsert(rows);
+  const campaignRows=state.myCharacters
+    .filter(ch=>campaignCharacterIds.has(ch.id))
+    .filter(ch=>!isDefaultGhostCharacter(ch))
+    .map(ch=>({
+      campaign_id:CLOUD_CAMPAIGN_ID,
+      character_id:ch.id,
+      owner_user_id:authUser.id,
+      controller_user_id:authUser.id,
+      active:true
+    }));
+  if(campaignRows.length) await client.from('campaign_characters').upsert(campaignRows);
 }
 async function deleteAccountCharacter(characterId){
   const client=ensureSupabaseClient();
@@ -1426,9 +1473,14 @@ async function importSelectedLocalCharacters(){
   if(!authUser) return loginDiscord();
   const selectedIds=[...document.querySelectorAll('[data-import-character]:checked')].map(input=>input.dataset.importCharacter);
   const selectedSet=new Set(selectedIds);
-  const imports=pendingLocalImport.filter(ch=>selectedSet.has(ch.id)).map(ch=>accountCharacterPayload({...ch,accountOwnerUserId:authUser.id}));
+  const imports=pendingLocalImport
+    .filter(ch=>selectedSet.has(ch.id))
+    .map(ch=>stampCharacterForCurrentCampaign(accountCharacterPayload({...ch,accountOwnerUserId:authUser.id})));
   const existingIds=new Set(state.myCharacters.map(ch=>ch.id));
-  imports.forEach(ch=>{ if(!existingIds.has(ch.id)) state.myCharacters.push(ch); });
+  imports.forEach(ch=>{
+    campaignCharacterIds.add(ch.id);
+    if(!existingIds.has(ch.id)) state.myCharacters.push(ch);
+  });
   accountSyncEnabled=true;
   pendingLocalImport=[];
   localStorage.setItem(localImportDecisionKey(),'1');
@@ -1468,6 +1520,9 @@ async function attachSelectedToCampaign(){
     active:true
   });
   campaignCharacterIds.add(ch.id);
+  const idx=state.myCharacters.findIndex(item=>item.id===ch.id);
+  if(idx>=0) state.myCharacters[idx]=stampCharacterForCurrentCampaign(state.myCharacters[idx]);
+  await saveAccountCharacters();
   writeStorage(`${ch.name} added to campaign`);
   renderAccountUI();
 }
@@ -1479,6 +1534,9 @@ async function removeSelectedFromCampaign(){
   const client=ensureSupabaseClient();
   await client.from('campaign_characters').update({active:false,controller_user_id:null}).eq('campaign_id',CLOUD_CAMPAIGN_ID).eq('character_id',ch.id).eq('owner_user_id',authUser.id);
   campaignCharacterIds.delete(ch.id);
+  const idx=state.myCharacters.findIndex(item=>item.id===ch.id);
+  if(idx>=0) state.myCharacters[idx]=removeCurrentCampaignFromCharacter(state.myCharacters[idx]);
+  await saveAccountCharacters();
   renderAccountUI();
   toast(`${ch.name} removed from this campaign`);
 }
@@ -1511,20 +1569,28 @@ function writeStorage(message='Saved',options={}){
   if(!options.skipCommit&&!applyingCloudState&&document.getElementById('name')&&selectedId) commitForm();
   state.myCharacters=state.myCharacters.map(hydrateCharacter);
   state.myId=BUILDER_PLAYER_ID;
-  const editedCharacters=state.myCharacters
-    .filter(ch=>!isDefaultGhostCharacter(ch))
+  const editedCharacters=campaignScopedCharacters(state.myCharacters)
     .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
   const editedIds=new Set(editedCharacters.map(ch=>ch.id));
-  state.partyCharacters=[
+  const partyCharacters=[
     ...editedCharacters,
     ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
   ];
+  state.partyCharacters=partyCharacters;
   state.activeCharacterId=selectedId;
   if(!state.turnOrder?.length) state.turnOrder=state.myCharacters.map(c=>c.id);
+  const campaignActiveId=editedIds.has(selectedId) ? selectedId : editedCharacters[0]?.id || null;
+  const campaignState={
+    ...state,
+    myCharacters:editedCharacters,
+    partyCharacters,
+    activeCharacterId:campaignActiveId,
+    turnOrder:(state.turnOrder||[]).filter(id=>editedIds.has(id))
+  };
   try{
-    localStorage.setItem(storageKey(),JSON.stringify(state));
+    localStorage.setItem(storageKey(),JSON.stringify(campaignState));
     document.getElementById('save-state').textContent='Saved locally.';
-    scheduleCloudSave(state);
+    scheduleCloudSave(campaignState);
     if(authUser&&accountSyncEnabled) saveAccountCharacters().then(()=>renderAccountUI()).catch(()=>toast('Account sync failed'));
     toast(message);
   }catch(e){
@@ -1642,6 +1708,8 @@ function readFormFor(existing=null){
     bonusActions:readTextItems('bonus-action'),
     levelUpBackups:Array.isArray(existing?.levelUpBackups)?existing.levelUpBackups.slice(0,3):[],
     accountOwnerUserId:authUser?.id||existing?.accountOwnerUserId||'',
+    campaignId:existing?.campaignId||'',
+    campaignIds:Array.isArray(existing?.campaignIds)?existing.campaignIds:[],
     owner:BUILDER_PLAYER_ID
   };
   return hydrateCharacter(base);
@@ -2839,7 +2907,7 @@ function applyBeginnerPreset(kind){
   const preset=BEGINNER_PRESETS[kind];
   if(!preset) return;
   const existing=selected();
-  const ch=hydrateCharacter({
+  const ch=stampCharacterForCurrentCampaign({
     ...preset,
     id:existing?.id||selectedId,
     position:existing?.position||{x:null,y:null},
@@ -2849,6 +2917,7 @@ function applyBeginnerPreset(kind){
   const i=state.myCharacters.findIndex(c=>c.id===selectedId);
   if(i>=0) state.myCharacters[i]=ch;
   else state.myCharacters.push(ch);
+  campaignCharacterIds.add(ch.id);
   selectedId=ch.id;
   state.activeCharacterId=ch.id;
   renderAll();
@@ -2863,7 +2932,8 @@ function selectCharacter(id){
 }
 function newCharacter(){
   commitForm();
-  const ch=hydrateCharacter({id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:'New Character',color:randomColor(),accountOwnerUserId:authUser?.id||'',owner:BUILDER_PLAYER_ID});
+  const ch=stampCharacterForCurrentCampaign({id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:'New Character',color:randomColor(),accountOwnerUserId:authUser?.id||'',owner:BUILDER_PLAYER_ID});
+  campaignCharacterIds.add(ch.id);
   state.myCharacters.push(ch);
   selectedId=ch.id;
   state.activeCharacterId=ch.id;
@@ -2873,7 +2943,8 @@ function newCharacter(){
 }
 function duplicateCharacter(){
   commitForm();
-  const ch=hydrateCharacter({...selected(),id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:selected().name+' Copy',position:{x:null,y:null},accountOwnerUserId:authUser?.id||''});
+  const ch=stampCharacterForCurrentCampaign({...selected(),id:'c_'+Date.now()+Math.random().toString(36).slice(2,6),name:selected().name+' Copy',position:{x:null,y:null},accountOwnerUserId:authUser?.id||''});
+  campaignCharacterIds.add(ch.id);
   state.myCharacters.push(ch);
   selectedId=ch.id;
   renderAll();
@@ -2911,14 +2982,22 @@ function persistBeforeLeaving(){
     commitForm();
     state.myCharacters=state.myCharacters.map(hydrateCharacter);
     state.myId=BUILDER_PLAYER_ID;
-    const editedCharacters=state.myCharacters.map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
+    const editedCharacters=campaignScopedCharacters(state.myCharacters).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
     const editedIds=new Set(editedCharacters.map(ch=>ch.id));
-    state.partyCharacters=[
+    const partyCharacters=[
       ...editedCharacters,
       ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
     ];
+    state.partyCharacters=partyCharacters;
     state.activeCharacterId=selectedId;
-    try{ localStorage.setItem(storageKey(),JSON.stringify(state)); }catch(e){}
+    const campaignState={
+      ...state,
+      myCharacters:editedCharacters,
+      partyCharacters,
+      activeCharacterId:editedIds.has(selectedId) ? selectedId : editedCharacters[0]?.id || null,
+      turnOrder:(state.turnOrder||[]).filter(id=>editedIds.has(id))
+    };
+    try{ localStorage.setItem(storageKey(),JSON.stringify(campaignState)); }catch(e){}
   }
 }
 async function goToMap(shouldSave=true){
@@ -2944,8 +3023,10 @@ function importFromPrompt(){
   try{
     const ch=hydrateCharacter(JSON.parse(raw));
     ch.id='c_'+Date.now()+Math.random().toString(36).slice(2,6);
-    state.myCharacters.push(ch);
-    selectedId=ch.id;
+    const campaignCh=stampCharacterForCurrentCampaign(ch);
+    campaignCharacterIds.add(campaignCh.id);
+    state.myCharacters.push(campaignCh);
+    selectedId=campaignCh.id;
     renderAll();
     writeStorage('Imported character saved');
   }catch(e){toast('Import failed')}
@@ -2990,7 +3071,7 @@ function initSupabaseCloud(){
     .channel(`campaign-state:${CLOUD_CAMPAIGN_ID}`)
     .on('broadcast',{event:'state'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
-      if(payload.payload?.state) applyCloudState(payload.payload.state);
+      pollCloudState();
     })
     .subscribe();
   clearInterval(cloudPollTimer);
@@ -3064,6 +3145,7 @@ async function saveCloudState(nextState){
   if(!cloudReady||applyingCloudState) return;
   let remoteState=latestCloudState;
   nextState=mergeBuilderStateBeforeSave(nextState,remoteState);
+  nextState=stripCloudState(nextState);
   const updatedAt=new Date().toISOString();
   await cloudClient.from(CLOUD_TABLE).upsert({
     id:CLOUD_CAMPAIGN_ID,
@@ -3082,18 +3164,31 @@ function broadcastCloudState(nextState){
   cloudChannel.send({
     type:'broadcast',
     event:'state',
-    payload:{state:nextState,updated_by:CLOUD_CLIENT_ID}
+    payload:{updated_at:cloudLastUpdated,stateVersion:nextState.version||1,updated_by:CLOUD_CLIENT_ID}
   });
 }
 function stripCloudState(nextState){
   const {mapImageData:_mapImageData,fogRevealData:_fogRevealData,...lightState}=nextState||{};
-  return {...lightState,assetMode:'split-v1'};
+  return {
+    ...lightState,
+    fogRevealEvents:Array.isArray(lightState.fogRevealEvents) ? lightState.fogRevealEvents.slice(-360) : [],
+    chatMessages:Array.isArray(lightState.chatMessages) ? lightState.chatMessages.slice(-30) : [],
+    assetMode:'split-v1'
+  };
 }
 function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
   const cleanBuilder=stripCloudState(builderState);
-  if(!remoteState) return cleanBuilder;
+  const localCampaignCharacters=campaignScopedCharacters(cleanBuilder.myCharacters||[]);
+  if(!remoteState){
+    return {
+      ...cleanBuilder,
+      myCharacters:localCampaignCharacters,
+      partyCharacters:localCampaignCharacters,
+      activeCharacterId:localCampaignCharacters.some(ch=>ch.id===cleanBuilder.activeCharacterId) ? cleanBuilder.activeCharacterId : localCampaignCharacters[0]?.id || null
+    };
+  }
   const cleanRemote=stripCloudState(remoteState);
-  const localCharacters=(cleanBuilder.myCharacters||[]).map(hydrateCharacter);
+  const localCharacters=localCampaignCharacters.map(hydrateCharacter);
   const editedCharacters=mergeCampaignRuntimeIntoCharacters(localCharacters,cleanRemote)
     .map((merged,i)=>preserveBuilderAuthoredFields(localCharacters[i],merged))
     .filter(ch=>!isDefaultGhostCharacter(ch))
@@ -3104,7 +3199,11 @@ function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
     : (Array.isArray(cleanRemote.myCharacters) ? cleanRemote.myCharacters.map(ch=>({...ch,owner:cleanRemote.myId||ch.owner})) : []);
   const mergedParty=[
     ...editedCharacters,
-    ...remoteParty.filter(ch=>ch?.id && !editedIds.has(ch.id))
+    ...remoteParty
+      .filter(ch=>ch?.id && !editedIds.has(ch.id))
+      .filter(ch=>(ch.owner||cleanRemote.myId)!==BUILDER_PLAYER_ID)
+      .filter(ch=>characterBelongsToCurrentCampaign(ch,{allowLegacy:true}))
+      .map(stampCharacterForCurrentCampaign)
   ].map(hydrateCharacter);
   return {
     ...cleanRemote,
