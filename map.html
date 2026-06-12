@@ -1719,20 +1719,44 @@ const SKILL_DEFS = {
   Acrobatics:'DEX',AnimalHandling:'WIS',Arcana:'INT',Athletics:'STR',Deception:'CHA',History:'INT',Insight:'WIS',Intimidation:'CHA',Investigation:'INT',Medicine:'WIS',Nature:'INT',Perception:'WIS',Performance:'CHA',Persuasion:'CHA',Religion:'INT',SleightOfHand:'DEX',Stealth:'DEX',Survival:'WIS'
 };
 const CLASS_DEFS = {
-  Fighter:{hitDie:10,primary:'STR',resource:'Second Wind',resourceFormula:l=>1,abilities:['Second Wind','Action Surge','Weapon Mastery'],spellSlots:()=>0},
-  Wizard:{hitDie:6,primary:'INT',resource:'Mana',resourceFormula:l=>Math.max(2,l*4+abilityMod(10)),abilities:['Arcane Recovery','Cantrips','Spellbook'],spellSlots:l=>Math.ceil(l*1.5)},
+  Fighter:{hitDie:10,primary:'STR',resource:'Second Wind',resourceFormula:l=>1,abilities:['Second Wind','Action Surge','Weapon Mastery'],spellSlots:(l,cls='Fighter')=>totalSpellSlots(cls,l)},
+  Wizard:{hitDie:6,primary:'INT',resource:'Mana',resourceFormula:l=>Math.max(2,l*4+abilityMod(10)),abilities:['Arcane Recovery','Cantrips','Spellbook'],spellSlots:(l,cls='Wizard')=>totalSpellSlots(cls,l)},
   Rogue:{hitDie:8,primary:'DEX',resource:'Sneak Dice',resourceFormula:l=>Math.ceil(l/2),abilities:['Sneak Attack','Cunning Action','Expertise'],spellSlots:()=>0},
-  Cleric:{hitDie:8,primary:'WIS',resource:'Divinity',resourceFormula:l=>l>=18?3:l>=6?2:1,abilities:['Channel Divinity','Turn Undead','Divine Domain'],spellSlots:l=>Math.ceil(l*1.25)},
+  Cleric:{hitDie:8,primary:'WIS',resource:'Divinity',resourceFormula:l=>l>=18?3:l>=6?2:1,abilities:['Channel Divinity','Turn Undead','Divine Domain'],spellSlots:(l,cls='Cleric')=>totalSpellSlots(cls,l)},
   Barbarian:{hitDie:12,primary:'STR',resource:'Rage',resourceFormula:l=>l>=17?6:l>=12?5:l>=6?4:l>=3?3:2,abilities:['Rage','Reckless Attack','Danger Sense'],spellSlots:()=>0},
-  Bard:{hitDie:8,primary:'CHA',resource:'Inspiration',resourceFormula:l=>Math.max(1,abilityMod(14)),abilities:['Bardic Inspiration','Jack of All Trades','Song of Rest'],spellSlots:l=>Math.ceil(l*1.35)},
-  Druid:{hitDie:8,primary:'WIS',resource:'Wild Shape',resourceFormula:l=>2,abilities:['Wild Shape','Druidic','Circle Spells'],spellSlots:l=>Math.ceil(l*1.35)},
+  Bard:{hitDie:8,primary:'CHA',resource:'Inspiration',resourceFormula:l=>Math.max(1,abilityMod(14)),abilities:['Bardic Inspiration','Jack of All Trades','Song of Rest'],spellSlots:(l,cls='Bard')=>totalSpellSlots(cls,l)},
+  Druid:{hitDie:8,primary:'WIS',resource:'Wild Shape',resourceFormula:l=>2,abilities:['Wild Shape','Druidic','Circle Spells'],spellSlots:(l,cls='Druid')=>totalSpellSlots(cls,l)},
   Monk:{hitDie:8,primary:'DEX',resource:'Ki',resourceFormula:l=>l,abilities:['Martial Arts','Ki','Unarmored Movement'],spellSlots:()=>0},
-  Paladin:{hitDie:10,primary:'CHA',resource:'Lay on Hands',resourceFormula:l=>l*5,abilities:['Divine Smite','Lay on Hands','Aura'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.75))},
-  Ranger:{hitDie:10,primary:'DEX',resource:'Focus',resourceFormula:l=>proficiencyBonus(l),abilities:['Favored Foe','Natural Explorer','Hunter Magic'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.75))},
-  Sorcerer:{hitDie:6,primary:'CHA',resource:'Sorcery Points',resourceFormula:l=>Math.max(0,l),abilities:['Font of Magic','Metamagic','Bloodline'],spellSlots:l=>Math.ceil(l*1.45)},
-  Warlock:{hitDie:8,primary:'CHA',resource:'Pact Slots',resourceFormula:l=>l>=11?3:2,abilities:['Eldritch Invocations','Pact Magic','Patron'],spellSlots:l=>l>=11?3:l>=2?2:1},
-  Artificer:{hitDie:8,primary:'INT',resource:'Infusions',resourceFormula:l=>Math.max(2,Math.ceil(l/3)+1),abilities:['Infuse Item','Magical Tinkering','Specialist'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.85))}
+  Paladin:{hitDie:10,primary:'CHA',resource:'Lay on Hands',resourceFormula:l=>l*5,abilities:['Divine Smite','Lay on Hands','Aura'],spellSlots:(l,cls='Paladin')=>totalSpellSlots(cls,l)},
+  Ranger:{hitDie:10,primary:'DEX',resource:'Focus',resourceFormula:l=>proficiencyBonus(l),abilities:['Favored Foe','Natural Explorer','Hunter Magic'],spellSlots:(l,cls='Ranger')=>totalSpellSlots(cls,l)},
+  Sorcerer:{hitDie:6,primary:'CHA',resource:'Sorcery Points',resourceFormula:l=>Math.max(0,l),abilities:['Font of Magic','Metamagic','Bloodline'],spellSlots:(l,cls='Sorcerer')=>totalSpellSlots(cls,l)},
+  Warlock:{hitDie:8,primary:'CHA',resource:'Pact Slots',resourceFormula:l=>l>=11?3:2,abilities:['Eldritch Invocations','Pact Magic','Patron'],spellSlots:(l,cls='Warlock')=>totalSpellSlots(cls,l)},
+  Artificer:{hitDie:8,primary:'INT',resource:'Infusions',resourceFormula:l=>Math.max(2,Math.ceil(l/3)+1),abilities:['Infuse Item','Magical Tinkering','Specialist'],spellSlots:(l,cls='Artificer')=>totalSpellSlots(cls,l)}
 };
+const FULL_CASTER_SLOTS={
+  1:[2,0,0,0,0,0,0,0,0],2:[3,0,0,0,0,0,0,0,0],3:[4,2,0,0,0,0,0,0,0],4:[4,3,0,0,0,0,0,0,0],
+  5:[4,3,2,0,0,0,0,0,0],6:[4,3,3,0,0,0,0,0,0],7:[4,3,3,1,0,0,0,0,0],8:[4,3,3,2,0,0,0,0,0],
+  9:[4,3,3,3,1,0,0,0,0],10:[4,3,3,3,2,0,0,0,0],11:[4,3,3,3,2,1,0,0,0],12:[4,3,3,3,2,1,0,0,0],
+  13:[4,3,3,3,2,1,1,0,0],14:[4,3,3,3,2,1,1,0,0],15:[4,3,3,3,2,1,1,1,0],16:[4,3,3,3,2,1,1,1,0],
+  17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1]
+};
+const HALF_CASTER_SLOTS={
+  1:[0,0,0,0,0,0,0,0,0],2:[2,0,0,0,0,0,0,0,0],3:[3,0,0,0,0,0,0,0,0],4:[3,0,0,0,0,0,0,0,0],
+  5:[4,2,0,0,0,0,0,0,0],6:[4,2,0,0,0,0,0,0,0],7:[4,3,0,0,0,0,0,0,0],8:[4,3,0,0,0,0,0,0,0],
+  9:[4,3,2,0,0,0,0,0,0],10:[4,3,2,0,0,0,0,0,0],11:[4,3,3,0,0,0,0,0,0],12:[4,3,3,0,0,0,0,0,0],
+  13:[4,3,3,1,0,0,0,0,0],14:[4,3,3,1,0,0,0,0,0],15:[4,3,3,2,0,0,0,0,0],16:[4,3,3,2,0,0,0,0,0],
+  17:[4,3,3,3,1,0,0,0,0],18:[4,3,3,3,1,0,0,0,0],19:[4,3,3,3,2,0,0,0,0],20:[4,3,3,3,2,0,0,0,0]
+};
+const WARLOCK_PACT_SLOTS={1:[1,0,0,0,0,0,0,0,0],2:[2,0,0,0,0,0,0,0,0],3:[0,2,0,0,0,0,0,0,0],4:[0,2,0,0,0,0,0,0,0],5:[0,0,2,0,0,0,0,0,0],6:[0,0,2,0,0,0,0,0,0],7:[0,0,0,2,0,0,0,0,0],8:[0,0,0,2,0,0,0,0,0],9:[0,0,0,0,2,0,0,0,0],10:[0,0,0,0,2,0,0,0,0],11:[0,0,0,0,3,0,0,0,0],12:[0,0,0,0,3,0,0,0,0],13:[0,0,0,0,3,0,0,0,0],14:[0,0,0,0,3,0,0,0,0],15:[0,0,0,0,3,0,0,0,0],16:[0,0,0,0,3,0,0,0,0],17:[0,0,0,0,4,0,0,0,0],18:[0,0,0,0,4,0,0,0,0],19:[0,0,0,0,4,0,0,0,0],20:[0,0,0,0,4,0,0,0,0]};
+function slotsArrayToObject(arr=[]){const out={}; SPELL_SLOT_LEVELS.forEach((lvl,i)=>out[lvl]=Number(arr[i])||0); return out;}
+function spellSlotTableForClass(cls,level){
+  const lvl=Math.max(1,Math.min(20,Number(level)||1));
+  if(['Wizard','Cleric','Druid','Bard','Sorcerer'].includes(cls)) return slotsArrayToObject(FULL_CASTER_SLOTS[lvl]);
+  if(['Paladin','Ranger','Artificer'].includes(cls)) return slotsArrayToObject(HALF_CASTER_SLOTS[lvl]);
+  if(cls==='Warlock') return slotsArrayToObject(WARLOCK_PACT_SLOTS[lvl]);
+  return slotsArrayToObject([]);
+}
+function totalSpellSlots(cls,level){return Object.values(spellSlotTableForClass(cls,level)).reduce((sum,n)=>sum+n,0);}
 const RACE_DEFS = {
   Human:{mods:{STR:1,DEX:1,CON:1,INT:1,WIS:1,CHA:1},traits:['Versatile','Extra language','Heroic resolve']},
   Elf:{mods:{DEX:2,INT:1},traits:['Darkvision','Keen Senses','Fey Ancestry']},
@@ -1888,6 +1912,8 @@ function calculateDerived(character){
   const laterHp=(level-1)*(Math.ceil(cls.hitDie/2)+1+con);
   const hp=Math.max(level, firstLevelHp + laterHp);
   const resourceMax=cls.resourceFormula(level) + (cls.resource==='Mana' ? Math.max(0,primary) : 0);
+  const spellSlotTable=spellSlotTableForClass(character.class,level);
+  const spellSlots=Object.values(spellSlotTable).reduce((sum,n)=>sum+n,0);
   const overrides=character.overrides || {};
   return {
     HP:Number(overrides.maxHP)||hp,
@@ -1896,7 +1922,8 @@ function calculateDerived(character){
     initiative:abilityMod(stats.DEX)+itemBonuses.initiativeBonus,
     attackBonus:Number.isFinite(Number(overrides.attackBonus)) && String(overrides.attackBonus).trim()!=='' ? Number(overrides.attackBonus) : pb + primary + itemBonuses.attackBonus,
     proficiencyBonus:pb,
-    spellSlots:cls.spellSlots(level),
+    spellSlots,
+    spellSlotTable,
     spellSaveDC:8 + pb + primary + itemBonuses.spellDcBonus,
     spellAttackBonus:pb + primary + itemBonuses.spellAttackBonus,
     resourceName:cls.resource,
@@ -2437,6 +2464,13 @@ function confirmDMGiveItem(){
   showCritOverlay(`${ch.name} receives ${item.name}`,'success','DM item');
 }
 function spellSlotsByLevel(total=0){
+  if(total?.derived?.spellSlotTable) return {...total.derived.spellSlotTable};
+  if(total?.spellSlotTable) return {...total.spellSlotTable};
+  if(total && typeof total==='object'){
+    const slots={};
+    for(const lvl of SPELL_SLOT_LEVELS) slots[lvl]=Math.max(0,Number(total[lvl])||0);
+    return slots;
+  }
   const slots={};
   let remaining=Math.max(0,Number(total)||0);
   for(const lvl of SPELL_SLOT_LEVELS){
@@ -2482,7 +2516,7 @@ function equippedSpellActions(character){
   }));
 }
 function spellSlotControls(character){
-  const slots=spellSlotsByLevel(character.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(character);
   const rows=SPELL_SLOT_LEVELS.filter(lvl=>slots[lvl]>0).map(lvl=>{
     const used=Math.min(slots[lvl],Number(character.spellSlotUsage?.[lvl])||0);
     return `<div class="slot-track"><span>Spell L${lvl}</span><b>${used}/${slots[lvl]}</b><button onclick="changeCharacterSpellSlot('${character.id}',${lvl},-1)">-</button><button onclick="changeCharacterSpellSlot('${character.id}',${lvl},1)">+</button></div>`;
@@ -9958,7 +9992,7 @@ function changeCharacterSpellSlot(id,level,delta){
   const ch=myCharacters.find(c=>c.id===id);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('Only the owner or DM can change spell slots','roll','Locked');
-  const slots=spellSlotsByLevel(ch.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(ch);
   ch.spellSlotUsage=ch.spellSlotUsage||{};
   ch.spellSlotUsage[level]=Math.max(0,Math.min(slots[level]||0,(Number(ch.spellSlotUsage[level])||0)+delta));
   updateAllPanels();
@@ -9979,7 +10013,7 @@ function changeFeatureUse(id,name,delta){
   scheduleSave();
 }
 function spellSlotsAvailable(character,level){
-  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(character);
   return Math.max(0,(slots[level]||0)-(Number(character?.spellSlotUsage?.[level])||0));
 }
 function romanSpellLevel(level){
@@ -9988,7 +10022,7 @@ function romanSpellLevel(level){
 function spellCastLevelOptions(character,item){
   const base=Math.max(0,Number(item?.spellLevel)||0);
   if(!character || base<=0) return [];
-  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(character);
   return SPELL_SLOT_LEVELS.filter(lvl=>lvl>=base && (slots[lvl]||0)>0);
 }
 function preparedCastLevel(character,item){
@@ -10005,7 +10039,7 @@ function upcastTabsHtml(character,item){
   return `<div class="upcast-tabs" title="Prepare spell slot level">${levels.map(lvl=>{
     const available=spellSlotsAvailable(character,lvl)>0;
     const used=Number(character?.spellSlotUsage?.[lvl])||0;
-    const total=spellSlotsByLevel(character?.derived?.spellSlots||0)[lvl]||0;
+    const total=spellSlotsByLevel(character)[lvl]||0;
     return `<button type="button" class="${lvl===active?'active':''} ${available?'':'unavailable'}" title="Prepare level ${lvl} slot (${Math.max(0,total-used)}/${total} left)" onclick="event.stopPropagation();prepareSpellCastLevel('${character.id}','${item.id}',${lvl})">${romanSpellLevel(lvl)}</button>`;
   }).join('')}</div>`;
 }
@@ -10028,7 +10062,7 @@ function prepareSpellCastLevel(characterId,itemId,level){
 function chooseCastLevel(character,item){
   const base=Math.max(0,Number(item.spellLevel)||0);
   if(base<=0) return 0;
-  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(character);
   const options=SPELL_SLOT_LEVELS.filter(lvl=>lvl>=base && (slots[lvl]||0)>0 && spellSlotsAvailable(character,lvl)>0);
   if(!options.length) return 0;
   const preferred=Math.max(base,Math.min(9,Number(item.castLevel)||base));
@@ -10036,7 +10070,7 @@ function chooseCastLevel(character,item){
 }
 function spendSpellSlot(character,level){
   if(!level) return true;
-  const slots=spellSlotsByLevel(character?.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(character);
   if((slots[level]||0)<=0) return false;
   character.spellSlotUsage=character.spellSlotUsage||{};
   const used=Number(character.spellSlotUsage[level])||0;
@@ -10387,7 +10421,7 @@ function longRest(id=activeCharacterId){
 }
 function applyRestToCharacter(ch,type='short'){
   if(!ch) return null;
-  ch.derived=ch.derived || calculateDerived(ch);
+  ch.derived=calculateDerived(ch);
   if(type==='long'){
     if(normalizeStatuses(ch.statuses).some(s=>s.name==='Concentrating')) clearConcentration(ch.id,'Long rest ended concentration');
     ch.currentHP=ch.derived.HP;
@@ -10399,7 +10433,9 @@ function applyRestToCharacter(ch,type='short'){
   }
   const heal=Math.max(1,Math.ceil(ch.derived.HP/4));
   ch.currentHP=Math.min(ch.derived.HP,(ch.currentHP||0)+heal);
-  ['Second Wind','Action Surge','Flurry of Blows','Patient Defense','Stunning Strike','Channel Divinity','Wild Shape','Bardic Inspiration'].forEach(name=>clearCharacterFeatureUse(ch,name));
+  // Short rests refresh class features in Moovables. Warlock pact slots also recover on short rest.
+  ch.featureUsage={};
+  if(ch.class==='Warlock') ch.spellSlotUsage={};
   return ch;
 }
 function restPatchForCharacter(ch){

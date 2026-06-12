@@ -804,20 +804,44 @@ const BEGINNER_PRESETS={
   Cleric:{name:'New Cleric',race:'Dwarf',class:'Cleric',background:'Acolyte',alignment:'Lawful Good',icon:'🧝',color:'#d6d8df',stats:{STR:13,DEX:10,CON:14,INT:10,WIS:16,CHA:12},weapons:[{name:'Mace',die:'d6',bonus:2,description:'Simple melee weapon'}],spells:[{name:'Sacred Flame',die:'d8',bonus:3,description:'Radiant cantrip'},{name:'Healing Word',die:'d4',bonus:3,description:'Quick healing spell'}],abilities:[{name:'Channel Divinity',description:'Call on divine power'},{name:'Turn Undead',description:'Drive undead away'}],bonusActions:[{name:'Healing Word',description:'Heal an ally at range'}],inventory:[{name:'Holy Symbol',qty:1,description:'Spellcasting focus'},{name:'Shield',qty:1,description:'+2 AC when equipped'}]}
 };
 const CLASS_DEFS={
-  Fighter:{hitDie:10,primary:'STR',resource:'Second Wind',resourceFormula:l=>1,abilities:['Second Wind','Action Surge','Weapon Mastery'],spellSlots:()=>0},
-  Wizard:{hitDie:6,primary:'INT',resource:'Mana',resourceFormula:l=>Math.max(2,l*4+abilityMod(10)),abilities:['Arcane Recovery','Cantrips','Spellbook'],spellSlots:l=>Math.ceil(l*1.5)},
+  Fighter:{hitDie:10,primary:'STR',resource:'Second Wind',resourceFormula:l=>1,abilities:['Second Wind','Action Surge','Weapon Mastery'],spellSlots:(l,cls='Fighter')=>totalSpellSlots(cls,l)},
+  Wizard:{hitDie:6,primary:'INT',resource:'Mana',resourceFormula:l=>Math.max(2,l*4+abilityMod(10)),abilities:['Arcane Recovery','Cantrips','Spellbook'],spellSlots:(l,cls='Wizard')=>totalSpellSlots(cls,l)},
   Rogue:{hitDie:8,primary:'DEX',resource:'Sneak Dice',resourceFormula:l=>Math.ceil(l/2),abilities:['Sneak Attack','Cunning Action','Expertise'],spellSlots:()=>0},
-  Cleric:{hitDie:8,primary:'WIS',resource:'Divinity',resourceFormula:l=>l>=18?3:l>=6?2:1,abilities:['Channel Divinity','Turn Undead','Divine Domain'],spellSlots:l=>Math.ceil(l*1.25)},
+  Cleric:{hitDie:8,primary:'WIS',resource:'Divinity',resourceFormula:l=>l>=18?3:l>=6?2:1,abilities:['Channel Divinity','Turn Undead','Divine Domain'],spellSlots:(l,cls='Cleric')=>totalSpellSlots(cls,l)},
   Barbarian:{hitDie:12,primary:'STR',resource:'Rage',resourceFormula:l=>l>=17?6:l>=12?5:l>=6?4:l>=3?3:2,abilities:['Rage','Reckless Attack','Danger Sense'],spellSlots:()=>0},
-  Bard:{hitDie:8,primary:'CHA',resource:'Inspiration',resourceFormula:l=>Math.max(1,abilityMod(14)),abilities:['Bardic Inspiration','Jack of All Trades','Song of Rest'],spellSlots:l=>Math.ceil(l*1.35)},
-  Druid:{hitDie:8,primary:'WIS',resource:'Wild Shape',resourceFormula:l=>2,abilities:['Wild Shape','Druidic','Circle Spells'],spellSlots:l=>Math.ceil(l*1.35)},
+  Bard:{hitDie:8,primary:'CHA',resource:'Inspiration',resourceFormula:l=>Math.max(1,abilityMod(14)),abilities:['Bardic Inspiration','Jack of All Trades','Song of Rest'],spellSlots:(l,cls='Bard')=>totalSpellSlots(cls,l)},
+  Druid:{hitDie:8,primary:'WIS',resource:'Wild Shape',resourceFormula:l=>2,abilities:['Wild Shape','Druidic','Circle Spells'],spellSlots:(l,cls='Druid')=>totalSpellSlots(cls,l)},
   Monk:{hitDie:8,primary:'DEX',resource:'Ki',resourceFormula:l=>l,abilities:['Martial Arts','Ki','Unarmored Movement'],spellSlots:()=>0},
-  Paladin:{hitDie:10,primary:'CHA',resource:'Lay on Hands',resourceFormula:l=>l*5,abilities:['Divine Smite','Lay on Hands','Aura'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.75))},
-  Ranger:{hitDie:10,primary:'DEX',resource:'Focus',resourceFormula:l=>proficiencyBonus(l),abilities:['Favored Foe','Natural Explorer','Hunter Magic'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.75))},
-  Sorcerer:{hitDie:6,primary:'CHA',resource:'Sorcery Points',resourceFormula:l=>Math.max(0,l),abilities:['Font of Magic','Metamagic','Bloodline'],spellSlots:l=>Math.ceil(l*1.45)},
-  Warlock:{hitDie:8,primary:'CHA',resource:'Pact Slots',resourceFormula:l=>l>=11?3:2,abilities:['Eldritch Invocations','Pact Magic','Patron'],spellSlots:l=>l>=11?3:l>=2?2:1},
-  Artificer:{hitDie:8,primary:'INT',resource:'Infusions',resourceFormula:l=>Math.max(2,Math.ceil(l/3)+1),abilities:['Infuse Item','Magical Tinkering','Specialist'],spellSlots:l=>Math.max(0,Math.ceil((l-1)*.85))}
+  Paladin:{hitDie:10,primary:'CHA',resource:'Lay on Hands',resourceFormula:l=>l*5,abilities:['Divine Smite','Lay on Hands','Aura'],spellSlots:(l,cls='Paladin')=>totalSpellSlots(cls,l)},
+  Ranger:{hitDie:10,primary:'DEX',resource:'Focus',resourceFormula:l=>proficiencyBonus(l),abilities:['Favored Foe','Natural Explorer','Hunter Magic'],spellSlots:(l,cls='Ranger')=>totalSpellSlots(cls,l)},
+  Sorcerer:{hitDie:6,primary:'CHA',resource:'Sorcery Points',resourceFormula:l=>Math.max(0,l),abilities:['Font of Magic','Metamagic','Bloodline'],spellSlots:(l,cls='Sorcerer')=>totalSpellSlots(cls,l)},
+  Warlock:{hitDie:8,primary:'CHA',resource:'Pact Slots',resourceFormula:l=>l>=11?3:2,abilities:['Eldritch Invocations','Pact Magic','Patron'],spellSlots:(l,cls='Warlock')=>totalSpellSlots(cls,l)},
+  Artificer:{hitDie:8,primary:'INT',resource:'Infusions',resourceFormula:l=>Math.max(2,Math.ceil(l/3)+1),abilities:['Infuse Item','Magical Tinkering','Specialist'],spellSlots:(l,cls='Artificer')=>totalSpellSlots(cls,l)}
 };
+const FULL_CASTER_SLOTS={
+  1:[2,0,0,0,0,0,0,0,0],2:[3,0,0,0,0,0,0,0,0],3:[4,2,0,0,0,0,0,0,0],4:[4,3,0,0,0,0,0,0,0],
+  5:[4,3,2,0,0,0,0,0,0],6:[4,3,3,0,0,0,0,0,0],7:[4,3,3,1,0,0,0,0,0],8:[4,3,3,2,0,0,0,0,0],
+  9:[4,3,3,3,1,0,0,0,0],10:[4,3,3,3,2,0,0,0,0],11:[4,3,3,3,2,1,0,0,0],12:[4,3,3,3,2,1,0,0,0],
+  13:[4,3,3,3,2,1,1,0,0],14:[4,3,3,3,2,1,1,0,0],15:[4,3,3,3,2,1,1,1,0],16:[4,3,3,3,2,1,1,1,0],
+  17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1]
+};
+const HALF_CASTER_SLOTS={
+  1:[0,0,0,0,0,0,0,0,0],2:[2,0,0,0,0,0,0,0,0],3:[3,0,0,0,0,0,0,0,0],4:[3,0,0,0,0,0,0,0,0],
+  5:[4,2,0,0,0,0,0,0,0],6:[4,2,0,0,0,0,0,0,0],7:[4,3,0,0,0,0,0,0,0],8:[4,3,0,0,0,0,0,0,0],
+  9:[4,3,2,0,0,0,0,0,0],10:[4,3,2,0,0,0,0,0,0],11:[4,3,3,0,0,0,0,0,0],12:[4,3,3,0,0,0,0,0,0],
+  13:[4,3,3,1,0,0,0,0,0],14:[4,3,3,1,0,0,0,0,0],15:[4,3,3,2,0,0,0,0,0],16:[4,3,3,2,0,0,0,0,0],
+  17:[4,3,3,3,1,0,0,0,0],18:[4,3,3,3,1,0,0,0,0],19:[4,3,3,3,2,0,0,0,0],20:[4,3,3,3,2,0,0,0,0]
+};
+const WARLOCK_PACT_SLOTS={1:[1,0,0,0,0,0,0,0,0],2:[2,0,0,0,0,0,0,0,0],3:[0,2,0,0,0,0,0,0,0],4:[0,2,0,0,0,0,0,0,0],5:[0,0,2,0,0,0,0,0,0],6:[0,0,2,0,0,0,0,0,0],7:[0,0,0,2,0,0,0,0,0],8:[0,0,0,2,0,0,0,0,0],9:[0,0,0,0,2,0,0,0,0],10:[0,0,0,0,2,0,0,0,0],11:[0,0,0,0,3,0,0,0,0],12:[0,0,0,0,3,0,0,0,0],13:[0,0,0,0,3,0,0,0,0],14:[0,0,0,0,3,0,0,0,0],15:[0,0,0,0,3,0,0,0,0],16:[0,0,0,0,3,0,0,0,0],17:[0,0,0,0,4,0,0,0,0],18:[0,0,0,0,4,0,0,0,0],19:[0,0,0,0,4,0,0,0,0],20:[0,0,0,0,4,0,0,0,0]};
+function slotsArrayToObject(arr=[]){const out={}; SPELL_SLOT_LEVELS.forEach((lvl,i)=>out[lvl]=Number(arr[i])||0); return out;}
+function spellSlotTableForClass(cls,level){
+  const lvl=Math.max(1,Math.min(20,Number(level)||1));
+  if(['Wizard','Cleric','Druid','Bard','Sorcerer'].includes(cls)) return slotsArrayToObject(FULL_CASTER_SLOTS[lvl]);
+  if(['Paladin','Ranger','Artificer'].includes(cls)) return slotsArrayToObject(HALF_CASTER_SLOTS[lvl]);
+  if(cls==='Warlock') return slotsArrayToObject(WARLOCK_PACT_SLOTS[lvl]);
+  return slotsArrayToObject([]);
+}
+function totalSpellSlots(cls,level){return Object.values(spellSlotTableForClass(cls,level)).reduce((sum,n)=>sum+n,0);}
 const RACE_DEFS={
   Human:{mods:{STR:1,DEX:1,CON:1,INT:1,WIS:1,CHA:1},traits:['Versatile','Extra language','Heroic resolve']},
   Elf:{mods:{DEX:2,INT:1},traits:['Darkvision','Keen Senses','Fey Ancestry']},
@@ -945,13 +969,15 @@ function calculateDerived(character){
   const pb=proficiencyBonus(level);
   const hp=Math.max(level, cls.hitDie+con+(level-1)*(Math.ceil(cls.hitDie/2)+1+con));
   const resourceMax=cls.resourceFormula(level)+(cls.resource==='Mana'?Math.max(0,primary):0);
+  const spellSlotTable=spellSlotTableForClass(character.class,level);
+  const spellSlots=Object.values(spellSlotTable).reduce((sum,n)=>sum+n,0);
   const overrides=character.overrides||{};
   const equipped=equippedItems(character);
   const baseArmor=equipped.filter(item=>Number(item.baseAC)>0).reduce((best,item)=>Math.max(best,Number(item.baseAC)||0),0);
   const gearAC=equipped.reduce((sum,item)=>sum+(Number(item.acBonus)||0),0);
   return {
     HP:Number(overrides.maxHP)||hp,maxHP:Number(overrides.maxHP)||hp,AC:Number(overrides.AC)||(baseArmor?baseArmor+gearAC:10+abilityMod(stats.DEX)+gearAC),initiative:abilityMod(stats.DEX)+itemBonuses.initiativeBonus,
-    attackBonus:Number.isFinite(Number(overrides.attackBonus))&&String(overrides.attackBonus).trim()!==''?Number(overrides.attackBonus):pb+primary+itemBonuses.attackBonus,proficiencyBonus:pb,spellSlots:cls.spellSlots(level),
+    attackBonus:Number.isFinite(Number(overrides.attackBonus))&&String(overrides.attackBonus).trim()!==''?Number(overrides.attackBonus):pb+primary+itemBonuses.attackBonus,proficiencyBonus:pb,spellSlots,spellSlotTable,
     spellSaveDC:8+pb+primary+itemBonuses.spellDcBonus,
     spellAttackBonus:pb+primary+itemBonuses.spellAttackBonus,
     resourceName:cls.resource,resourceMax:Math.max(0,resourceMax),
@@ -2210,14 +2236,45 @@ const FEATURE_LIBRARY={
   'Danger Sense':{description:'Passive. Advantage on many Dexterity saves against effects you can see.',actionCost:'passive',actionType:'utility',effect:'Danger Sense',targetMode:'single'},
   'Brutal Critical':{description:'Passive. Add extra weapon damage dice when you score a critical hit.',actionCost:'passive',actionType:'utility',effect:'Brutal Critical',targetMode:'single'},
   'Primal Path feature':{description:'Subclass feature. Pick your path, then write the exact path feature here so it is visible during play.',actionCost:'passive',actionType:'utility',effect:'Primal Path',targetMode:'single'},
+  Spellcasting:{description:'Class feature. You can cast prepared or known spells using your class spellcasting ability and spell slots.',actionCost:'passive',actionType:'utility',effect:'Spellcasting',targetMode:'single'},
+  'Ability Score Improvement':{description:'Level-up choice. Increase ability scores or take a table-approved feat before saving the level-up.',actionCost:'passive',actionType:'utility',effect:'Ability Score Improvement',targetMode:'single'},
+  'Fighting Style':{description:'Passive. Choose a combat specialty such as Defense, Dueling, Archery, or Protection.',actionCost:'passive',actionType:'utility',effect:'Fighting Style',targetMode:'single'},
+  'Martial Archetype feature':{description:'Subclass feature. Add the exact archetype feature chosen at this level.',actionCost:'passive',actionType:'utility',effect:'Martial Archetype',targetMode:'single'},
+  Indomitable:{description:'Free feature. Reroll a failed saving throw, then track the use until rest.',actionCost:'free',actionType:'buff',effect:'Indomitable',targetMode:'single'},
   'Second Wind':{description:'Bonus action. Regain a small burst of HP once per rest.',actionCost:'bonus',actionType:'healing',effect:'Second Wind',targetMode:'single'},
   'Action Surge':{description:'Free feature. Take one additional action on your turn once per rest.',actionCost:'free',actionType:'utility',effect:'Action Surge',targetMode:'single'},
   'Extra Attack':{description:'Passive. Attack more than once when taking the Attack action.',actionCost:'passive',actionType:'utility',effect:'Extra Attack',targetMode:'single'},
   'Bardic Inspiration':{description:'Bonus action. Give an ally an inspiration die for a future roll.',actionCost:'bonus',actionType:'buff',effect:'Bardic Inspiration',targetMode:'single'},
+  Expertise:{description:'Passive. Double proficiency for selected skills or tools.',actionCost:'passive',actionType:'utility',effect:'Expertise',targetMode:'single'},
   'Cunning Action':{description:'Bonus action. Dash, Disengage, or Hide.',actionCost:'bonus',actionType:'utility',effect:'Cunning Action',targetMode:'single'},
   'Sneak Attack':{description:'Passive damage rider when you have advantage or an ally near the target.',actionCost:'passive',actionType:'damage',effect:'Sneak Attack',targetMode:'single'},
+  "Thieves' Cant":{description:'Passive. Secret rogue signs and coded phrases for hidden messages.',actionCost:'passive',actionType:'utility',effect:"Thieves' Cant",targetMode:'single'},
+  'Roguish Archetype feature':{description:'Subclass feature. Add the exact archetype feature chosen at this level.',actionCost:'passive',actionType:'utility',effect:'Roguish Archetype',targetMode:'single'},
+  'Uncanny Dodge':{description:'Reaction. Halve damage from one attack you can see.',actionCost:'reaction',actionType:'buff',effect:'Uncanny Dodge',targetMode:'single'},
+  Evasion:{description:'Passive. Dexterity save area effects become less punishing on success or failure.',actionCost:'passive',actionType:'utility',effect:'Evasion',targetMode:'single'},
+  'Reliable Talent':{description:'Passive. Proficient checks treat very low d20 rolls as reliable results.',actionCost:'passive',actionType:'utility',effect:'Reliable Talent',targetMode:'single'},
+  Blindsense:{description:'Passive. Notice hidden or invisible creatures nearby through sharp senses.',actionCost:'passive',actionType:'utility',effect:'Blindsense',targetMode:'single'},
+  'Slippery Mind':{description:'Passive. Gain stronger mental saving throw training.',actionCost:'passive',actionType:'utility',effect:'Slippery Mind',targetMode:'single'},
+  Elusive:{description:'Passive. Harder for enemies to gain advantage against you.',actionCost:'passive',actionType:'utility',effect:'Elusive',targetMode:'single'},
+  'Stroke of Luck':{description:'Free feature. Turn a failed attack or ability check into a clutch success once per rest.',actionCost:'free',actionType:'buff',effect:'Stroke of Luck',targetMode:'single'},
+  'Divine Domain feature':{description:'Subclass feature. Add the exact domain feature chosen at this level.',actionCost:'passive',actionType:'utility',effect:'Divine Domain',targetMode:'single'},
   'Channel Divinity':{description:'Action. Spend a divine channel use for your domain or Turn Undead effect.',actionCost:'action',actionType:'utility',effect:'Channel Divinity',targetMode:'single'},
   'Turn Undead':{description:'Action. Force nearby undead to flee if they fail the save.',actionCost:'action',actionType:'buff',effect:'Turn Undead',targetMode:'enemies'},
+  'Destroy Undead':{description:'Passive upgrade. Turn Undead can destroy weaker undead at higher cleric levels.',actionCost:'passive',actionType:'utility',effect:'Destroy Undead',targetMode:'enemies'},
+  'Divine Intervention':{description:'Action. Ask your deity for aid; resolve the outcome with the DM.',actionCost:'action',actionType:'utility',effect:'Divine Intervention',targetMode:'single'},
+  'Divine Intervention improvement':{description:'Passive. Your Divine Intervention becomes more reliable at the highest levels.',actionCost:'passive',actionType:'utility',effect:'Divine Intervention',targetMode:'single'},
+  'Arcane Tradition feature':{description:'Subclass feature. Add the exact arcane tradition feature chosen at this level.',actionCost:'passive',actionType:'utility',effect:'Arcane Tradition',targetMode:'single'},
+  'Arcane Recovery':{description:'Short-rest feature. Recover some spell power during rest.',actionCost:'free',actionType:'utility',effect:'Arcane Recovery',targetMode:'single'},
+  'Spell Mastery':{description:'Passive. Choose lower-level wizard spells you can cast with exceptional ease.',actionCost:'passive',actionType:'utility',effect:'Spell Mastery',targetMode:'single'},
+  'Signature Spells':{description:'Passive. Choose reliable 3rd-level wizard spells for late-game play.',actionCost:'passive',actionType:'utility',effect:'Signature Spells',targetMode:'single'},
+  '2nd-level spell access':{description:'Spellcasting milestone. You can prepare and cast 2nd-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'2nd-level spells',targetMode:'single'},
+  '3rd-level spell access':{description:'Spellcasting milestone. You can prepare and cast 3rd-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'3rd-level spells',targetMode:'single'},
+  '4th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 4th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'4th-level spells',targetMode:'single'},
+  '5th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 5th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'5th-level spells',targetMode:'single'},
+  '6th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 6th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'6th-level spells',targetMode:'single'},
+  '7th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 7th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'7th-level spells',targetMode:'single'},
+  '8th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 8th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'8th-level spells',targetMode:'single'},
+  '9th-level spell access':{description:'Spellcasting milestone. You can prepare and cast 9th-level spells when slots are available.',actionCost:'passive',actionType:'utility',effect:'9th-level spells',targetMode:'single'},
   'Wild Shape':{description:'Action or bonus action by subclass. Transform using a Wild Shape use.',actionCost:'action',actionType:'utility',effect:'Wild Shape',targetMode:'single'},
   'Lay on Hands':{description:'Action. Spend points from your healing pool to restore HP or cure disease/poison.',actionCost:'action',actionType:'healing',effect:'Lay on Hands',targetMode:'single'},
   'Divine Smite':{description:'On hit. Spend a spell slot to add radiant damage to a melee hit.',actionCost:'free',actionType:'damage',effect:'Divine Smite',targetMode:'single'},
@@ -2227,16 +2284,17 @@ const FEATURE_LIBRARY={
 };
 const CLASS_LEVEL_FEATURES={
   Barbarian:{1:['Rage','Unarmored Defense'],2:['Reckless Attack','Danger Sense'],3:['Primal Path feature'],5:['Extra Attack','Fast Movement'],7:['Feral Instinct'],9:['Brutal Critical']},
-  Fighter:{1:['Fighting Style','Second Wind'],2:['Action Surge'],3:['Martial Archetype feature'],5:['Extra Attack'],9:['Indomitable']},
-  Rogue:{1:['Sneak Attack','Expertise'],2:['Cunning Action'],3:['Roguish Archetype feature'],5:['Uncanny Dodge'],7:['Evasion']},
-  Cleric:{1:['Divine Domain feature'],2:['Channel Divinity','Turn Undead'],5:['Destroy Undead'],10:['Divine Intervention']},
+  Fighter:{1:['Fighting Style','Second Wind'],2:['Action Surge'],3:['Martial Archetype feature'],4:['Ability Score Improvement'],5:['Extra Attack'],6:['Ability Score Improvement'],7:['Martial Archetype feature'],8:['Ability Score Improvement'],9:['Indomitable'],10:['Martial Archetype feature'],11:['Extra Attack'],12:['Ability Score Improvement'],13:['Indomitable'],14:['Ability Score Improvement'],15:['Martial Archetype feature'],16:['Ability Score Improvement'],17:['Action Surge','Indomitable'],18:['Martial Archetype feature'],19:['Ability Score Improvement'],20:['Extra Attack']},
+  Rogue:{1:['Sneak Attack','Expertise',"Thieves' Cant"],2:['Cunning Action'],3:['Roguish Archetype feature'],4:['Ability Score Improvement'],5:['Uncanny Dodge'],6:['Expertise'],7:['Evasion'],8:['Ability Score Improvement'],9:['Roguish Archetype feature'],10:['Ability Score Improvement'],11:['Reliable Talent'],12:['Ability Score Improvement'],13:['Roguish Archetype feature'],14:['Blindsense'],15:['Slippery Mind'],16:['Ability Score Improvement'],17:['Roguish Archetype feature'],18:['Elusive'],19:['Ability Score Improvement'],20:['Stroke of Luck']},
+  Cleric:{1:['Spellcasting','Divine Domain feature'],2:['Channel Divinity','Turn Undead'],3:['2nd-level spell access'],4:['Ability Score Improvement'],5:['Destroy Undead','3rd-level spell access'],6:['Channel Divinity','Divine Domain feature'],7:['4th-level spell access'],8:['Ability Score Improvement','Destroy Undead','Divine Domain feature'],9:['5th-level spell access'],10:['Divine Intervention'],11:['Destroy Undead','6th-level spell access'],12:['Ability Score Improvement'],13:['7th-level spell access'],14:['Destroy Undead'],15:['8th-level spell access'],16:['Ability Score Improvement'],17:['Destroy Undead','Divine Domain feature','9th-level spell access'],18:['Channel Divinity'],19:['Ability Score Improvement'],20:['Divine Intervention improvement']},
+  Wizard:{1:['Spellcasting','Arcane Recovery'],2:['Arcane Tradition feature'],3:['2nd-level spell access'],4:['Ability Score Improvement'],5:['3rd-level spell access'],6:['Arcane Tradition feature'],7:['4th-level spell access'],8:['Ability Score Improvement'],9:['5th-level spell access'],10:['Arcane Tradition feature'],11:['6th-level spell access'],12:['Ability Score Improvement'],13:['7th-level spell access'],14:['Arcane Tradition feature'],15:['8th-level spell access'],16:['Ability Score Improvement'],17:['9th-level spell access'],18:['Spell Mastery'],19:['Ability Score Improvement'],20:['Signature Spells']},
   Bard:{1:['Bardic Inspiration'],2:['Jack of All Trades','Song of Rest'],3:['Expertise','Bard College feature'],5:['Font of Inspiration']},
   Druid:{2:['Wild Shape','Druid Circle feature'],5:['Stronger wild shapes and 3rd-level spell access']},
   Monk:{1:['Martial Arts'],2:['Ki','Flurry of Blows','Patient Defense'],3:['Monastic Tradition feature'],5:['Extra Attack','Stunning Strike']},
   Paladin:{1:['Divine Sense','Lay on Hands'],2:['Fighting Style','Divine Smite'],3:['Sacred Oath feature'],5:['Extra Attack']},
   Ranger:{1:['Favored Foe'],2:['Fighting Style'],3:['Ranger Archetype feature'],5:['Extra Attack']},
   Sorcerer:{1:['Sorcerous Origin feature'],2:['Font of Magic'],3:['Metamagic'],5:['3rd-level spell access']},
-  Warlock:{1:['Otherworldly Patron feature'],2:['Eldritch Invocations'],3:['Pact Boon'],5:['Stronger pact magic']},
+  Warlock:{1:['Otherworldly Patron feature'],2:['Eldritch Invocations'],3:['Pact Boon'],5:['3rd-level spell access']},
   Artificer:{1:['Magical Tinkering'],2:['Infuse Item'],3:['Specialist feature'],5:['Specialist improvement']}
 };
 const SUBCLASS_LEVEL_FEATURES={
@@ -2522,8 +2580,8 @@ function renderLevelHelper(ch=selected()){
   const nextLevel=Math.min(20,(Number(ch.level)||1)+1);
   const nextShell=hydrateCharacter({...ch,level:nextLevel});
   const nextDerived=nextShell.derived || calculateDerived(nextShell);
-  const currentSlots=spellSlotsByLevel(ch.derived?.spellSlots||0);
-  const nextSlots=spellSlotsByLevel(nextDerived.spellSlots||0);
+  const currentSlots=spellSlotsByLevel(ch);
+  const nextSlots=spellSlotsByLevel(nextShell);
   const slotGains=SPELL_SLOT_LEVELS.filter(lvl=>(nextSlots[lvl]||0)>(currentSlots[lvl]||0)).map(lvl=>`L${lvl} +${(nextSlots[lvl]||0)-(currentSlots[lvl]||0)}`);
   const nextClassSpells=sortedLevelUpSpellChoices(
     availableClassSpells(nextShell).filter(spell=>!(ch.spells||[]).some(s=>s.name===spell.name)),
@@ -2602,6 +2660,13 @@ function addCatalogSpellByName(name){
   scheduleSave();
 }
 function spellSlotsByLevel(total=0){
+  if(total?.derived?.spellSlotTable) return {...total.derived.spellSlotTable};
+  if(total?.spellSlotTable) return {...total.spellSlotTable};
+  if(total && typeof total==='object'){
+    const slots={};
+    for(const lvl of SPELL_SLOT_LEVELS) slots[lvl]=Math.max(0,Number(total[lvl])||0);
+    return slots;
+  }
   const slots={};
   let remaining=Math.max(0,Number(total)||0);
   for(const lvl of SPELL_SLOT_LEVELS){
@@ -2620,7 +2685,7 @@ function readSpellSlotUsage(){
 function renderSpellSlots(ch=selected()){
   const el=document.getElementById('spell-slot-list');
   if(!el) return;
-  const slots=spellSlotsByLevel(ch.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(ch);
   el.innerHTML=SPELL_SLOT_LEVELS.filter(lvl=>slots[lvl]>0).map(lvl=>{
     const used=Math.min(slots[lvl],Number(ch.spellSlotUsage?.[lvl])||0);
     return `<div class="slot-box">
@@ -2634,7 +2699,7 @@ function renderSpellSlots(ch=selected()){
 }
 function changeSpellSlot(level,delta){
   const ch=selected();
-  const slots=spellSlotsByLevel(ch.derived?.spellSlots||0);
+  const slots=spellSlotsByLevel(ch);
   ch.spellSlotUsage=readSpellSlotUsage();
   ch.spellSlotUsage[level]=Math.max(0,Math.min(slots[level]||0,(Number(ch.spellSlotUsage[level])||0)+delta));
   renderSpellSlots(ch);
