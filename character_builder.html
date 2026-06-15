@@ -3209,6 +3209,14 @@ function scheduleCloudSave(nextState=state,immediate=false){
 async function saveCloudState(nextState){
   if(!cloudReady||applyingCloudState) return;
   let remoteState=latestCloudState;
+  try{
+    const {data}=await cloudClient.from(CLOUD_TABLE).select('state,updated_at').eq('id',CLOUD_CAMPAIGN_ID).maybeSingle();
+    if(data?.state){
+      remoteState=data.state;
+      if(data.updated_at) cloudLastUpdated=data.updated_at;
+      latestCloudState=data.state;
+    }
+  }catch(e){}
   nextState=mergeBuilderStateBeforeSave(nextState,remoteState);
   nextState=stripCloudState(nextState);
   const updatedAt=new Date().toISOString();
@@ -3266,7 +3274,6 @@ function mergeBuilderStateBeforeSave(builderState={},remoteState=null){
     ...editedCharacters,
     ...remoteParty
       .filter(ch=>ch?.id && !editedIds.has(ch.id))
-      .filter(ch=>(ch.owner||cleanRemote.myId)!==BUILDER_PLAYER_ID)
       .filter(ch=>characterBelongsToCurrentCampaign(ch,{allowLegacy:true}))
       .map(stampCharacterForCurrentCampaign)
   ].map(hydrateCharacter);

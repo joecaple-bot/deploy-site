@@ -12422,7 +12422,21 @@ function applyCharacterStateFromCampaign(state){
     });
   }
   if(ownerId===myId){
-    myCharacters=incomingLocal.map(ch=>stampCharacterForCurrentCampaign({...ch,owner:myId}));
+    const incomingLocalIds=new Set(incomingLocal.map(ch=>ch.id).filter(Boolean));
+    const localById={};
+    for(const ch of myCharacters){
+      if(ch?.id) localById[ch.id]=stampCharacterForCurrentCampaign(ch);
+    }
+    for(const ch of incomingLocal){
+      localById[ch.id]=stampCharacterForCurrentCampaign({...localById[ch.id],...ch,owner:myId});
+    }
+    for(const raw of allIncoming){
+      const claim=characterClaim(raw.id);
+      if(raw.id && claim?.owner===myId && !incomingLocalIds.has(raw.id)){
+        localById[raw.id]=stampCharacterForCurrentCampaign({...localById[raw.id],...raw,owner:myId,claimedBy:myId});
+      }
+    }
+    myCharacters=pruneGeneratedDefaultGhosts(Object.values(localById));
     reconcileLocalClaims();
     activeCharacterId=state.activeCharacterId || activeCharacterId || myCharacters[0]?.id || null;
   }
