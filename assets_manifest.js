@@ -2116,5 +2116,17 @@
         "name":  "Voss Mini",
         "path":  "assets/minis/Voss Mini.png",
         "bytes":  89958
+    },
+    {
+        "folder":  "minis",
+        "name":  "Aetreal",
+        "path":  "assets/minis/Aetreal.png",
+        "bytes":  611899
+    },
+    {
+        "folder":  "minis",
+        "name":  "Root Monster",
+        "path":  "assets/minis/root monster.png",
+        "bytes":  580342
     }
 ];
