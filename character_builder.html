@@ -1086,6 +1086,9 @@ function stampCharacterForCurrentCampaign(ch){
   ids.add(CLOUD_CAMPAIGN_ID);
   return hydrateCharacter({...hydrated,campaignId:CLOUD_CAMPAIGN_ID,campaignIds:[...ids]});
 }
+function touchCharacter(ch){
+  return hydrateCharacter({...ch,updatedAt:new Date().toISOString()});
+}
 function removeCurrentCampaignFromCharacter(ch){
   const hydrated=hydrateCharacter(ch);
   const ids=characterCampaignIds(hydrated).filter(id=>id!==CLOUD_CAMPAIGN_ID);
@@ -1779,7 +1782,7 @@ function syncCustomFields(){
 }
 function commitForm(){
   const i=state.myCharacters.findIndex(c=>c.id===selectedId);
-  if(i>=0) state.myCharacters[i]=readFormFor(state.myCharacters[i]);
+  if(i>=0) state.myCharacters[i]=touchCharacter(readFormFor(state.myCharacters[i]));
 }
 function saveSelectedTokenVisual({tokenArt=selectedTokenArt,icon=selectedIcon}={}){
   const i=state.myCharacters.findIndex(c=>c.id===selectedId);
@@ -2576,6 +2579,7 @@ function applyLevelUpModal(){
     if(spell && !(ch.spells||[]).some(s=>s.name===spell.name)) ch.spells.push(spellToActionItem(spell,spellClassName(ch)));
   }
   ch.level=draft.nextLevel;
+  ch.updatedAt=new Date().toISOString();
   ch.currentHP=Math.max(Math.max(draft.minHP,hp),Number(ch.currentHP)||0);
   pushLevelUpBackup(ch,beforeLevelUp,draft.nextLevel);
   renderTextItems('ability',ch.abilities);
