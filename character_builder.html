@@ -896,6 +896,7 @@ let pendingLocalImport=[];
 let accountSyncEnabled=false;
 let currentBuilderTab='identity';
 let hoveredSpellPreview=null;
+let lastCampaignSaveState=null;
 
 function abilityMod(score){return Math.floor((Number(score)-10)/2)}
 function proficiencyBonus(level){return 2+Math.floor((Math.max(1,Math.min(20,level))-1)/4)}
@@ -1341,6 +1342,10 @@ function preserveBuilderAuthoredFields(local={},merged={}){
   }
   return hydrateCharacter(out);
 }
+function mergeAuthoredSheetIntoRuntime(sheet={},runtime={}){
+  const base=hydrateCharacter(runtime?.id?runtime:sheet);
+  return preserveBuilderAuthoredFields(hydrateCharacter(sheet),base);
+}
 function renderAccountUI(){
   const badge=document.getElementById('account-badge');
   const login=document.getElementById('discord-login-btn');
@@ -1618,8 +1623,11 @@ function writeStorage(message='Saved',options={}){
   const editedCharacters=campaignScopedCharacters(state.myCharacters)
     .map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
   const editedIds=new Set(editedCharacters.map(ch=>ch.id));
+  const runtimeById={};
+  for(const ch of state.partyCharacters||[]) if(ch?.id) runtimeById[ch.id]=ch;
+  const campaignEdited=editedCharacters.map(ch=>mergeAuthoredSheetIntoRuntime(ch,runtimeById[ch.id]));
   const partyCharacters=[
-    ...editedCharacters,
+    ...campaignEdited,
     ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
   ];
   state.partyCharacters=partyCharacters;
@@ -1628,11 +1636,12 @@ function writeStorage(message='Saved',options={}){
   const campaignActiveId=editedIds.has(selectedId) ? selectedId : editedCharacters[0]?.id || null;
   const campaignState={
     ...state,
-    myCharacters:editedCharacters,
+    myCharacters:campaignEdited,
     partyCharacters,
     activeCharacterId:campaignActiveId,
     turnOrder:(state.turnOrder||[]).filter(id=>editedIds.has(id))
   };
+  lastCampaignSaveState=campaignState;
   try{
     localStorage.setItem(storageKey(),JSON.stringify(campaignState));
     document.getElementById('save-state').textContent='Saved locally.';
@@ -1642,6 +1651,7 @@ function writeStorage(message='Saved',options={}){
   }catch(e){
     document.getElementById('save-state').textContent='Save failed. Browser storage may be full.';
   }
+  return campaignState;
 }
 function scheduleSave(){
   document.getElementById('save-state').textContent='Unsaved changes...';
@@ -3071,31 +3081,36 @@ function persistBeforeLeaving(){
     state.myId=BUILDER_PLAYER_ID;
     const editedCharacters=campaignScopedCharacters(state.myCharacters).map(ch=>hydrateCharacter({...ch,owner:ch.owner||BUILDER_PLAYER_ID}));
     const editedIds=new Set(editedCharacters.map(ch=>ch.id));
+    const runtimeById={};
+    for(const ch of state.partyCharacters||[]) if(ch?.id) runtimeById[ch.id]=ch;
+    const campaignEdited=editedCharacters.map(ch=>mergeAuthoredSheetIntoRuntime(ch,runtimeById[ch.id]));
     const partyCharacters=[
-      ...editedCharacters,
+      ...campaignEdited,
       ...(state.partyCharacters||[]).filter(ch=>!editedIds.has(ch.id)&&(ch.owner||state.myId)!==BUILDER_PLAYER_ID)
     ];
     state.partyCharacters=partyCharacters;
     state.activeCharacterId=selectedId;
     const campaignState={
       ...state,
-      myCharacters:editedCharacters,
+      myCharacters:campaignEdited,
       partyCharacters,
       activeCharacterId:editedIds.has(selectedId) ? selectedId : editedCharacters[0]?.id || null,
       turnOrder:(state.turnOrder||[]).filter(id=>editedIds.has(id))
     };
+    lastCampaignSaveState=campaignState;
     try{ localStorage.setItem(storageKey(),JSON.stringify(campaignState)); }catch(e){}
+    return campaignState;
   }
+  return lastCampaignSaveState||state;
 }
 async function goToMap(shouldSave=true){
-  if(shouldSave) writeStorage('Character saved');
-  else persistBeforeLeaving();
+  const campaignState=shouldSave ? writeStorage('Character saved') : persistBeforeLeaving();
   if(authUser&&accountSyncEnabled){
     try{ await saveAccountCharacters(); }catch(e){}
   }
   if(cloudReady&&!applyingCloudState){
     clearTimeout(cloudSaveTimer);
-    try{ await saveCloudState(state); }catch(e){}
+    try{ await saveCloudState(campaignState||lastCampaignSaveState||state); }catch(e){}
   }
   window.location.href='map.html'+campaignQuery();
 }
