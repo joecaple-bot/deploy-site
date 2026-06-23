@@ -1058,7 +1058,6 @@ function hydrateCharacter(raw={}){
     campaignId:raw.campaignId||'',
     campaignIds:Array.isArray(raw.campaignIds)?raw.campaignIds.filter(Boolean).map(String):(raw.campaignId?[String(raw.campaignId)]:[]),
     updatedAt:raw.updatedAt||'',
-    sheetUpdatedAt:raw.sheetUpdatedAt||raw.updatedAt||'',
     owner:raw.owner||BUILDER_PLAYER_ID
   };
   character.derived=calculateDerived(character);
@@ -1088,8 +1087,7 @@ function stampCharacterForCurrentCampaign(ch){
   return hydrateCharacter({...hydrated,campaignId:CLOUD_CAMPAIGN_ID,campaignIds:[...ids]});
 }
 function touchCharacter(ch){
-  const now=new Date().toISOString();
-  return hydrateCharacter({...ch,updatedAt:now,sheetUpdatedAt:now});
+  return hydrateCharacter({...ch,updatedAt:new Date().toISOString()});
 }
 function removeCurrentCampaignFromCharacter(ch){
   const hydrated=hydrateCharacter(ch);
@@ -1333,7 +1331,7 @@ function preserveBuilderAuthoredFields(local={},merged={}){
   const keep=[
     'name','race','class','subclass','level','background','alignment','notes','stats','skills',
     'overrides','weapons','spells','abilities','bonusActions','icon','color','tokenArt','tokenScale',
-    'levelUpBackups','accountOwnerUserId','owner','updatedAt','sheetUpdatedAt'
+    'levelUpBackups','accountOwnerUserId','owner','updatedAt'
   ];
   const out={...merged};
   for(const key of keep){
@@ -2582,7 +2580,6 @@ function applyLevelUpModal(){
   }
   ch.level=draft.nextLevel;
   ch.updatedAt=new Date().toISOString();
-  ch.sheetUpdatedAt=ch.updatedAt;
   ch.currentHP=Math.max(Math.max(draft.minHP,hp),Number(ch.currentHP)||0);
   pushLevelUpBackup(ch,beforeLevelUp,draft.nextLevel);
   renderTextItems('ability',ch.abilities);

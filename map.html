@@ -1972,7 +1972,6 @@ function hydrateCharacter(raw={}){
     campaignId:raw.campaignId || '',
     campaignIds:Array.isArray(raw.campaignIds) ? raw.campaignIds.filter(Boolean).map(String) : (raw.campaignId ? [String(raw.campaignId)] : []),
     updatedAt:raw.updatedAt || '',
-    sheetUpdatedAt:raw.sheetUpdatedAt || raw.updatedAt || '',
     owner:raw.owner || myId
   };
   character.derived=calculateDerived(character);
@@ -2006,20 +2005,7 @@ function characterUpdatedAt(ch){
 function newestCharacter(a,b){
   if(!a) return b;
   if(!b) return a;
-  const runtime=characterUpdatedAt(b)>characterUpdatedAt(a) ? b : a;
-  const aSheet=characterUpdatedAt({updatedAt:a.sheetUpdatedAt||a.updatedAt});
-  const bSheet=characterUpdatedAt({updatedAt:b.sheetUpdatedAt||b.updatedAt});
-  const authored=bSheet>aSheet ? b : a;
-  const authoredFields=[
-    'name','race','class','subclass','level','background','alignment','notes','stats','skills',
-    'overrides','weapons','spells','abilities','bonusActions','icon','color','tokenArt','tokenScale',
-    'levelUpBackups','accountOwnerUserId','sheetUpdatedAt'
-  ];
-  const merged={...runtime};
-  for(const key of authoredFields){
-    if(authored[key]!==undefined) merged[key]=authored[key];
-  }
-  return hydrateCharacter(merged);
+  return characterUpdatedAt(b)>characterUpdatedAt(a) ? b : a;
 }
 function mergeCharacterByFreshness(target,ch){
   if(!ch?.id) return;
