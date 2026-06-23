@@ -1778,7 +1778,7 @@ const RACE_DEFS = {
   Tabaxi:{mods:{DEX:2,CHA:1},traits:['Feline Agility','Cat Claws','Darkvision']},
   Triton:{mods:{STR:1,CON:1,CHA:1},traits:['Amphibious','Control Air and Water','Guardians of the Depths']}
 };
-const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled','Slipped','Burning','Prone','Frightened','Revealed','Blinded','Staggered','Banished','Turned','Patient Defense','Uncanny Dodge ready','Indomitable ready'];
+const STATUS_EFFECTS = ['Poisoned','Stunned','Blessed','Guidance','Bardic Inspiration','Concentrating','Invisible','Grappled','Slipped'];
 const DAMAGE_DICE = ['d4','d6','d8','d10','d12'];
 const BONUS_DAMAGE_TYPES = ['','Fire','Poison','Radiant','Force','Psychic','Bludgeoning','Slashing','Piercing','Cold','Lightning','Acid','Necrotic','Thunder'];
 const ACTION_TYPES = ['damage','healing','buff','utility'];
@@ -2024,14 +2024,14 @@ function normalizeActionItem(item={}){
     bonusDamageCount,
     bonusDamageDie,
     bonusDamageType,
-    upcastDice:validDiceFormula(overrides.upcastDice||item.upcastDice)?(overrides.upcastDice||item.upcastDice):'',
+    upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType) ? (overrides.actionType||item.actionType) : inferred,
-    actionCost:ACTION_COSTS.includes(overrides.actionCost||item.actionCost) ? (overrides.actionCost||item.actionCost) : cost,
+    actionCost:ACTION_COSTS.includes(item.actionCost) ? item.actionCost : cost,
     targetMode:TARGET_MODES.includes(targetMode) ? targetMode : 'single',
     aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(item)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
-    saveAbility:overrides.saveAbility||inferSaveAbility(item),
+    saveAbility:inferSaveAbility(item),
     saveHalf:inferSaveHalfDamage(item),
     attackSave:item.attackSave||'',
     spellLevel,
@@ -2039,7 +2039,7 @@ function normalizeActionItem(item={}){
     freeCast:item.freeCast===true,
     castingTime:item.castingTime||'',
     range:item.range||'',
-    concentration:!!(overrides.concentration||item.concentration),
+    concentration:!!item.concentration,
     sourceClass:item.sourceClass||'',
     effect:overrides.effect || item.effect || defaultActionEffect(item.name || '', inferred),
     description:item.description||'',
@@ -2108,33 +2108,8 @@ function defaultActionEffect(name='',type='damage'){
   if(type==='utility') return 'Utility';
   return '';
 }
-const SMITE_SPELLS={
-  'searing smite':{name:'Searing Smite',spellLevel:1,formula:'1d6',die:'d6',upcastDice:'1d6',type:'Fire',status:'Burning',saveAbility:'CON',note:'Target burns and may keep taking fire damage.'},
-  'thunderous smite':{name:'Thunderous Smite',spellLevel:1,formula:'2d6',die:'d6',type:'Thunder',status:'Prone',saveAbility:'STR',note:'Target may be pushed and knocked prone.'},
-  'wrathful smite':{name:'Wrathful Smite',spellLevel:1,formula:'1d6',die:'d6',type:'Psychic',status:'Frightened',saveAbility:'WIS',note:'Target may become frightened.'},
-  'branding smite':{name:'Branding Smite',spellLevel:2,formula:'2d6',die:'d6',upcastDice:'1d6',type:'Radiant',status:'Revealed',note:'Target becomes visible and sheds dim light.'},
-  'blinding smite':{name:'Blinding Smite',spellLevel:3,formula:'3d8',die:'d8',type:'Radiant',status:'Blinded',saveAbility:'CON',note:'Target may be blinded.'},
-  'staggering smite':{name:'Staggering Smite',spellLevel:4,formula:'4d6',die:'d6',type:'Psychic',status:'Staggered',saveAbility:'WIS',note:'Target reels, loses reactions, and struggles to act.'},
-  'banishing smite':{name:'Banishing Smite',spellLevel:5,formula:'5d10',die:'d10',type:'Force',status:'Banished',note:'Target may be banished if weakened.'}
-};
-function smiteSpellConfig(itemOrName={}){
-  const text=String(typeof itemOrName==='string'?itemOrName:itemOrName?.name||'').toLowerCase();
-  return Object.entries(SMITE_SPELLS).find(([key])=>text.includes(key))?.[1] || null;
-}
-function smiteFormulaAtCastLevel(config={},castLevel=0){
-  const base=config.formula||'1d6';
-  const level=Math.max(Number(config.spellLevel)||1,Number(castLevel)||Number(config.spellLevel)||1);
-  if(validDiceFormula(config.upcastDice) && level>Number(config.spellLevel)){
-    const baseCount=diceCountFromFormula(base), baseDie=dieFromFormula(base);
-    const upCount=diceCountFromFormula(config.upcastDice), upDie=dieFromFormula(config.upcastDice);
-    if(baseDie && baseDie===upDie) return `${baseCount+upCount*(level-Number(config.spellLevel))}${baseDie}`;
-  }
-  return base;
-}
 function spellControlOverrides(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
-  const smite=smiteSpellConfig(item);
-  if(smite) return {actionType:'buff',actionCost:'bonus',targetMode:'single',effect:`${smite.name} ready`,upcastDice:smite.upcastDice||'',saveAbility:smite.saveAbility||'',concentration:true};
   if(text.includes('grease')) return {actionType:'utility',targetMode:'all',effect:'Slipped',aoeRadius:70};
   if(text.includes('burning hands') || text.includes('cone')) return {actionType:'damage',targetMode:'cone',aoeRadius:Math.max(30,Number(item.aoeRadius)||0)};
   return {};
@@ -2153,10 +2128,6 @@ function featureDefaults(name=''){
   if(text.includes('rage')) return {description:'Bonus action. Enter rage for tougher melee turns.',actionCost:'bonus',actionType:'buff',effect:'Rage'};
   if(text.includes('reckless attack')) return {description:'Free feature. Your next attack gains advantage.',actionCost:'free',actionType:'buff',effect:'Reckless Attack'};
   if(text.includes('cunning action')) return {description:'Bonus action. Dash, Disengage, or Hide.',actionCost:'bonus',actionType:'utility',effect:'Cunning Action'};
-  if(text.includes('uncanny dodge')) return {description:'Reaction. Halve the next visible attack damage.',actionCost:'reaction',actionType:'buff',effect:'Uncanny Dodge'};
-  if(text.includes('indomitable')) return {description:'Free feature. Reroll a failed save; represented as advantage on the next save.',actionCost:'free',actionType:'buff',effect:'Indomitable'};
-  if(text.includes('arcane recovery')) return {description:'Free feature. Recover spent spell slots after a rest.',actionCost:'free',actionType:'utility',effect:'Arcane Recovery'};
-  if(text.includes('divine intervention')) return {description:'Action. Roll d100 to request direct divine aid.',actionCost:'action',actionType:'utility',effect:'Divine Intervention'};
   if(text.includes('bardic inspiration')) return {description:'Bonus action. Give an ally an inspiration die.',actionCost:'bonus',actionType:'buff',effect:'Bardic Inspiration'};
   if(text.includes('guidance')) return {description:'Action. Give +1d4 to the next ability/skill check.',actionCost:'action',actionType:'buff',effect:'Guidance'};
   if(text.includes('bless')) return {description:'Action. Give +1d4 to attacks and saves.',actionCost:'action',actionType:'buff',effect:'Blessed'};
@@ -6677,69 +6648,6 @@ function currentTurnId(){
 function isCurrentTurnActor(id){
   return !combatMode || isDM() || currentTurnId()===id;
 }
-function classNameOf(entity){
-  return String(entity?.class||entity?.className||'').trim();
-}
-function characterLevel(entity){
-  return Math.max(1,Math.min(20,Number(entity?.level)||1));
-}
-function weaponAttackCountFor(ch){
-  const cls=classNameOf(ch);
-  const level=characterLevel(ch);
-  if(cls==='Fighter'){
-    if(level>=20) return 4;
-    if(level>=11) return 3;
-    if(level>=5) return 2;
-    return 1;
-  }
-  if(['Barbarian','Paladin','Ranger','Monk'].includes(cls) && level>=5) return 2;
-  return 1;
-}
-function weaponAttacksUsedFor(id){
-  return turnActionState.actorId===id ? Math.max(0,Number(turnActionState.weaponAttacksUsed)||0) : 0;
-}
-function isMeleeWeaponAction(item={}){
-  const text=`${item.name||''} ${item.description||''} ${item.range||''}`.toLowerCase();
-  if(/bow|crossbow|sling|dart|javelin|thrown|ranged|arrow|bolt|firearm|gun/.test(text)) return false;
-  return true;
-}
-function canUseWeaponAttackAction(ch,item={}){
-  if(!combatMode || isDM()) return true;
-  if(currentTurnId()!==ch?.id){
-    showCritOverlay('Wait for your turn','roll','Combat');
-    return false;
-  }
-  const state=turnActionState.actorId===ch.id ? turnActionState : {};
-  const used=weaponAttacksUsedFor(ch.id);
-  const max=weaponAttackCountFor(ch);
-  if(state.actionTaken && !state.weaponAttackAction){
-    showCritOverlay('Action already used','roll','Combat');
-    return false;
-  }
-  if(state.weaponAttackAction && used>=max){
-    showCritOverlay(`Extra Attack used ${used}/${max}`,'roll','Combat');
-    return false;
-  }
-  return true;
-}
-function markWeaponAttackAction(ch){
-  if(!ch) return;
-  if(!combatMode){
-    markTurnAction('action',ch.id);
-    return;
-  }
-  const state=turnActionState.actorId===ch.id ? {...turnActionState} : {actorId:ch.id,movementUsed:0,moved:false};
-  state.reason='attack';
-  state.at=Date.now();
-  state.acted=true;
-  state.actionTaken=true;
-  state.weaponAttackAction=true;
-  state.weaponAttacksUsed=Math.min(weaponAttackCountFor(ch),Math.max(0,Number(state.weaponAttacksUsed)||0)+1);
-  turnActionState=state;
-  broadcast({type:'turnAction',turnActionState});
-  updateFloatingEndTurn();
-  updateEndTurnButton();
-}
 function canUseTurnAction(ch,kind='action'){
   if(kind==='free'||kind==='passive') return true;
   if(!combatMode || isDM()) return true;
@@ -6830,57 +6738,6 @@ function saveBonusForEntry(entry,ability='DEX'){
     return abilityMod((stats[ab]||10)+(itemStats[ab]||0)) + itemBonuses.saveBonus;
   }
   return Number(entry?.entity?.savingThrows?.[ab] ?? 0) || 0;
-}
-function classLevelAtLeast(entity,cls,level){
-  return classNameOf(entity)===cls && characterLevel(entity)>=level;
-}
-function rollSaveForEntry(entry,ability='DEX'){
-  const bonus=saveBonusForEntry(entry,ability);
-  if(entry?.kind==='character'){
-    entry.entity._savingAbility=ability;
-    const result=rollWithBuffs(entry.entity,'1d20',bonus,'save');
-    delete entry.entity._savingAbility;
-    return result;
-  }
-  const roll=rollDiceExpression('1d20',bonus);
-  return {...roll,baseTotal:roll.total,d20Rolls:[roll.rolls[0]],rollMode:'normal',rollModeSources:[]};
-}
-function damageAfterSaveForEntry(entry,damageTotal,saved=false,saveHalf=false,ability='DEX'){
-  let amount=saved ? (saveHalf ? Math.floor(damageTotal/2) : 0) : damageTotal;
-  if(entry?.kind==='character' && classLevelAtLeast(entry.entity,'Rogue',7) && ability==='DEX'){
-    amount=saved ? 0 : Math.floor(damageTotal/2);
-  }
-  return Math.max(0,amount);
-}
-function incomingCharacterDamageAmount(ch,amount,source='attack'){
-  amount=Math.max(0,Math.floor(Number(amount)||0));
-  if(!ch || !amount) return {amount,detail:''};
-  if(source==='attack' && hasStatusNamed(ch,'Uncanny Dodge ready')){
-    const reduced=Math.floor(amount/2);
-    removeStatusNamed(ch,'Uncanny Dodge ready');
-    return {amount:reduced,detail:` Uncanny Dodge halves ${amount} to ${reduced}.`};
-  }
-  return {amount,detail:''};
-}
-function isUndeadEnemy(enemy={}){
-  const text=`${enemy.name||''} ${enemy.type||''} ${enemy.creatureType||''} ${enemy.description||''}`.toLowerCase();
-  return /undead|skeleton|zombie|ghoul|wight|wraith|mummy|specter|spectre|ghost|lich|vampire/.test(text);
-}
-function destroyUndeadCrThreshold(level=1){
-  if(level>=17) return 4;
-  if(level>=14) return 3;
-  if(level>=11) return 2;
-  if(level>=8) return 1;
-  if(level>=5) return 0.5;
-  return 0;
-}
-function enemyChallenge(enemy={}){
-  const raw=enemy.challenge ?? enemy.challengeRating ?? enemy.cr ?? enemy.CR;
-  if(typeof raw==='string' && raw.includes('/')){
-    const [a,b]=raw.split('/').map(Number);
-    return b ? a/b : 0;
-  }
-  return Number(raw)||0;
 }
 function entryLabel(entry){
   return entry?.entity?.name || (entry?.kind==='enemy'?'Enemy':'Character');
@@ -8606,18 +8463,8 @@ function sheetFeatureButtonHtml(item,onClick){
     <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} - ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
 }
-function turnUseParts(id,ch=null){
-  if(turnActionState.actorId!==id) return [];
-  const parts=[];
-  if(turnActionState.weaponAttackAction && ch) parts.push(`attacks ${weaponAttacksUsedFor(id)}/${weaponAttackCountFor(ch)}`);
-  else if(turnActionState.actionTaken) parts.push('action used');
-  if(turnActionState.bonusActionTaken) parts.push('bonus used');
-  if(turnActionState.reactionTaken) parts.push('reaction used');
-  return parts;
-}
-function sheetTurnUseLabel(id,ch=null){
-  const parts=turnUseParts(id,ch);
-  return parts.length ? ` - ${parts.join(' - ')}` : '';
+function sheetTurnUseLabel(id){
+  return turnActionState.actorId===id?`${turnActionState.actionTaken?' - action used':''}${turnActionState.bonusActionTaken?' - bonus used':''}${turnActionState.reactionTaken?' - reaction used':''}`:'';
 }
 function combatCharacterSummaryHtml(ch){
   const d=ch.derived || calculateDerived(ch);
@@ -8645,16 +8492,12 @@ function combatCharacterSummaryHtml(ch){
 function characterCombatPanelHtml(ch){
   const weapons=Array.isArray(ch.weapons)?ch.weapons:[];
   const spells=[...(Array.isArray(ch.spells)?ch.spells:[]),...equippedSpellActions(ch)];
-  const combatFeatureCost=item=>item.actionCost&&item.actionCost!=='passive' ? item.actionCost : featureDefaults(item.name||'').actionCost;
-  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>{
-    const cost=combatFeatureCost(item);
-    return cost && cost!=='passive';
-  });
+  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>item.actionCost&&item.actionCost!=='passive');
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   const friendly=selectedTargetCharacter();
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
   const moveUsed=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
-  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn - move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${sheetTurnUseLabel(ch.id,ch)}` : 'Waiting for turn') : 'Free mode';
+  const turnLabel=combatMode ? (currentTurnId()===ch.id ? `Your turn - move ${Math.round(moveUsed)}/${getCombatMoveBudget(ch)}px${sheetTurnUseLabel(ch.id)}` : 'Waiting for turn') : 'Free mode';
   const actions=[
     ...weapons.map(w=>sheetActionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')),
     ...spells.map(s=>sheetSpellActionHtml(ch,s,`rollCharacterAction('${ch.id}','spell','${s.id}')`,'d6')),
@@ -8730,11 +8573,7 @@ function updateCombatPopout(){
   }
   const weapons=Array.isArray(ch.weapons)?ch.weapons:[];
   const spells=[...(Array.isArray(ch.spells)?ch.spells:[]),...equippedSpellActions(ch)];
-  const combatFeatureCost=item=>item.actionCost&&item.actionCost!=='passive' ? item.actionCost : featureDefaults(item.name||'').actionCost;
-  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>{
-    const cost=combatFeatureCost(item);
-    return cost && cost!=='passive';
-  });
+  const features=[...(Array.isArray(ch.abilities)?ch.abilities:[]),...(Array.isArray(ch.bonusActions)?ch.bonusActions:[])].filter(item=>item.actionCost&&item.actionCost!=='passive');
   const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
   const friendly=selectedTargetCharacter();
   const targetLabel=target?`${escapeHtml(target.name)} AC ${target.ac} HP ${target.hp}/${target.maxHP}`:friendly?`${escapeHtml(friendly.name)} HP ${friendly.currentHP}/${friendly.derived?.HP||friendly.currentHP}`:'None selected';
@@ -10244,24 +10083,17 @@ function featureUseMax(ch,name=''){
   const level=Number(ch?.level)||1;
   const resourceMax=Number(ch?.derived?.resourceMax)||0;
   if(text.includes('rage')) return resourceMax || (level>=17?6:level>=12?5:level>=6?4:level>=3?3:2);
-  if(text.includes('bardic inspiration')) return Math.max(1,abilityMod(statsWithRace(ch).CHA||10));
+  if(text.includes('bardic inspiration')) return resourceMax || Math.max(1,abilityMod(statsWithRace(ch).CHA||10));
   if(text.includes('flurry of blows')||text.includes('patient defense')||text.includes('stunning strike')) return resourceMax || level;
   if(text.includes('channel divinity')||text.includes('turn undead')) return resourceMax || (level>=6?2:1);
   if(text.includes('wild shape')) return 2;
   if(text.includes('lay on hands')) return level*5;
   if(text.includes('action surge')) return level>=17?2:1;
-  if(text.includes('indomitable')) return level>=17?3:level>=13?2:level>=9?1:0;
-  if(text.includes('divine intervention')) return level>=10?1:0;
-  if(text.includes('arcane recovery')) return 1;
   if(text.includes('second wind')) return 1;
-  if(text.includes('divine smite')||text.includes('sneak attack')||text.includes('reckless attack')||text.includes('cunning action')||text.includes('uncanny dodge')) return 0;
+  if(text.includes('divine smite')||text.includes('sneak attack')||text.includes('reckless attack')||text.includes('cunning action')) return 0;
   return 0;
 }
-function featureUseKey(name=''){
-  const text=String(name||'feature').toLowerCase();
-  if(/flurry of blows|patient defense|stunning strike/.test(text)) return 'ki';
-  return text.replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'feature';
-}
+function featureUseKey(name=''){return String(name||'feature').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'feature'}
 function featureUsesLeft(ch,name=''){
   const max=featureUseMax(ch,name);
   if(!max) return Infinity;
@@ -10312,18 +10144,9 @@ function normalizeStatuses(statuses=[]){
       die:s.die==null?undefined:Number(s.die)||0,
       sourceId:s.sourceId||'',
       sourceSpell:s.sourceSpell||s.spell||'',
-      sourceFeature:s.sourceFeature||'',
       saveDC:s.saveDC==null?undefined:Math.max(0,Number(s.saveDC)||0),
       concentration:!!s.concentration,
-      spell:s.spell||'',
-      smiteSpell:!!s.smiteSpell,
-      riderFormula:s.riderFormula||'',
-      riderDamageType:s.riderDamageType||'',
-      riderStatus:s.riderStatus||'',
-      riderSaveAbility:s.riderSaveAbility||'',
-      riderCastLevel:s.riderCastLevel==null?undefined:Math.max(0,Number(s.riderCastLevel)||0),
-      riderSlotLevel:s.riderSlotLevel==null?undefined:Math.max(0,Number(s.riderSlotLevel)||0),
-      riderNote:s.riderNote||''
+      spell:s.spell||''
     };
   }).filter(s=>s.name);
 }
@@ -10346,7 +10169,7 @@ function activeRollBuffs(ch,rollType='any'){
     if(!def) return null;
     if(status.uses!=null && status.uses<=0) return null;
     if(rollType!=='any' && !def.appliesTo.includes(rollType)) return null;
-    return {...def,die:status.die||def.die,key,statusName:status.name,status};
+    return {...def,key,statusName:status.name,status};
   }).filter(Boolean);
 }
 function normalizeRollState(raw={}){
@@ -10374,14 +10197,10 @@ function rollModeInfo(actor,rollType='check',target=null){
   if(typed) sources.push({mode:typed,label:rollType==='check'?'Skills/checks':rollType});
   const poisoned=normalizeStatuses(actor?.statuses||[]).some(s=>s.name==='Poisoned');
   if(poisoned && ['attack','check'].includes(rollType)) sources.push({mode:'disadvantage',label:'Poisoned'});
-  if(rollType==='save' && hasStatusNamed(actor,'Indomitable ready')) sources.push({mode:'advantage',label:'Indomitable'});
-  if(rollType==='save' && actor?._savingAbility==='DEX' && classLevelAtLeast(actor,'Barbarian',2)) sources.push({mode:'advantage',label:'Danger Sense'});
   if(rollType==='attack' && target){
     const targetStatuses=normalizeStatuses(target.statuses||[]);
     if(targetStatuses.some(s=>s.name==='Slipped' || s.name==='Prone')) sources.push({mode:'advantage',label:'Target slipped'});
     if(targetStatuses.some(s=>s.name==='Reckless')) sources.push({mode:'advantage',label:'Target reckless'});
-    if(targetStatuses.some(s=>s.name==='Patient Defense')) sources.push({mode:'disadvantage',label:'Target dodging'});
-    if(targetStatuses.some(s=>s.name==='Invisible')) sources.push({mode:'disadvantage',label:'Target invisible'});
   }
   const hasAdv=sources.some(s=>s.mode==='advantage');
   const hasDis=sources.some(s=>s.mode==='disadvantage');
@@ -10467,10 +10286,7 @@ function rollWithBuffs(ch,expression,baseBonus=0,rollType='check',manualBuffKey=
   } else if(isD20){
     base={...base,d20Rolls:[base.rolls[0]],rollMode:'normal',rollModeSources:modeInfo.sources};
   }
-  if(isD20){
-    consumeNextRollState(ch);
-    if(rollType==='save' && hasStatusNamed(ch,'Indomitable ready')) removeStatusNamed(ch,'Indomitable ready');
-  }
+  if(isD20) consumeNextRollState(ch);
   const available=activeRollBuffs(ch,rollType);
   const selected=manualBuffKey ? available.find(b=>b.key===manualBuffKey) : null;
   const auto=selected || (rollType==='attack' ? available.find(b=>b.key==='bless') : null);
@@ -10698,9 +10514,7 @@ function rollSavingThrow(id=activeCharacterId,ability='DEX'){
   const itemStats=itemStatBonuses(ch);
   for(const ab of ABILITIES) stats[ab]=(stats[ab]||10)+(itemStats[ab]||0);
   const mod=abilityMod(stats[ability]||10);
-  ch._savingAbility=ability;
   const result=rollWithBuffs(ch,'1d20',mod,'save');
-  delete ch._savingAbility;
   lastRoll={roll:result.rolls[0],mod,total:result.total,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode};
   addChatMessage({kind:'save',character:ch.name,label:`${ability} save`,detail:rollDetailWithBuff(result,`1d20 ${formatBonus(mod)}`),total:result.total,rolls:result.rolls});
   const effect=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:`${ability} save`);
@@ -10737,18 +10551,9 @@ function rollSkillCheck(id=activeCharacterId,skill='Perception'){
   activeCharacterId=ch.id;
   const breakdown=skillBreakdown(ch,skill);
   const result=rollWithBuffs(ch,'1d20',breakdown.total,'check');
-  if(classLevelAtLeast(ch,'Rogue',11) && breakdown.profMult>0 && result.rolls[0]<10){
-    const raised=10;
-    const delta=raised-result.rolls[0];
-    result.rolls[0]=raised;
-    if(result.d20Rolls?.length) result.d20Rolls[result.d20Rolls.indexOf(Math.min(...result.d20Rolls))]=raised;
-    result.baseTotal+=delta;
-    result.total+=delta;
-    result.reliableTalent=true;
-  }
   const profLabel=breakdown.profMult===2 ? ` + ${breakdown.profBonus} expertise` : breakdown.profMult===1 ? ` + ${breakdown.profBonus} proficiency` : '';
   const flatLabel=breakdown.flatBonus ? ` ${formatBonus(breakdown.flatBonus)} custom` : '';
-  const baseLabel=`1d20 ${formatBonus(breakdown.abilityBonus)} ${breakdown.ability}${profLabel}${flatLabel}${result.reliableTalent?' Reliable Talent min 10':''}`;
+  const baseLabel=`1d20 ${formatBonus(breakdown.abilityBonus)} ${breakdown.ability}${profLabel}${flatLabel}`;
   lastRoll={roll:result.rolls[0],mod:breakdown.total,total:result.total,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode};
   addChatMessage({kind:'skill',character:ch.name,label:skillLabel(skill),detail:rollDetailWithBuff(result,baseLabel),total:result.total,rolls:result.rolls});
   const visual=rollVisualEffect(ch.name,result.total,result.rolls[0],result.buff?`${result.rolls[0]} + ${result.buffRoll} ${result.buff.label}`:skillDetailLabel(skill,breakdown));
@@ -10786,51 +10591,10 @@ function removeStatusNamed(entity,name){
   entity.statuses=normalizeStatuses(entity.statuses||[]).filter(s=>s.name!==name);
   return entity;
 }
-function activeSmiteSpellStatus(ch){
-  return normalizeStatuses(ch?.statuses||[]).find(s=>s.smiteSpell && /ready/i.test(s.name||''));
-}
-function removeSmiteSpellStatus(ch,status){
-  if(!ch || !status) return;
-  ch.statuses=normalizeStatuses(ch.statuses||[]).filter(s=>s.name!==status.name);
-}
-function rollSmiteRiderSave(ch,target,status){
-  const ability=String(status?.riderSaveAbility||'').toUpperCase();
-  if(!target || !ABILITIES.includes(ability)) return null;
-  const dc=Number(status.saveDC)||Number(ch?.derived?.spellSaveDC)||0;
-  if(!dc) return null;
-  const bonus=saveBonusForEntry({kind:'enemy',entity:target},ability);
-  const roll=rollDiceExpression('1d20',bonus);
-  return {ability,dc,bonus,roll,saved:roll.total>=dc};
-}
 function sneakAttackFormula(ch){
   return `${Math.max(1,Math.ceil((Number(ch?.level)||1)/2))}d6`;
 }
-function rageDamageBonus(ch,item={}){
-  if(!hasStatusNamed(ch,'Rage') || !isMeleeWeaponAction(item)) return 0;
-  const level=characterLevel(ch);
-  return level>=16 ? 4 : level>=9 ? 3 : 2;
-}
-function brutalCriticalFormula(ch,item={}){
-  if(classNameOf(ch)!=='Barbarian' || characterLevel(ch)<9 || !isMeleeWeaponAction(item)) return '';
-  const extraDice=characterLevel(ch)>=17 ? 3 : characterLevel(ch)>=13 ? 2 : 1;
-  const die=DAMAGE_DICE.includes(item?.die) ? item.die : dieFromFormula(item?.damageFormula)||'d6';
-  return `${extraDice}${die}`;
-}
-function canApplySneakAttack(ch,item={},attack=null){
-  if(classNameOf(ch)!=='Rogue') return false;
-  if(!isMeleeWeaponAction(item) && !/bow|crossbow|ranged|finesse|dagger|rapier|shortsword/i.test(`${item.name||''} ${item.description||''}`)) return false;
-  const state=turnActionState.actorId===ch?.id ? turnActionState : {};
-  if(state.sneakAttackUsed) return false;
-  return hasStatusNamed(ch,'Sneak Attack ready') || attack?.rollMode==='advantage';
-}
-function markSneakAttackUsed(ch){
-  if(!ch) return;
-  const state=turnActionState.actorId===ch.id ? {...turnActionState} : {actorId:ch.id};
-  state.sneakAttackUsed=true;
-  turnActionState=state;
-  if(combatMode) broadcast({type:'turnAction',turnActionState});
-}
-function applyDamageRiders(ch,target,critical=false,item=null,attack=null){
+function applyDamageRiders(ch,target,critical=false,item=null){
   const riders=[];
   const bonusFormula=bonusDamageFormulaForAction(item||{});
   if(bonusFormula){
@@ -10839,78 +10603,39 @@ function applyDamageRiders(ch,target,critical=false,item=null,attack=null){
     const type=item?.bonusDamageType ? ` ${item.bonusDamageType}` : '';
     riders.push({name:`Bonus${type} damage`,formula:bonusFormula,roll,amount});
   }
-  const rageBonus=rageDamageBonus(ch,item||{});
-  if(rageBonus){
-    riders.push({name:'Rage',formula:`+${rageBonus}`,roll:{rolls:[rageBonus],total:rageBonus},amount:rageBonus});
-  }
-  const brutalFormula=critical ? brutalCriticalFormula(ch,item||{}) : '';
-  if(brutalFormula){
-    const roll=rollDiceExpression(brutalFormula,0);
-    riders.push({name:'Brutal Critical',formula:brutalFormula,roll,amount:roll.total});
-  }
-  if(canApplySneakAttack(ch,item||{},attack)){
+  if(hasStatusNamed(ch,'Sneak Attack ready')){
     const formula=sneakAttackFormula(ch);
     const roll=rollDiceExpression(formula,0);
     const amount=critical ? roll.total*2 : roll.total;
     riders.push({name:'Sneak Attack',formula,roll,amount});
     removeStatusNamed(ch,'Sneak Attack ready');
-    markSneakAttackUsed(ch);
   }
-  if(hasStatusNamed(ch,'Divine Smite ready') && isMeleeWeaponAction(item||{})){
+  if(hasStatusNamed(ch,'Divine Smite ready')){
     const slot=chooseCastLevel(ch,{name:'Divine Smite',spellLevel:1,castLevel:1}) || 1;
     const spent=spendSpellSlot(ch,slot);
     if(spent){
-      const formula=`${Math.min(5,Math.max(2,slot+1))}d8`;
+      const formula=`${Math.max(2,slot+1)}d8`;
       const roll=rollDiceExpression(formula,0);
       const amount=critical ? roll.total*2 : roll.total;
       riders.push({name:`Divine Smite L${slot}`,formula,roll,amount});
     }
     removeStatusNamed(ch,'Divine Smite ready');
   }
-  const smiteStatus=activeSmiteSpellStatus(ch);
-  if(smiteStatus && isMeleeWeaponAction(item||{})){
-    const formula=smiteStatus.riderFormula || '1d6';
-    const roll=rollDiceExpression(formula,0);
-    const amount=critical ? roll.total*2 : roll.total;
-    const save=rollSmiteRiderSave(ch,target,smiteStatus);
-    const damageType=smiteStatus.riderDamageType ? ` ${smiteStatus.riderDamageType}` : '';
-    const rider={name:smiteStatus.sourceSpell||smiteStatus.name.replace(/\s*ready$/i,''),formula,roll,amount,save,damageType,statusApplied:''};
-    if(smiteStatus.riderStatus && target){
-      let applies=!save || !save.saved;
-      if(/banished/i.test(smiteStatus.riderStatus)) applies=false;
-      if(applies){
-        addEnemyStatus(target.uid,smiteStatus.riderStatus,1,{sourceId:ch.id,sourceSpell:rider.name,saveDC:Number(ch?.derived?.spellSaveDC)||0});
-        rider.statusApplied=smiteStatus.riderStatus;
-      }
-    }
-    riders.push(rider);
-    removeSmiteSpellStatus(ch,smiteStatus);
-    ch.statuses=normalizeStatuses(ch.statuses).filter(s=>!(s.name==='Concentrating' && (s.spell===rider.name || s.sourceSpell===rider.name)));
-  }
   if(!riders.length) return {total:0,detail:'',riders};
   const total=riders.reduce((sum,r)=>sum+r.amount,0);
-  return {total,riders,detail:riders.map(r=>{
-    const saveDetail=r.save ? `; ${r.save.ability} save ${r.save.roll.total} vs DC ${r.save.dc} ${r.save.saved?'saved':'failed'}` : '';
-    const statusDetail=r.statusApplied ? `; ${r.statusApplied}` : '';
-    return `${r.name}${r.damageType||''} ${r.formula} [${r.roll.rolls.join(', ')}]${critical?' x2':''} = ${r.amount}${saveDetail}${statusDetail}`;
-  }).join(' + ')};
+  return {total,riders,detail:riders.map(r=>`${r.name} ${r.formula} [${r.roll.rolls.join(', ')}]${critical?' x2':''} = ${r.amount}`).join(' + ')};
 }
 function rollCharacterAction(characterId,type,itemId,options={}){
   const ch=characterById(characterId);
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
   const collection=type==='spell' ? [...(ch.spells||[]),...equippedSpellActions(ch)] : (ch[type+'s']||[]);
-  const rawItem=collection.find(x=>x.id===itemId);
-  const runtimeOverrides=type==='spell' ? spellControlOverrides(rawItem||{}) : {};
-  const item=type==='spell' ? {...rawItem,...runtimeOverrides} : rawItem;
+  const item=collection.find(x=>x.id===itemId);
   if(!item) return;
   const actionCost=item.actionCost||inferActionCost(item);
+  if(!canUseTurnAction(ch,actionCost)) return;
   ch.derived=ch.derived || calculateDerived(ch);
   const actionType=item.actionType||inferActionType(item);
-  const isWeaponAttack=type==='weapon' && actionType==='damage' && actionCost==='action';
-  if(isWeaponAttack){
-    if(!canUseWeaponAttackAction(ch,item)) return;
-  } else if(!canUseTurnAction(ch,actionCost)) return;
   if(type==='spell' && isGreaseAction(item) && !options.greaseMode){
     return showGreaseCastChoice(characterId,type,itemId);
   }
@@ -10933,35 +10658,6 @@ function rollCharacterAction(characterId,type,itemId,options={}){
     addChatMessage({kind:'heal',character:ch.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})${castLevel?` using L${castLevel}`:''}`,total:roll.total,rolls:roll.rolls});
     const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${diceFormulaForAction(castItem)} ${formatBonus(castItem.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx('heal');
-    showCritOverlay(effect.text,effect.overlayType,effect.title);
-    playActionAnimation(ch,'spell',effect);
-    emitLiveEffect(effect);
-    syncCharacter(ch);
-    updateCombatPopout();
-    return;
-  }
-  const smiteConfig=type==='spell' ? smiteSpellConfig(castItem) : null;
-  if(smiteConfig){
-    markTurnAction(actionCost,characterId);
-    const formula=smiteFormulaAtCastLevel(smiteConfig,castLevel);
-    const casterAfter=setConcentration(ch.id,smiteConfig.name) || ch;
-    const updated=addCharacterStatus(ch.id,`${smiteConfig.name} ready`,10,{
-      sourceId:ch.id,
-      sourceSpell:smiteConfig.name,
-      concentration:true,
-      smiteSpell:true,
-      riderFormula:formula,
-      riderDamageType:smiteConfig.type||'',
-      riderStatus:smiteConfig.status||'',
-      riderSaveAbility:smiteConfig.saveAbility||'',
-      riderCastLevel:castLevel,
-      riderSlotLevel:castLevel,
-      riderNote:smiteConfig.note||'',
-      saveDC:Number(ch.derived?.spellSaveDC)||0
-    });
-    addChatMessage({kind:'buff',character:ch.name,label:smiteConfig.name,detail:`L${castLevel} slot spent. Next melee hit adds ${formula} ${smiteConfig.type||'damage'}${smiteConfig.status?` and may apply ${smiteConfig.status}`:''}.`});
-    const effect={text:`${ch.name} primes ${smiteConfig.name}`,overlayType:'roll',title:`${formula} ${smiteConfig.type||''}`,kind:'buff',characterId:ch.id,targetCharacterId:ch.id,statuses:updated?.statuses||ch.statuses,casterStatuses:casterAfter?.statuses||ch.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(ch),ty:characterY(ch),actionType};
-    playSfx('buff');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
     playActionAnimation(ch,'spell',effect);
     emitLiveEffect(effect);
@@ -11034,14 +10730,13 @@ function rollCharacterAction(characterId,type,itemId,options={}){
   }
   const attack=rollWithBuffs(ch,'1d20',ch.derived.attackBonus,'attack','',target);
   const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
-  if(isWeaponAttack) markWeaponAttackAction(ch);
-  else markTurnAction(actionCost,characterId);
+  markTurnAction(actionCost,characterId);
   const natural=keptD20(attack);
   const critical=isAttackCrit(attack);
   const fumble=isAttackFumble(attack);
   const hitTarget=target && !fumble && (critical || attack.total>=target.ac);
   const rolledDamage=damage.total;
-  const riderResult=hitTarget ? applyDamageRiders(ch,target,critical,castItem,attack) : {total:0,detail:'',riders:[]};
+  const riderResult=hitTarget ? applyDamageRiders(ch,target,critical,castItem) : {total:0,detail:'',riders:[]};
   const appliedDamage=hitTarget ? (critical ? rolledDamage*2 : rolledDamage) + riderResult.total : 0;
   const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   const hpBefore=target ? target.hp : null;
@@ -11052,11 +10747,6 @@ function rollCharacterAction(characterId,type,itemId,options={}){
     target.hp=Math.max(0,target.hp-appliedDamage);
     hpAfter=target.hp;
     campaignStat('damageDealt',appliedDamage);
-    if(target.hp>0 && target.hp<=50 && riderResult.riders?.some(r=>/banishing smite/i.test(r.name||''))){
-      const banished=addEnemyStatus(target.uid,'Banished',1,{sourceId:ch.id,sourceSpell:'Banishing Smite',saveDC:Number(ch.derived?.spellSaveDC)||0});
-      target.statuses=banished?.statuses||target.statuses;
-      addChatMessage({kind:'buff',character:ch.name,label:'Banishing Smite',detail:`${target.name} is banished after dropping to ${target.hp} HP.`});
-    }
     if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
     broadcast({type:'iconUpdate',icon:target});
   }
@@ -11125,8 +10815,7 @@ function useCharacterFeature(characterId,itemId){
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
   const item=[...(ch.abilities||[]),...(ch.bonusActions||[])].find(x=>x.id===itemId);
   if(!item) return;
-  const def=featureDefaults(item.name||'');
-  const actionCost=item.actionCost&&item.actionCost!=='passive' ? item.actionCost : (def.actionCost||item.actionCost||'passive');
+  const actionCost=item.actionCost||'passive';
   if(actionCost==='passive') return showCritOverlay(item.description||'Passive feature','roll',item.name);
   if(!canUseTurnAction(ch,actionCost)) return;
   const name=String(item.name||'').toLowerCase();
@@ -11150,8 +10839,6 @@ function useCharacterFeature(characterId,itemId){
     if(!spendFeatureUse(ch,'Action Surge')) return;
     const state=turnActionState.actorId===ch.id ? {...turnActionState} : {actorId:ch.id,movementUsed:0,moved:false};
     state.actionTaken=false;
-    state.weaponAttackAction=false;
-    state.weaponAttacksUsed=0;
     state.acted=!!(state.bonusActionTaken||state.reactionTaken||state.moved);
     state.reason='Action Surge';
     state.at=Date.now();
@@ -11201,17 +10888,11 @@ function useCharacterFeature(characterId,itemId){
     addChatMessage({kind:'feature',character:ch.name,label:'Cunning Action',detail:choice});
     return finish({...baseEffect,kind:'feature',text:`Cunning Action: ${choice}`,title:'Bonus action'});
   }
-  if(name.includes('uncanny dodge')){
-    const updated=addCharacterStatus(ch.id,'Uncanny Dodge ready',1,{sourceId:ch.id,sourceFeature:item.name});
-    addChatMessage({kind:'buff',character:ch.name,label:'Uncanny Dodge',detail:'Next visible attack damage is halved.'});
-    return finish({...baseEffect,kind:'buff',text:`${ch.name} readies Uncanny Dodge`,title:'Reaction ready',targetCharacterId:ch.id,statuses:updated?.statuses});
-  }
   if(name.includes('bardic inspiration')){
     if(!spendFeatureUse(ch,'Bardic Inspiration')) return;
-    const die=characterLevel(ch)>=15?12:characterLevel(ch)>=10?10:characterLevel(ch)>=5?8:6;
-    const updated=addCharacterStatus(target.id,'Bardic Inspiration',10,{sourceId:ch.id,sourceFeature:item.name,die});
-    addChatMessage({kind:'buff',character:ch.name,label:'Bardic Inspiration',detail:`${target.name} gains a d${die} inspiration die for a future roll`});
-    return finish({...baseEffect,kind:'buff',text:`${target.name} is inspired`,title:`Bardic Inspiration d${die}`,targetCharacterId:target.id,statuses:updated?.statuses});
+    const updated=addCharacterStatus(target.id,'Bardic Inspiration',10,{sourceId:ch.id,sourceFeature:item.name});
+    addChatMessage({kind:'buff',character:ch.name,label:'Bardic Inspiration',detail:`${target.name} gains an inspiration die for a future roll`});
+    return finish({...baseEffect,kind:'buff',text:`${target.name} is inspired`,title:'Bardic Inspiration',targetCharacterId:target.id,statuses:updated?.statuses});
   }
   if(name.includes('guidance')){
     const updated=addCharacterStatus(target.id,'Guidance',10,{sourceId:ch.id,sourceFeature:item.name});
@@ -11233,12 +10914,9 @@ function useCharacterFeature(characterId,itemId){
   if(name.includes('stunning strike')){
     if(!spendFeatureUse(ch,'Stunning Strike')) return;
     if(!enemy) return showCritOverlay('Choose an enemy target first','roll','Stunning Strike');
-    const dc=8+proficiencyBonus(characterLevel(ch))+abilityMod(statsWithRace(ch).WIS||10);
-    const save=rollSaveForEntry({kind:'enemy',entity:enemy},'CON');
-    const failed=save.total<dc;
-    const updated=failed ? addEnemyStatus(enemy.uid,'Stunned',1,{sourceId:ch.id,sourceFeature:item.name,saveDC:dc}) : enemy;
-    addChatMessage({kind:'buff',character:ch.name,label:'Stunning Strike',detail:`${enemy.name} CON save ${save.total} vs DC ${dc} - ${failed?'Stunned':'Resisted'}`});
-    return finish({...baseEffect,kind:'buff',text:`Stunning Strike: ${enemy.name} ${failed?'stunned':'resists'}`,title:`CON ${save.total} vs DC ${dc}`,targetUid:enemy.uid,tx:enemy.x,ty:enemy.y,statuses:updated?.statuses});
+    const updated=addEnemyStatus(enemy.uid,'Stunned',1);
+    addChatMessage({kind:'buff',character:ch.name,label:'Stunning Strike',detail:`${enemy.name} marked stunned pending save/adjudication`});
+    return finish({...baseEffect,kind:'buff',text:`Stunning Strike: ${enemy.name}`,title:'Stunned',targetUid:enemy.uid,tx:enemy.x,ty:enemy.y,statuses:updated?.statuses});
   }
   if(name.includes('flurry of blows')){
     if(!spendFeatureUse(ch,'Flurry of Blows')) return;
@@ -11246,68 +10924,20 @@ function useCharacterFeature(characterId,itemId){
     return finish({...baseEffect,kind:'feature',text:`${ch.name} uses Flurry of Blows`,title:'Two extra strikes'});
   }
   if(name.includes('divine smite')){
-    if(!chooseCastLevel(ch,{name:'Divine Smite',spellLevel:1,castLevel:1})) return showCritOverlay('No spell slot available','fail','Divine Smite');
     const updated=addCharacterStatus(ch.id,'Divine Smite ready',1,{sourceId:ch.id,sourceFeature:item.name});
-    addChatMessage({kind:'buff',character:ch.name,label:'Divine Smite',detail:'Smite primed for the next melee hit. A spell slot will be spent automatically on hit.'});
-    return finish({...baseEffect,kind:'buff',text:`${ch.name} primes Divine Smite`,title:'Slot spends on hit',targetCharacterId:ch.id,statuses:updated?.statuses});
+    addChatMessage({kind:'buff',character:ch.name,label:'Divine Smite',detail:'Smite primed for the next melee hit. Spend a slot manually.'});
+    return finish({...baseEffect,kind:'buff',text:`${ch.name} primes Divine Smite`,title:'Smite ready',targetCharacterId:ch.id,statuses:updated?.statuses});
   }
   if(name.includes('sneak attack')){
     const updated=addCharacterStatus(ch.id,'Sneak Attack ready',1,{sourceId:ch.id,sourceFeature:item.name});
     addChatMessage({kind:'buff',character:ch.name,label:'Sneak Attack',detail:'Damage rider primed for this turn if conditions are met'});
     return finish({...baseEffect,kind:'buff',text:`${ch.name} readies Sneak Attack`,title:'Sneak Attack',targetCharacterId:ch.id,statuses:updated?.statuses});
   }
-  if(name.includes('indomitable')){
-    if(!spendFeatureUse(ch,'Indomitable')) return;
-    const updated=addCharacterStatus(ch.id,'Indomitable ready',1,{sourceId:ch.id,sourceFeature:item.name});
-    addChatMessage({kind:'buff',character:ch.name,label:'Indomitable',detail:'Next saving throw rolls with advantage as a playable reroll stand-in.'});
-    return finish({...baseEffect,kind:'buff',text:`${ch.name} steadies for the next save`,title:'Next save advantage',targetCharacterId:ch.id,statuses:updated?.statuses});
-  }
-  if(name.includes('arcane recovery')){
-    if(!spendFeatureUse(ch,'Arcane Recovery')) return;
-    const budget=Math.max(1,Math.ceil(characterLevel(ch)/2));
-    const usedLevels=SPELL_SLOT_LEVELS.filter(lvl=>lvl<=5 && (Number(ch.spellSlotUsage?.[lvl])||0)>0 && lvl<=budget);
-    if(!usedLevels.length){ clearCharacterFeatureUse(ch,'Arcane Recovery'); return showCritOverlay('No spent slots to recover','roll','Arcane Recovery'); }
-    const lvl=Math.max(1,Math.min(5,Number(prompt(`Recover one spent slot up to combined level ${budget}. Slot level?`,String(usedLevels[0])))||usedLevels[0]));
-    if(!usedLevels.includes(lvl)){ clearCharacterFeatureUse(ch,'Arcane Recovery'); return showCritOverlay('That slot is not spent or is too high','fail','Arcane Recovery'); }
-    ch.spellSlotUsage={...(ch.spellSlotUsage||{}),[lvl]:Math.max(0,(Number(ch.spellSlotUsage[lvl])||0)-1)};
-    addChatMessage({kind:'feature',character:ch.name,label:'Arcane Recovery',detail:`Recovered one level ${lvl} spell slot.`});
-    return finish({...baseEffect,kind:'feature',text:`${ch.name} recovers a L${lvl} slot`,title:'Arcane Recovery'});
-  }
   if(name.includes('channel divinity')||name.includes('turn undead')){
     if(!spendFeatureUse(ch,'Channel Divinity')) return;
     const effectName=name.includes('turn undead')?'Turn Undead':'Channel Divinity';
-    if(effectName==='Turn Undead'){
-      const dc=Number(ch.derived?.spellSaveDC)||8+proficiencyBonus(characterLevel(ch))+abilityMod(statsWithRace(ch).WIS||10);
-      const undead=icons.filter(icon=>icon.type==='enemy' && isUndeadEnemy(icon) && Math.hypot(icon.x-characterX(ch),icon.y-characterY(ch))<=240);
-      const destroyed=[];
-      const turned=[];
-      for(const targetEnemy of undead){
-        const save=rollSaveForEntry({kind:'enemy',entity:targetEnemy},'WIS');
-        if(save.total<dc){
-          const threshold=destroyUndeadCrThreshold(characterLevel(ch));
-          if(threshold && enemyChallenge(targetEnemy)<=threshold){
-            targetEnemy.hp=0;
-            destroyed.push(targetEnemy.name);
-            ensureEnemyLoot(targetEnemy);
-          } else {
-            addEnemyStatus(targetEnemy.uid,'Turned',10,{sourceId:ch.id,sourceFeature:item.name,saveDC:dc});
-            turned.push(targetEnemy.name);
-          }
-          broadcast({type:'iconUpdate',icon:targetEnemy});
-        }
-      }
-      addChatMessage({kind:'feature',character:ch.name,label:'Turn Undead',detail:`WIS DC ${dc}. Turned: ${turned.join(', ')||'none'}. Destroyed: ${destroyed.join(', ')||'none'}.`});
-      return finish({...baseEffect,kind:'feature',text:`Turn Undead: ${turned.length+destroyed.length}/${undead.length} affected`,title:`WIS DC ${dc}`});
-    }
     addChatMessage({kind:'feature',character:ch.name,label:effectName,detail:item.description||'Divine feature used'});
     return finish({...baseEffect,kind:'feature',text:`${ch.name}: ${effectName}`,title:effectName});
-  }
-  if(name.includes('divine intervention')){
-    if(!spendFeatureUse(ch,'Divine Intervention')) return;
-    const roll=rollDiceExpression('1d100',0);
-    const success=characterLevel(ch)>=20 || roll.total<=characterLevel(ch);
-    addChatMessage({kind:'feature',character:ch.name,label:'Divine Intervention',detail:`Rolled ${roll.total} vs level ${characterLevel(ch)} - ${success?'Intervention succeeds':'No answer yet'}`});
-    return finish({...baseEffect,kind:'feature',text:`Divine Intervention: ${success?'answered':'unanswered'}`,title:`d100 ${roll.total}`});
   }
   if(name.includes('wild shape')){
     if(!spendFeatureUse(ch,'Wild Shape')) return;
@@ -11349,10 +10979,10 @@ function applyAoeResult(entry,amount,actionType,effectName){
   if(actionType==='damage'){
     after=Math.max(0,before-amount);
     if(entry.kind==='enemy'){ target.hp=after; broadcast({type:'iconUpdate',icon:target}); if(amount>0) campaignStat('damageDealt',amount); if(before>0&&after<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,'AoE'); } }
-    else applyCharacterPatch(target.id,{currentHP:after,statuses:target.statuses});
+    else applyCharacterPatch(target.id,{currentHP:after});
   } else if(actionType==='healing'){
     if(entry.kind==='enemy'){ after=Math.min(target.maxHP,before+amount); target.hp=after; broadcast({type:'iconUpdate',icon:target}); }
-    else { after=Math.min(target.derived?.HP||before,before+amount); campaignStat('healingDone',Math.max(0,after-before)); applyCharacterPatch(target.id,{currentHP:after,statuses:target.statuses}); }
+    else { after=Math.min(target.derived?.HP||before,before+amount); campaignStat('healingDone',Math.max(0,after-before)); applyCharacterPatch(target.id,{currentHP:after}); }
   } else {
     if(entry.kind==='enemy') addEnemyStatus(target.uid,effectName,10);
     else addCharacterStatus(target.id,effectName,10);
@@ -11408,14 +11038,16 @@ function rollAoeAction(caster,casterKind,type,item,actionType){
       if(splitDamage){
         amount=splitAmounts[index]||0;
         if(saveDC){
-          save=rollSaveForEntry(entry,saveAbility);
+          const saveBonus=saveBonusForEntry(entry,saveAbility);
+          save=rollDiceExpression('1d20',saveBonus);
           saved=save.total>=saveDC;
-          if(saved || entry.kind==='character') amount=damageAfterSaveForEntry(entry,amount,saved,saveHalf,saveAbility);
+          if(saved) amount=saveHalf ? Math.floor(amount/2) : 0;
         }
       } else if(saveDC){
-        save=rollSaveForEntry(entry,saveAbility);
+        const saveBonus=saveBonusForEntry(entry,saveAbility);
+        save=rollDiceExpression('1d20',saveBonus);
         saved=save.total>=saveDC;
-        amount=damageAfterSaveForEntry(entry,damage.total,saved,saveHalf,saveAbility);
+        amount=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
       } else {
         const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
         attack=rollWithBuffs(caster,'1d20',atkBonus,'attack','',entry.entity);
@@ -11506,13 +11138,13 @@ function rollEnemyAction(enemyUid,type,itemId){
     const damage=rollDiceExpression(diceFormulaForAction(item),item.bonus);
     const entry=targetCharacter ? {kind:'character',entity:targetCharacter} : {kind:'enemy',entity:targetEnemy};
     const saveBonus=saveBonusForEntry(entry,saveAbility);
-    const save=rollSaveForEntry(entry,saveAbility);
+    const save=rollDiceExpression('1d20',saveBonus);
     const saved=save.total>=saveDC;
-    const appliedDamage=damageAfterSaveForEntry(entry,damage.total,saved,saveHalf,saveAbility);
+    const appliedDamage=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
     let hpBefore=targetCharacter ? (target.currentHP ?? target.derived?.HP ?? 0) : target.hp;
     let hpAfter=Math.max(0,hpBefore-appliedDamage);
     markTurnAction(actionCost,enemy.uid);
-    if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter,statuses:target.statuses});
+    if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter});
     else {
       target.hp=hpAfter;
       broadcast({type:'iconUpdate',icon:target});
@@ -11548,16 +11180,14 @@ function rollEnemyAction(enemyUid,type,itemId){
   const fumble=isAttackFumble(attack);
   const hit=!fumble && (critical || attack.total>=targetAC);
   const rolledDamage=damage.total;
-  const rawAppliedDamage=hit ? (critical ? rolledDamage*2 : rolledDamage) : 0;
-  const incoming=targetCharacter ? incomingCharacterDamageAmount(targetCharacter,rawAppliedDamage,'attack') : {amount:rawAppliedDamage,detail:''};
-  const appliedDamage=incoming.amount;
+  const appliedDamage=hit ? (critical ? rolledDamage*2 : rolledDamage) : 0;
   const backfireDamage=fumble ? Math.max(1,Math.floor(rolledDamage/2)) : 0;
   let hpBefore=targetCharacter ? target.currentHP : target.hp;
   let hpAfter=hpBefore;
   let backfire=null;
   if(hit){
     hpAfter=Math.max(0,hpBefore-appliedDamage);
-    if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter,statuses:target.statuses});
+    if(targetCharacter) applyCharacterPatch(target.id,{currentHP:hpAfter});
     else {
       target.hp=hpAfter;
       broadcast({type:'iconUpdate',icon:target});
@@ -11570,7 +11200,7 @@ function rollEnemyAction(enemyUid,type,itemId){
     kind:type,
     character:enemy.name,
     label:item.name,
-    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,enemy.attackBonus||0)}] vs AC ${targetAC} - ${hit?'Hit':'Miss'}${critical?`, critical ${rolledDamage} x2 = ${rawAppliedDamage}`:hit?`, ${rawAppliedDamage} damage`:''}${incoming.detail||''}${backfireDamage?`, nat 1 backfire ${backfireDamage} to ${enemy.name}`:''}`,
+    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,enemy.attackBonus||0)}] vs AC ${targetAC} - ${hit?'Hit':'Miss'}${critical?`, critical ${rolledDamage} x2 = ${appliedDamage}`:hit?`, ${appliedDamage} damage`:''}${backfireDamage?`, nat 1 backfire ${backfireDamage} to ${enemy.name}`:''}`,
     total:hit?appliedDamage:attack.total,
     rolls:hit?damage.rolls:attack.rolls
   });

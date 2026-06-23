@@ -1119,14 +1119,14 @@ function normalizeActionItem(item={}){
     bonusDamageCount,
     bonusDamageDie,
     bonusDamageType,
-    upcastDice:validDiceFormula(overrides.upcastDice||item.upcastDice)?(overrides.upcastDice||item.upcastDice):'',
+    upcastDice:validDiceFormula(item.upcastDice)?item.upcastDice:'',
     bonus:Number(item.bonus)||0,
     actionType:ACTION_TYPES.includes(overrides.actionType||item.actionType)?(overrides.actionType||item.actionType):inferred,
-    actionCost:ACTION_COSTS.includes(overrides.actionCost||item.actionCost)?(overrides.actionCost||item.actionCost):cost,
+    actionCost:ACTION_COSTS.includes(item.actionCost)?item.actionCost:cost,
     targetMode:TARGET_MODES.includes(targetMode)?targetMode:'single',
     aoeRadius:Math.max(overrides.aoeRadius||0,normalizedAoeRadius(item)),
     saveDC:Math.max(0,Math.min(30,Number(item.saveDC)||0)),
-    saveAbility:overrides.saveAbility||inferSaveAbility(item),
+    saveAbility:inferSaveAbility(item),
     saveHalf:inferSaveHalfDamage(item),
     attackSave:item.attackSave||'',
     spellLevel,
@@ -1134,7 +1134,7 @@ function normalizeActionItem(item={}){
     freeCast:item.freeCast===true,
     castingTime:item.castingTime||'',
     range:item.range||'',
-    concentration:!!(overrides.concentration||item.concentration),
+    concentration:!!item.concentration,
     sourceClass:item.sourceClass||'',
     effect:overrides.effect||item.effect||defaultActionEffect(item.name||'',inferred),
     description:item.description||'',
@@ -1178,23 +1178,8 @@ function defaultActionEffect(name='',type='damage'){
   if(type==='utility') return 'Utility';
   return '';
 }
-const SMITE_SPELLS={
-  'searing smite':{name:'Searing Smite',spellLevel:1,formula:'1d6',die:'d6',upcastDice:'1d6',type:'Fire',status:'Burning',saveAbility:'CON',note:'Target burns and may keep taking fire damage.'},
-  'thunderous smite':{name:'Thunderous Smite',spellLevel:1,formula:'2d6',die:'d6',type:'Thunder',status:'Prone',saveAbility:'STR',note:'Target may be pushed and knocked prone.'},
-  'wrathful smite':{name:'Wrathful Smite',spellLevel:1,formula:'1d6',die:'d6',type:'Psychic',status:'Frightened',saveAbility:'WIS',note:'Target may become frightened.'},
-  'branding smite':{name:'Branding Smite',spellLevel:2,formula:'2d6',die:'d6',upcastDice:'1d6',type:'Radiant',status:'Revealed',note:'Target becomes visible and sheds dim light.'},
-  'blinding smite':{name:'Blinding Smite',spellLevel:3,formula:'3d8',die:'d8',type:'Radiant',status:'Blinded',saveAbility:'CON',note:'Target may be blinded.'},
-  'staggering smite':{name:'Staggering Smite',spellLevel:4,formula:'4d6',die:'d6',type:'Psychic',status:'Staggered',saveAbility:'WIS',note:'Target reels, loses reactions, and struggles to act.'},
-  'banishing smite':{name:'Banishing Smite',spellLevel:5,formula:'5d10',die:'d10',type:'Force',status:'Banished',note:'Target may be banished if weakened.'}
-};
-function smiteSpellConfig(itemOrName={}){
-  const text=String(typeof itemOrName==='string'?itemOrName:itemOrName?.name||'').toLowerCase();
-  return Object.entries(SMITE_SPELLS).find(([key])=>text.includes(key))?.[1] || null;
-}
 function spellControlOverrides(item={}){
   const text=`${item.name||''} ${item.target||''} ${item.range||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
-  const smite=smiteSpellConfig(item);
-  if(smite) return {actionType:'buff',actionCost:'bonus',targetMode:'single',effect:`${smite.name} ready`,upcastDice:smite.upcastDice||'',saveAbility:smite.saveAbility||'',concentration:true};
   if(text.includes('grease')) return {actionType:'utility',targetMode:'enemies',effect:'Prone',aoeRadius:60};
   if(text.includes('burning hands') || text.includes('cone')) return {actionType:'damage',targetMode:'cone',aoeRadius:Math.max(30,Number(item.aoeRadius)||0)};
   return {};
@@ -2262,7 +2247,7 @@ const FEATURE_LIBRARY={
   'Bardic Inspiration':{description:'Bonus action. Give an ally an inspiration die for a future roll.',actionCost:'bonus',actionType:'buff',effect:'Bardic Inspiration',targetMode:'single'},
   Expertise:{description:'Passive. Double proficiency for selected skills or tools.',actionCost:'passive',actionType:'utility',effect:'Expertise',targetMode:'single'},
   'Cunning Action':{description:'Bonus action. Dash, Disengage, or Hide.',actionCost:'bonus',actionType:'utility',effect:'Cunning Action',targetMode:'single'},
-  'Sneak Attack':{description:'Free rider. Prime Sneak Attack, or let it trigger on an advantaged weapon hit once per turn.',actionCost:'free',actionType:'damage',effect:'Sneak Attack',targetMode:'single'},
+  'Sneak Attack':{description:'Passive damage rider when you have advantage or an ally near the target.',actionCost:'passive',actionType:'damage',effect:'Sneak Attack',targetMode:'single'},
   "Thieves' Cant":{description:'Passive. Secret rogue signs and coded phrases for hidden messages.',actionCost:'passive',actionType:'utility',effect:"Thieves' Cant",targetMode:'single'},
   'Roguish Archetype feature':{description:'Subclass feature. Add the exact archetype feature chosen at this level.',actionCost:'passive',actionType:'utility',effect:'Roguish Archetype',targetMode:'single'},
   'Uncanny Dodge':{description:'Reaction. Halve damage from one attack you can see.',actionCost:'reaction',actionType:'buff',effect:'Uncanny Dodge',targetMode:'single'},
