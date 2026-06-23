@@ -1996,22 +1996,6 @@ function stampCharacterForCurrentCampaign(ch){
   ids.add(CLOUD_CAMPAIGN_ID);
   return hydrateCharacter({...hydrated,campaignId:CLOUD_CAMPAIGN_ID,campaignIds:[...ids]});
 }
-function characterUpdatedAt(ch){
-  const raw=ch?.updatedAt || ch?.lastUpdated || 0;
-  if(typeof raw==='number') return raw;
-  const parsed=Date.parse(raw);
-  return Number.isFinite(parsed) ? parsed : (Number(raw)||0);
-}
-function newestCharacter(a,b){
-  if(!a) return b;
-  if(!b) return a;
-  return characterUpdatedAt(b)>characterUpdatedAt(a) ? b : a;
-}
-function mergeCharacterByFreshness(target,ch){
-  if(!ch?.id) return;
-  const stamped=stampCharacterForCurrentCampaign(ch);
-  target[stamped.id]=newestCharacter(target[stamped.id],stamped);
-}
 function campaignScopedCharacters(characters=[],options={}){
   const allowLegacy=options.allowLegacy!==false;
   return (characters||[])
@@ -2932,7 +2916,6 @@ let myCharacters = [];
 let activeCharacterId = null;
 let players = {};
 let remoteCharacters = {};
-let partyCharacterCache = [];
 let characterClaims = {};
 let turnOrder = [];
 let initiativeRolls = {};
@@ -4554,11 +4537,7 @@ function storeRemoteCharacter(ch){
   ch=stampCharacterForCurrentCampaign(ch);
   const key=remoteCharacterKey(ch);
   if(ch.owner && remoteCharacters[ch.id]?.owner===ch.owner) delete remoteCharacters[ch.id];
-  remoteCharacters[key]=newestCharacter(remoteCharacters[key],ch);
-  const cachedById={};
-  for(const item of partyCharacterCache) mergeCharacterByFreshness(cachedById,item);
-  mergeCharacterByFreshness(cachedById,remoteCharacters[key]);
-  partyCharacterCache=pruneGeneratedDefaultGhosts(Object.values(cachedById));
+  remoteCharacters[key]=ch;
   return ch;
 }
 function drawSceneMood(world){
@@ -12672,12 +12651,9 @@ function buildPersistedState(){
   reconcileLocalClaims();
   const partyById={};
   myCharacters=campaignScopedCharacters(myCharacters);
-  for(const ch of campaignScopedCharacters(partyCharacterCache||[])) mergeCharacterByFreshness(partyById,ch);
-  for(const ch of campaignScopedCharacters(latestCloudState?.partyCharacters||[])) mergeCharacterByFreshness(partyById,ch);
-  for(const ch of campaignScopedCharacters(Object.values(remoteCharacters))) mergeCharacterByFreshness(partyById,ch);
-  for(const ch of myCharacters) mergeCharacterByFreshness(partyById,{...ch,owner:myId,claimedBy:myId});
+  for(const ch of campaignScopedCharacters(Object.values(remoteCharacters))) partyById[ch.id]=stampCharacterForCurrentCampaign(ch);
+  for(const ch of myCharacters) partyById[ch.id]=stampCharacterForCurrentCampaign({...ch,owner:myId,claimedBy:myId});
   const partyCharacters=pruneGeneratedDefaultGhosts(Object.values(partyById));
-  partyCharacterCache=partyCharacters;
   return {
     version:1,
     myId,
@@ -12803,12 +12779,7 @@ function applyCharacterStateFromCampaign(state){
   characterClaims=normalizeCharacterClaims(state.characterClaims || characterClaims);
   const incomingParty=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.partyCharacters) ? state.partyCharacters : []));
   const incomingLocal=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.myCharacters) ? state.myCharacters : []));
-  let allIncoming=pruneGeneratedDefaultGhosts(incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner})));
-  const cachedById={};
-  for(const ch of partyCharacterCache) mergeCharacterByFreshness(cachedById,ch);
-  for(const ch of allIncoming) mergeCharacterByFreshness(cachedById,ch);
-  partyCharacterCache=pruneGeneratedDefaultGhosts(Object.values(cachedById));
-  allIncoming=partyCharacterCache;
+  const allIncoming=pruneGeneratedDefaultGhosts(incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner})));
   const incomingIds=new Set(allIncoming.map(ch=>ch.id).filter(Boolean));
   if(incomingIds.size){
     myCharacters=myCharacters.filter(ch=>{
@@ -13475,7 +13446,7 @@ function connectWS(){
           updateAllPanels();
           draw();
         } else if(msg.type==='hardreset'){
-          mapImg=null; mapImageData=''; mapUrl=''; mapLabel=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; setLocalTarget(null); activeEnemyUid=null; players={}; remoteCharacters={}; partyCharacterCache=[]; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
+          mapImg=null; mapImageData=''; mapUrl=''; mapLabel=''; mapRevision=Date.now(); rpMode=false; mapWorldLocked=false; setMapWorldSize(canvas.width || 1280,canvas.height || 720,false); placedIcons=[]; areaEffects=[]; map3DObjects=[]; rebuild3DSceneObjects(); enemyTemplates=[]; selectedEnemyId=null; setLocalTarget(null); activeEnemyUid=null; players={}; remoteCharacters={}; myCharacters=[]; characterClaims={}; activeCharacterId=null; turnOrder=[]; initiativeRolls={}; combatMode=false; chatMessages=[]; latestCloudState=null; ensureDefaultCharacter(true); initFog(); updateAllPanels(); draw(); scheduleSave();
         }
       }catch(err){}
     };
