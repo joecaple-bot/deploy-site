@@ -2907,6 +2907,11 @@ let pendingGreasePlacement = null;
 let dragTarget = null;
 let dragOffX = 0, dragOffY = 0;
 let isDragging = false;
+let draggedCharacterId = null;
+let dragStartWorldX = null;
+let dragStartWorldY = null;
+let lastMoveBroadcastAt = 0;
+let pendingMoveBroadcastTimer = null;
 let touchMoved = false;
 let suppressNextCanvasClick = false;
 let camera = {x:0,y:0,scale:1};
@@ -5367,6 +5372,15 @@ function allCharactersById(){
 function characterById(id){
   return myCharacters.find(c=>c.id===id) || remoteCharacters[id] || Object.values(remoteCharacters).find(c=>c.id===id) || allCharactersById()[id] || null;
 }
+function remoteCharacterIsNewer(raw){
+  if(!raw?.id) return true;
+  const existing=characterById(raw.id);
+  if(!existing?.updatedAt || !raw.updatedAt) return true;
+  const existingTime=Date.parse(existing.updatedAt);
+  const incomingTime=Date.parse(raw.updatedAt);
+  if(Number.isNaN(existingTime) || Number.isNaN(incomingTime)) return true;
+  return incomingTime >= existingTime;
+}
 function loadLocalTarget(){
   try{ selectedTargetUid=localStorage.getItem(LOCAL_TARGET_KEY)||null; }catch(e){}
   validateLocalTarget();
@@ -6690,13 +6704,13 @@ function canUseEnemyTurnAction(enemy,kind='action'){
   }
   return true;
 }
-function canSpendMovement(ch,nextX,nextY){
+function canSpendMovement(ch,nextX,nextY,fromOverride=null){
   if(!combatMode || isDM() || !ch) return true;
   if(currentTurnId()!==ch.id){
     showCritOverlay('Wait for your turn','roll','Combat');
     return false;
   }
-  const from={x:characterX(ch),y:characterY(ch)};
+  const from=fromOverride || {x:characterX(ch),y:characterY(ch)};
   if(from.x==null || from.y==null) return true;
   const step=Math.hypot(nextX-from.x,nextY-from.y);
   const used=turnActionState.actorId===ch.id ? Number(turnActionState.movementUsed)||0 : 0;
@@ -6921,19 +6935,75 @@ function handleSlippedStartOfTurn(id){
   });
   showCritOverlay(`${entryLabel(entry)} ${stoodUp?'gets up':'stays slipped'}`,stoodUp?'success':'fail','Grease');
 }
-function moveCharacterOnMap(ch,nextX,nextY,{announce=true,persist=true}={}){
+function moveCharacterOnMap(ch,nextX,nextY,{announce=true,persist=true,trackMovement=true}={}){
   if(!ch) return false;
-  if(!canMoveCharacterNow(ch) || !canSpendMovement(ch,nextX,nextY)) return false;
+  const dragMoveOrigin=(!trackMovement && draggedCharacterId===ch.id && dragStartWorldX!=null && dragStartWorldY!=null)
+    ? {x:dragStartWorldX,y:dragStartWorldY}
+    : null;
+  if(!canMoveCharacterNow(ch) || !canSpendMovement(ch,nextX,nextY,dragMoveOrigin)) return false;
   const fromX=characterX(ch), fromY=characterY(ch);
   setCharacterPosition(ch,nextX,nextY);
   revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
-  syncCharacter(ch,{persist});
-  recordTurnMovement(ch,fromX,fromY,characterX(ch),characterY(ch));
-  checkGreaseEntryForEntity(ch,'character',{x:fromX,y:fromY});
+  if(persist) syncCharacter(ch,{persist});
+  if(trackMovement){
+    recordTurnMovement(ch,fromX,fromY,characterX(ch),characterY(ch));
+    checkGreaseEntryForEntity(ch,'character',{x:fromX,y:fromY});
+  }
   if(announce) updateAllPanels();
   draw();
   if(persist) scheduleSave();
   return true;
+}
+function beginPlayerDrag(hit,x,y){
+  if(!hit?.p) return false;
+  pushDMUndo('drag character');
+  activeCharacterId=hit.id;
+  draggedCharacterId=hit.id;
+  dragStartWorldX=characterX(hit.p);
+  dragStartWorldY=characterY(hit.p);
+  dragTarget='player';
+  dragOffX=x-characterX(hit.p);
+  dragOffY=y-characterY(hit.p);
+  isDragging=true;
+  lastMoveBroadcastAt=0;
+  clearTimeout(pendingMoveBroadcastTimer);
+  pendingMoveBroadcastTimer=null;
+  canvas.style.cursor='grabbing';
+  updateAllPanels();
+  return true;
+}
+function draggedCharacter(){
+  return draggedCharacterId ? characterById(draggedCharacterId) : getActiveCharacter();
+}
+function broadcastCharacterMove(ch,{immediate=false}={}){
+  if(!ch) return;
+  const send=()=>{
+    if(!ch) return;
+    const stamped=stampCharacterForCurrentCampaign(ch);
+    stamped.derived=calculateDerived(stamped);
+    stamped.updatedAt=new Date().toISOString();
+    if(canControlCharacter(stamped)) characterClaims[stamped.id]={owner:myId,label:stamped.name||'Player',updatedAt:Date.now()};
+    broadcast({type:'move',character:stamped,characterClaims});
+    lastMoveBroadcastAt=performance.now();
+  };
+  clearTimeout(pendingMoveBroadcastTimer);
+  if(immediate || performance.now()-lastMoveBroadcastAt>90) send();
+  else pendingMoveBroadcastTimer=setTimeout(send,90);
+}
+function finishPlayerDrag(){
+  const ch=draggedCharacter();
+  clearTimeout(pendingMoveBroadcastTimer);
+  pendingMoveBroadcastTimer=null;
+  if(ch){
+    if(dragStartWorldX!=null && dragStartWorldY!=null){
+      recordTurnMovement(ch,dragStartWorldX,dragStartWorldY,characterX(ch),characterY(ch));
+      checkGreaseEntryForEntity(ch,'character',{x:dragStartWorldX,y:dragStartWorldY});
+    }
+    broadcastCharacterMove(ch,{immediate:true});
+  }
+  dragStartWorldX=null;
+  dragStartWorldY=null;
+  draggedCharacterId=null;
 }
 function handleCanvasTap(x,y,screenX=x,screenY=y){
   if(rpMode){
@@ -7074,12 +7144,7 @@ canvas.addEventListener('mousedown',e=>{
       const hit=activeCharacterAt(x,y);
       if(hit){
         if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat');
-        pushDMUndo('drag character');
-        dragTarget='player';
-        dragOffX=x-characterX(hit.p);
-        dragOffY=y-characterY(hit.p);
-        isDragging=true;
-        canvas.style.cursor='grabbing';
+        beginPlayerDrag(hit,x,y);
       }
       return;
     }
@@ -7096,14 +7161,7 @@ canvas.addEventListener('mousedown',e=>{
     const hit=playerAt(x,y);
     if(hit&&canControlCharacter(hit.p)){
       if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat');
-      pushDMUndo('drag character');
-      activeCharacterId=hit.id;
-      updateAllPanels();
-      dragTarget='player';
-      dragOffX=x-characterX(hit.p);
-      dragOffY=y-characterY(hit.p);
-      isDragging=true;
-      canvas.style.cursor='grabbing';
+      beginPlayerDrag(hit,x,y);
     }
   }
 });
@@ -7147,9 +7205,11 @@ canvas.addEventListener('mousemove',e=>{
     return;
   }
   if(dragTarget==='player'){
-    const active=getActiveCharacter();
+    const active=draggedCharacter();
     if(!active) return;
-    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false});
+    if(moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false,trackMovement:false})){
+      broadcastCharacterMove(active);
+    }
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
@@ -7183,6 +7243,7 @@ canvas.addEventListener('mouseup',()=>{
   }
   if(isDragging){
     if(dragTarget && dragTarget.kind==='enemy') checkGreaseEntryForEntity(dragTarget,'enemy');
+    if(dragTarget==='player') finishPlayerDrag();
     isDragging=false;
     dragTarget=null;
     canvas.style.cursor=['drag','pan'].includes(mode)?'grab':'crosshair';
@@ -7201,6 +7262,14 @@ canvas.addEventListener('mouseleave',()=>{
     isDragging=false;
     dragTarget=null;
     lastSoundPaintPoint=null;
+  }
+  if(isDragging && dragTarget==='player'){
+    finishPlayerDrag();
+    isDragging=false;
+    dragTarget=null;
+    canvas.style.cursor=['drag','pan'].includes(mode)?'grab':'crosshair';
+    updateAllPanels();
+    scheduleSave();
   }
   hoveredTokenId=null;
   clearTimeout(hoverSheetTimer);
@@ -7259,13 +7328,13 @@ canvas.addEventListener('touchstart',e=>{
   if(mode==='drag'){
     if(tokenLock){
       const hit=activeCharacterAt(x,y);
-      if(hit){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
+      if(hit){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); beginPlayerDrag(hit,x,y); }
       return;
     }
     const ic=isDM()?iconAt(x,y):null;
     if(ic){ pushDMUndo(ic.kind==='enemy'?'drag enemy':'drag icon'); dragTarget=ic; dragOffX=x-ic.x; dragOffY=y-ic.y; isDragging=true; return; }
     const hit=playerAt(x,y);
-    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); pushDMUndo('drag character'); activeCharacterId=hit.id; dragTarget='player'; dragOffX=x-characterX(hit.p); dragOffY=y-characterY(hit.p); isDragging=true; updateAllPanels(); }
+    if(hit&&canControlCharacter(hit.p)){ if(!canMoveCharacterNow(hit.p)) return showCritOverlay('Wait for your turn','roll','Combat'); beginPlayerDrag(hit,x,y); }
   }
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
@@ -7298,9 +7367,11 @@ canvas.addEventListener('touchmove',e=>{
     return;
   }
   if(dragTarget==='player'){
-    const active=getActiveCharacter();
+    const active=draggedCharacter();
     if(!active) return;
-    moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false});
+    if(moveCharacterOnMap(active,x-dragOffX,y-dragOffY,{announce:false,persist:false,trackMovement:false})){
+      broadcastCharacterMove(active);
+    }
   } else if(dragTarget){
     dragTarget.x=x-dragOffX;
     dragTarget.y=y-dragOffY;
@@ -7341,6 +7412,7 @@ canvas.addEventListener('touchend',e=>{
     handleCanvasTap(world.x,world.y,sx,sy);
   }
   if(isDragging && dragTarget && dragTarget.kind==='enemy') checkGreaseEntryForEntity(dragTarget,'enemy');
+  if(isDragging && dragTarget==='player') finishPlayerDrag();
   if(isDragging) updateAllPanels();
   isDragging=false;
   dragTarget=null;
@@ -12697,6 +12769,7 @@ async function loadCloudState(){
 }
 async function pollCloudState(){
   if(!cloudReady || applyingCloudState) return;
+  if(isDragging && dragTarget==='player') return;
   const {data,error}=await cloudClient.from(CLOUD_TABLE).select('updated_at,updated_by').eq('id',CLOUD_CAMPAIGN_ID).maybeSingle();
   if(error || !data) return;
   if(data.updated_by===CLOUD_CLIENT_ID) {
@@ -12895,6 +12968,7 @@ function connectWS(){
         } else if(msg.type==='move'){
           if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
           if(!acceptsRemoteCharacterUpdate(msg.character?.id,msg.from)) return;
+          if(!remoteCharacterIsNewer(msg.character)) return;
           if(isGeneratedDefaultGhost(msg.character) && hasCampaignCharacters()) return;
           const ch=hydrateCharacter({...msg.character,owner:msg.from});
           storeRemoteCharacter(ch);
