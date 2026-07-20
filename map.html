@@ -2920,7 +2920,7 @@ let isPanning = false, panStartX = 0, panStartY = 0, panCameraX = 0, panCameraY 
 let tokenLock = false;
 let hoveredTokenId = null, hoverSheetTimer = null;
 let sheetHoverPreview = false, sheetHoverInside = false;
-let actionAnimations = [], damageBursts = [], actionAnimationFrame = null;
+let actionAnimations = [], damageBursts = [], fxParticles = [], actionAnimationFrame = null;
 const enemyDeathAnimations = new Map();
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null, spellHoverPreview = null, lastMouseWorld = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
@@ -4546,12 +4546,21 @@ function drawSceneMood(world){
 }
 
 function drawActionAnimations(){
-  if(!actionAnimations.length && !damageBursts.length) return;
+  if(!actionAnimations.length && !damageBursts.length && !fxParticles.length) return;
   const now=performance.now();
   actionAnimations=actionAnimations.filter(fx=>now-fx.started<fx.duration);
   damageBursts=damageBursts.filter(fx=>now-fx.started<fx.duration);
   for(const fx of actionAnimations){
     const t=Math.max(0,Math.min(1,(now-fx.started)/fx.duration));
+    if(fx.type==='spell' && t<.5 && Number.isFinite(fx.tx) && Number.isFinite(fx.ty) && now-(fx.lastTrailAt||0)>34){
+      emitFxTrail(fx,t);
+      fx.lastTrailAt=now;
+    }
+    const impactAt=fx.type==='aoe'?.08:fx.type==='spell'?.4:.44;
+    if(!fx.particlesEmitted && t>=impactAt){
+      emitFxImpact(fx);
+      fx.particlesEmitted=true;
+    }
     if(fx.type==='aoe') drawAoeBurst(fx,t);
     else if(fx.type==='spell') drawSpellBurst(fx,t);
     else drawWeaponSlash(fx,t);
@@ -4560,6 +4569,7 @@ function drawActionAnimations(){
     const t=Math.max(0,Math.min(1,(now-fx.started)/fx.duration));
     drawDamageBurst(fx,t);
   }
+  drawFxParticles(now);
 }
 
 function enemyDeathVisual(enemy){
@@ -4749,6 +4759,134 @@ function drawWeaponSlash(fx,t){
 function fxSeed(seed,index=0){
   const value=Math.sin((Number(seed)||1)*12.9898+index*78.233)*43758.5453;
   return value-Math.floor(value);
+}
+const FX_PARTICLE_LIMIT=620;
+function addFxParticle(particle){
+  fxParticles.push({
+    x:0,y:0,vx:0,vy:0,gravity:0,drag:0,life:700,size:3,endSize:0,
+    alpha:1,rotation:0,spin:0,swirl:0,kind:'spark',color:'#fff',core:'#fff',
+    born:performance.now(),...particle
+  });
+  if(fxParticles.length>FX_PARTICLE_LIMIT) fxParticles.splice(0,fxParticles.length-FX_PARTICLE_LIMIT);
+}
+function fxParticleCount(value){
+  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  return Math.max(1,Math.round(value*(reduced ? .38 : 1)));
+}
+function emitFxTrail(fx,t){
+  const pal=stylePalette(fx.visualStyle||'arcane');
+  const travelT=Math.min(1,t/.48);
+  const x=fx.x+(fx.tx-fx.x)*travelT;
+  const y=fx.y+(fx.ty-fx.y)*travelT;
+  const angle=Math.atan2(fx.ty-fx.y,fx.tx-fx.x);
+  const style=fx.visualStyle||'arcane';
+  const count=fxParticleCount(['fire','lightning','frost'].includes(style)?3:2);
+  for(let i=0;i<count;i++){
+    const jitter=(fxSeed(fx.seed,Math.floor(t*100)+i)-.5)*12;
+    const sideways=angle+Math.PI/2;
+    const kind=style==='fire'?'ember':style==='frost'?'shard':style==='lightning'?'spark':style==='nature'?'leaf':style==='necrotic'?'wisp':'mote';
+    addFxParticle({
+      x:x+Math.cos(sideways)*jitter,y:y+Math.sin(sideways)*jitter,
+      vx:-Math.cos(angle)*(18+fxSeed(fx.seed,i+61)*28)+Math.cos(sideways)*jitter*.8,
+      vy:-Math.sin(angle)*(18+fxSeed(fx.seed,i+71)*28)+Math.sin(sideways)*jitter*.8-(style==='fire'?18:0),
+      gravity:kind==='ember'?-8:style==='frost'?18:0,drag:1.8,life:360+fxSeed(fx.seed,i+81)*260,
+      size:2.5+fxSeed(fx.seed,i+91)*3.5,endSize:style==='necrotic'?9:.5,
+      alpha:.72,rotation:angle,spin:(fxSeed(fx.seed,i+101)-.5)*8,swirl:style==='arcane'?12:0,
+      kind,color:pal.css,core:pal.core
+    });
+  }
+}
+function emitFxImpact(fx){
+  const style=fx.visualStyle||'arcane';
+  const pal=stylePalette(style);
+  const x=Number.isFinite(fx.tx)?fx.tx:fx.x;
+  const y=Number.isFinite(fx.ty)?fx.ty:fx.y;
+  const power=Math.max(.45,Number(fx.particlePower)||1)*(fx.type==='aoe'?1.35:1);
+  const seed=fx.seed||1;
+  const spawn=(count,kind,config={})=>{
+    count=fxParticleCount(Math.round(count*power));
+    const seedOffset=Number(config.seedOffset)||0;
+    for(let i=0;i<count;i++){
+      const r=fxSeed(seed,i+seedOffset),angle=(config.arcStart||0)+r*(config.arcSpan||Math.PI*2);
+      const speed=(config.speedMin||22)+fxSeed(seed,i+37)*((config.speedMax||95)-(config.speedMin||22));
+      addFxParticle({
+        x:x+(fxSeed(seed,i+71)-.5)*(config.spread||8),y:y+(fxSeed(seed,i+83)-.5)*(config.spread||8),
+        vx:Math.cos(angle)*speed+(config.windX||0),vy:Math.sin(angle)*speed+(config.windY||0),
+        gravity:config.gravity||0,drag:config.drag??1.25,life:(config.lifeMin||460)+fxSeed(seed,i+97)*((config.lifeMax||980)-(config.lifeMin||460)),
+        size:(config.sizeMin||2)+fxSeed(seed,i+109)*((config.sizeMax||6)-(config.sizeMin||2)),endSize:config.endSize??.4,
+        alpha:config.alpha??.9,rotation:angle,spin:(fxSeed(seed,i+121)-.5)*(config.spin||9),swirl:config.swirl||0,
+        kind,color:config.color||pal.css,core:config.core||pal.core
+      });
+    }
+  };
+  if(style==='fire'){
+    spawn(32,'ember',{speedMin:45,speedMax:145,gravity:85,drag:.8,lifeMin:520,lifeMax:1050,sizeMin:2,sizeMax:5});
+    spawn(13,'smoke',{speedMin:12,speedMax:42,windY:-34,drag:2.2,lifeMin:850,lifeMax:1500,sizeMin:8,sizeMax:17,endSize:30,alpha:.22,color:'rgba(72,54,48,.72)'});
+  } else if(style==='frost'){
+    spawn(34,'shard',{speedMin:38,speedMax:125,gravity:42,drag:.7,lifeMin:650,lifeMax:1200,sizeMin:4,sizeMax:9,endSize:2,spin:14});
+    spawn(10,'mist',{speedMin:8,speedMax:32,windY:-12,drag:2,lifeMin:800,lifeMax:1400,sizeMin:10,sizeMax:18,endSize:28,alpha:.17});
+  } else if(style==='lightning'){
+    spawn(44,'spark',{speedMin:90,speedMax:230,drag:2.8,lifeMin:180,lifeMax:480,sizeMin:1,sizeMax:3.5,endSize:.2,spin:18});
+  } else if(['radiant','healing','buff'].includes(style)){
+    spawn(30,style==='radiant'?'ray':'mote',{speedMin:18,speedMax:72,windY:-32,drag:1.5,lifeMin:700,lifeMax:1450,sizeMin:2,sizeMax:6,endSize:1.2,swirl:style==='buff'?28:12});
+  } else if(['poison','acid','grease'].includes(style)){
+    spawn(26,'droplet',{speedMin:20,speedMax:78,gravity:style==='grease'?120:72,drag:1.1,lifeMin:520,lifeMax:1050,sizeMin:3,sizeMax:8,endSize:2});
+    spawn(9,'bubble',{speedMin:5,speedMax:24,windY:-28,drag:2,lifeMin:800,lifeMax:1400,sizeMin:4,sizeMax:9,endSize:13,alpha:.44});
+  } else if(['necrotic','psychic'].includes(style)){
+    spawn(34,'wisp',{speedMin:18,speedMax:74,windY:-18,drag:.8,lifeMin:720,lifeMax:1350,sizeMin:3,sizeMax:7,endSize:14,alpha:.7,swirl:style==='psychic'?52:-38});
+  } else if(style==='nature'){
+    spawn(30,'leaf',{speedMin:22,speedMax:82,gravity:28,drag:.7,lifeMin:900,lifeMax:1600,sizeMin:4,sizeMax:9,endSize:3,spin:15,swirl:28});
+  } else if(['thunder','force'].includes(style)){
+    spawn(30,'streak',{speedMin:72,speedMax:165,drag:2.1,lifeMin:300,lifeMax:720,sizeMin:2,sizeMax:5,endSize:.5});
+    spawn(12,'dust',{speedMin:24,speedMax:68,gravity:60,drag:1.8,lifeMin:700,lifeMax:1200,sizeMin:5,sizeMax:11,endSize:15,alpha:.22,color:'rgba(205,196,185,.75)'});
+  } else if(['weapon','piercing','blunt'].includes(style)){
+    spawn(style==='blunt'?26:18,'spark',{speedMin:48,speedMax:145,gravity:95,drag:1.4,lifeMin:260,lifeMax:720,sizeMin:1,sizeMax:4,endSize:.2});
+    if(style==='blunt') spawn(14,'dust',{speedMin:18,speedMax:58,gravity:46,drag:1.9,lifeMin:620,lifeMax:1050,sizeMin:5,sizeMax:10,endSize:16,alpha:.2,color:'rgba(190,170,140,.78)'});
+  } else {
+    spawn(32,'mote',{speedMin:26,speedMax:92,drag:1.1,lifeMin:620,lifeMax:1250,sizeMin:2,sizeMax:6,endSize:1,swirl:34});
+    spawn(8,'rune',{speedMin:10,speedMax:38,drag:1.8,lifeMin:760,lifeMax:1300,sizeMin:5,sizeMax:9,endSize:13,alpha:.55,spin:10});
+  }
+}
+function drawFxParticles(now=performance.now()){
+  fxParticles=fxParticles.filter(p=>now-p.born<p.life);
+  if(!fxParticles.length) return;
+  ctx.save();
+  for(const p of fxParticles){
+    const age=Math.max(0,(now-p.born)/1000),t=Math.min(1,(now-p.born)/p.life);
+    const damp=Math.exp(-p.drag*age*.55),travel=age*damp;
+    const swirlAngle=p.rotation+age*5,swirlRadius=p.swirl*Math.sin(Math.PI*t);
+    const x=p.x+p.vx*travel+Math.cos(swirlAngle)*swirlRadius;
+    const y=p.y+p.vy*travel+.5*p.gravity*age*age+Math.sin(swirlAngle)*swirlRadius;
+    const prevAge=Math.max(0,age-.025),prevDamp=Math.exp(-p.drag*prevAge*.55),prevTravel=prevAge*prevDamp;
+    const px=p.x+p.vx*prevTravel+Math.cos(p.rotation+prevAge*5)*p.swirl*Math.sin(Math.PI*Math.max(0,t-.035));
+    const py=p.y+p.vy*prevTravel+.5*p.gravity*prevAge*prevAge+Math.sin(p.rotation+prevAge*5)*p.swirl*Math.sin(Math.PI*Math.max(0,t-.035));
+    const fadePower=(p.kind==='smoke'||p.kind==='mist') ? .72 : 1.35;
+    const size=p.size+(p.endSize-p.size)*t,alpha=p.alpha*Math.pow(1-t,fadePower);
+    ctx.globalAlpha=alpha;
+    ctx.globalCompositeOperation=['smoke','mist','dust'].includes(p.kind)?'source-over':'lighter';
+    ctx.fillStyle=p.color;ctx.strokeStyle=p.core;ctx.shadowColor=p.color;ctx.shadowBlur=['smoke','mist','dust'].includes(p.kind)?0:10+size*1.4;
+    if(['spark','ember','streak','ray'].includes(p.kind)){
+      ctx.lineWidth=Math.max(.8,size);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(x,y);ctx.stroke();
+      ctx.beginPath();ctx.arc(x,y,Math.max(.7,size*.45),0,Math.PI*2);ctx.fill();
+    } else if(['smoke','mist','dust','bubble','droplet','mote','wisp'].includes(p.kind)){
+      if(p.kind==='wisp'){
+        ctx.lineWidth=Math.max(1,size*.35);ctx.beginPath();ctx.moveTo(px,py);ctx.quadraticCurveTo((px+x)/2+Math.sin(age*12)*8,(py+y)/2+Math.cos(age*10)*8,x,y);ctx.stroke();
+      } else {
+        ctx.beginPath();ctx.arc(x,y,Math.max(.8,size),0,Math.PI*2);p.kind==='bubble'?ctx.stroke():ctx.fill();
+      }
+    } else {
+      ctx.save();ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*age);
+      if(p.kind==='shard'){
+        ctx.beginPath();ctx.moveTo(0,-size*1.5);ctx.lineTo(size*.45,0);ctx.lineTo(0,size*1.5);ctx.lineTo(-size*.45,0);ctx.closePath();ctx.fill();ctx.stroke();
+      } else if(p.kind==='leaf'){
+        ctx.beginPath();ctx.ellipse(0,0,size,size*.38,.4,0,Math.PI*2);ctx.fill();
+      } else {
+        ctx.lineWidth=1.2;ctx.strokeRect(-size*.65,-size*.65,size*1.3,size*1.3);
+      }
+      ctx.restore();
+    }
+  }
+  ctx.restore();
 }
 function drawFxTravelOrb(fx,t,pal,ix,iy,hasTarget){
   if(!hasTarget || t>=.56) return;
@@ -12213,6 +12351,7 @@ function playActionAnimation(ch,type='weapon',details={}){
     angle:-Math.PI/4+(Math.random()-.5)*.8,
     color:palette.css,
     visualStyle,
+    particlePower:details.kind==='aoe'?1.35:Number(details.damage)===0?.62:details.overlayType==='success'?1.25:1,
     seed:Math.floor(Math.random()*10000)
   };
   actionAnimations.push(fx);
@@ -12255,7 +12394,7 @@ function startActionAnimationLoop(){
   if(actionAnimationFrame) return;
   const tick=()=>{
     draw();
-    if(actionAnimations.length || damageBursts.length || hasActiveEnemyDeathAnimations() || livePings.length || impactDecals.length || templateDraft || measureDraft) actionAnimationFrame=requestAnimationFrame(tick);
+    if(actionAnimations.length || damageBursts.length || fxParticles.length || hasActiveEnemyDeathAnimations() || livePings.length || impactDecals.length || templateDraft || measureDraft) actionAnimationFrame=requestAnimationFrame(tick);
     else actionAnimationFrame=null;
   };
   actionAnimationFrame=requestAnimationFrame(tick);
