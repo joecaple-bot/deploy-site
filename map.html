@@ -1001,7 +1001,20 @@ body.rp-mode .map-tool-dock{display:none}
       <option value="lava">Lava room</option>
       <option value="temple">Holy temple</option>
       <option value="eldritch">Eldritch</option>
+      <option value="haunted">Haunted</option>
+      <option value="tavern">Warm tavern</option>
+      <option value="corrupted">Corrupted</option>
+      <option value="rainstorm">Rainstorm</option>
+      <option value="moonlit">Moonlit</option>
+      <option value="infernal">Infernal</option>
+      <option value="necrotic">Necrotic</option>
     </select>
+    <select id="board-depth-select" onchange="setBoardDepthMode(this.value)" title="Local 2.5D board depth. Rendering only; gameplay coordinates stay unchanged." style="width:auto;height:30px;font-size:12px;padding:0 7px">
+      <option value="off">Depth: Off</option>
+      <option value="subtle">Depth: Subtle</option>
+      <option value="cinematic">Depth: Cinematic</option>
+    </select>
+    <button id="cinematic-focus-toggle" onclick="toggleCinematicFocus()" title="Local cinematic camera focus for attacks and turn changes">Focus: On</button>
     <span id="zoom-label" class="campaign-badge">100%</span>
     <div class="sep"></div>
     <label style="width:132px;margin:0">Radius: <strong id="reveal-val">30</strong>px</label>
@@ -2924,6 +2937,39 @@ let actionAnimations = [], damageBursts = [], fxParticles = [], actionAnimationF
 const enemyDeathAnimations = new Map();
 let impactDecals = [], livePings = [], measureDraft = null, templateDraft = null, spellHoverPreview = null, lastMouseWorld = null;
 let scenePreset = localStorage.getItem('dndScenePreset') || 'neutral';
+const BOARD_DEPTH_PRESETS={
+  off:{strength:0,overscan:0,light:.0,vignette:.0,shadows:false,drift:0},
+  subtle:{strength:7,overscan:14,light:.075,vignette:.22,shadows:true,drift:.42},
+  cinematic:{strength:13,overscan:24,light:.12,vignette:.32,shadows:true,drift:.8}
+};
+let boardDepthMode=localStorage.getItem('dndBoardDepthMode') || 'subtle';
+if(!BOARD_DEPTH_PRESETS[boardDepthMode]) boardDepthMode='subtle';
+let boardDepthPointer={targetX:0,targetY:0,x:0,y:0,inside:false};
+let boardDepthFallbackFrame=null;
+const boardDepthReducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+const boardDepthCompactViewport=window.matchMedia?.('(max-width: 860px)');
+const SCENE_VISUAL_PROFILES={
+  neutral:{tint:'rgba(0,0,0,0)',glow:[255,214,145],vignette:.16,particles:'dust',light:'#ffd69a'},
+  cave:{tint:'rgba(5,7,16,.22)',glow:[94,132,186],vignette:.31,particles:'mist',light:'#8cbfff'},
+  forest:{tint:'rgba(8,38,26,.16)',glow:[95,190,127],vignette:.23,particles:'leaf',light:'#8ed6a2'},
+  lava:{tint:'rgba(95,28,4,.18)',glow:[255,105,35],vignette:.2,particles:'ember',light:'#ff742f'},
+  temple:{tint:'rgba(255,224,150,.12)',glow:[255,225,151],vignette:.15,particles:'mote',light:'#ffe19c'},
+  eldritch:{tint:'rgba(71,22,105,.18)',glow:[173,83,255],vignette:.27,particles:'wisp',light:'#bc74ff'},
+  haunted:{tint:'rgba(16,35,45,.22)',glow:[125,222,213],vignette:.34,particles:'wisp',light:'#7de0d6'},
+  tavern:{tint:'rgba(100,45,8,.12)',glow:[255,166,73],vignette:.18,particles:'ember',light:'#ffad58'},
+  corrupted:{tint:'rgba(42,12,52,.23)',glow:[193,65,222],vignette:.33,particles:'wisp',light:'#d151ed'},
+  rainstorm:{tint:'rgba(14,27,48,.23)',glow:[104,157,217],vignette:.3,particles:'rain',light:'#75a9df'},
+  moonlit:{tint:'rgba(18,35,76,.18)',glow:[151,192,255],vignette:.24,particles:'mist',light:'#a9cbff'},
+  infernal:{tint:'rgba(104,19,2,.22)',glow:[255,78,28],vignette:.29,particles:'ember',light:'#ff552a'},
+  necrotic:{tint:'rgba(35,10,48,.25)',glow:[137,76,185],vignette:.36,particles:'wisp',light:'#a66bd0'}
+};
+let cinematicFocusEnabled=localStorage.getItem('dndCinematicFocus')!=='0';
+let cinematicFocusFrame=null;
+let cinematicFocusTimer=null;
+let cinematicFocusHome=null;
+const cinematicSeenBosses=new Set();
+let boardForegroundImage=null;
+let boardForegroundUrl='';
 let sceneLibrary = [];
 let selectedSceneId = '';
 let activeSceneId = '';
@@ -3139,6 +3185,7 @@ function updateZoomLabel(){
   if(el) el.textContent=Math.round(camera.scale*100)+'%';
 }
 function zoomAtScreen(screenX,screenY,factor){
+  stopCinematicFocus();
   const before=screenToWorld(screenX,screenY);
   camera.scale=Math.max(.45,Math.min(4,camera.scale*factor));
   camera.x=screenX-before.x*camera.scale;
@@ -3149,6 +3196,7 @@ function zoomAtScreen(screenX,screenY,factor){
 function zoomBy(factor){ zoomAtScreen(canvas.width/2,canvas.height/2,factor); }
 function resetView(){ camera={x:0,y:0,scale:1}; updateZoomLabel(); draw(); }
 function beginPan(x,y){
+  stopCinematicFocus();
   isPanning=true;
   panStartX=x; panStartY=y;
   panCameraX=camera.x; panCameraY=camera.y;
@@ -3180,6 +3228,310 @@ function toggleGridOverlay(){
   localStorage.setItem(`${STORAGE_PREFIX}:grid:${CLOUD_CAMPAIGN_ID}`,showMapGrid?'1':'0');
   updateMapToolDock();
   draw();
+}
+function boardDepthSettings(){
+  const base=BOARD_DEPTH_PRESETS[boardDepthMode] || BOARD_DEPTH_PRESETS.subtle;
+  const reduced=boardDepthReducedMotion?.matches;
+  const compact=boardDepthCompactViewport?.matches;
+  const motionScale=reduced ? .28 : (compact ? .55 : 1);
+  return {...base,strength:base.strength*motionScale,drift:reduced?0:base.drift*motionScale};
+}
+function boardDepthFrameState(now=performance.now()){
+  const settings=boardDepthSettings();
+  const follow=settings.strength ? .11 : .24;
+  boardDepthPointer.x+=(boardDepthPointer.targetX-boardDepthPointer.x)*follow;
+  boardDepthPointer.y+=(boardDepthPointer.targetY-boardDepthPointer.y)*follow;
+  const seconds=now/1000;
+  const driftX=Math.sin(seconds*.19)+Math.sin(seconds*.071+1.8)*.42;
+  const driftY=Math.cos(seconds*.16+.7)+Math.sin(seconds*.083)*.32;
+  const nx=Math.max(-1.35,Math.min(1.35,boardDepthPointer.x+driftX*settings.drift*.18));
+  const ny=Math.max(-1.35,Math.min(1.35,boardDepthPointer.y+driftY*settings.drift*.15));
+  return {settings,nx,ny,mapX:-nx*settings.strength/camera.scale,mapY:-ny*settings.strength*.72/camera.scale};
+}
+function drawBoardSurface(world,depth){
+  const settings=depth.settings;
+  const overscan=settings.overscan/camera.scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,world.width,world.height);
+  ctx.clip();
+  ctx.drawImage(mapImg,-overscan+depth.mapX,-overscan+depth.mapY,world.width+overscan*2,world.height+overscan*2);
+  ctx.restore();
+}
+function drawBoardDepthLighting(world,depth){
+  const settings=depth.settings;
+  if(!settings.strength) return;
+  const lightX=(canvas.width*(.5+depth.nx*.17)-camera.x)/camera.scale;
+  const lightY=(canvas.height*(.42+depth.ny*.12)-camera.y)/camera.scale;
+  const radius=Math.max(world.width,world.height)*.7;
+  ctx.save();
+  ctx.globalCompositeOperation='screen';
+  const light=ctx.createRadialGradient(lightX,lightY,0,lightX,lightY,radius);
+  light.addColorStop(0,`rgba(255,225,170,${settings.light})`);
+  light.addColorStop(.32,`rgba(255,184,96,${settings.light*.42})`);
+  light.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=light;
+  ctx.fillRect(0,0,world.width,world.height);
+  ctx.globalCompositeOperation='source-over';
+  const edge=ctx.createRadialGradient(world.width*.5,world.height*.47,Math.min(world.width,world.height)*.22,world.width*.5,world.height*.5,Math.max(world.width,world.height)*.74);
+  edge.addColorStop(0,'rgba(0,0,0,0)');
+  edge.addColorStop(.72,`rgba(4,5,8,${settings.vignette*.24})`);
+  edge.addColorStop(1,`rgba(2,3,7,${settings.vignette})`);
+  ctx.fillStyle=edge;
+  ctx.fillRect(0,0,world.width,world.height);
+  const rim=ctx.createLinearGradient(0,0,0,world.height);
+  rim.addColorStop(0,'rgba(255,221,150,.045)');
+  rim.addColorStop(.08,'rgba(255,221,150,0)');
+  rim.addColorStop(.82,'rgba(0,0,0,0)');
+  rim.addColorStop(1,`rgba(0,0,0,${settings.vignette*.32})`);
+  ctx.fillStyle=rim;
+  ctx.fillRect(0,0,world.width,world.height);
+  ctx.restore();
+}
+function hexColorToRgb(color='#ffffff'){
+  const match=String(color).match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  return match ? [parseInt(match[1],16),parseInt(match[2],16),parseInt(match[3],16)] : [255,255,255];
+}
+function sceneVisualProfile(){ return SCENE_VISUAL_PROFILES[scenePreset] || SCENE_VISUAL_PROFILES.neutral; }
+function drawLightPool(x,y,radius,color,intensity=1){
+  if(!Number.isFinite(Number(x)) || !Number.isFinite(Number(y)) || intensity<=0) return;
+  const rgb=hexColorToRgb(color);
+  const alpha=Math.min(.22,.045*Math.max(.25,intensity));
+  const glow=ctx.createRadialGradient(x,y,0,x,y,Math.max(24,radius));
+  glow.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`);
+  glow.addColorStop(.24,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha*.72})`);
+  glow.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  ctx.fillStyle=glow;
+  ctx.beginPath();
+  ctx.arc(x,y,Math.max(24,radius),0,Math.PI*2);
+  ctx.fill();
+}
+function drawDynamicBoardLights(){
+  if(boardDepthMode==='off') return;
+  const now=performance.now();
+  const sources=[];
+  for(const obj of map3DObjects){
+    if(!obj.lightEnabled || !Number.isFinite(obj.x) || !Number.isFinite(obj.z)) continue;
+    sources.push({x:obj.x,y:obj.z,radius:78+Math.max(0,obj.lightIntensity||1)*42,color:obj.lightColor||sceneVisualProfile().light,intensity:obj.lightIntensity||1});
+  }
+  for(const effect of areaEffects){
+    if(effect.type==='fire') sources.push({x:effect.x,y:effect.y,radius:Math.max(70,(effect.radius||60)*1.35),color:'#ff7b32',intensity:1.15});
+  }
+  for(const fx of actionAnimations){
+    const age=(now-fx.started)/Math.max(1,fx.duration);
+    if(age<0 || age>1) continue;
+    const pal=stylePalette(fx.visualStyle||'arcane');
+    const rgb=hexColorToRgb('#'+Number(pal.hex||0x71c3ff).toString(16).padStart(6,'0'));
+    const color=`#${rgb.map(v=>v.toString(16).padStart(2,'0')).join('')}`;
+    sources.push({x:Number.isFinite(fx.tx)?fx.tx:fx.x,y:Number.isFinite(fx.ty)?fx.ty:fx.y,radius:55+(fx.radius||25),color,intensity:Math.sin(Math.PI*age)*1.45});
+  }
+  ctx.save();
+  ctx.globalCompositeOperation='screen';
+  sources.slice(0,14).forEach(source=>drawLightPool(source.x,source.y,source.radius,source.color,source.intensity));
+  ctx.restore();
+}
+function drawSceneAtmosphere(world){
+  if(boardDepthMode==='off' || boardDepthReducedMotion?.matches) return;
+  const profile=sceneVisualProfile();
+  const kind=profile.particles;
+  const now=performance.now()/1000;
+  const count=boardDepthCompactViewport?.matches ? 9 : 18;
+  ctx.save();
+  ctx.globalCompositeOperation=['ember','mote','wisp'].includes(kind)?'screen':'source-over';
+  for(let i=0;i<count;i++){
+    const seed=(i*73.37)%101;
+    let x=(seed/101*world.width+Math.sin(now*.13+i)*42+world.width)%world.width;
+    let y=((i*97+now*(kind==='rain'?170:kind==='ember'?-16:8))%(world.height+80))-40;
+    if(kind==='ember') y=world.height-(((i*83+now*22)%(world.height+60))-20);
+    const alpha=.055+((i%5)/5)*.055;
+    if(kind==='rain'){
+      ctx.strokeStyle=`rgba(150,195,240,${alpha})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-7,y+19);ctx.stroke();
+    } else if(kind==='leaf'){
+      ctx.fillStyle=`rgba(117,188,107,${alpha})`;ctx.save();ctx.translate(x,y);ctx.rotate(now*.25+i);ctx.fillRect(-2,-1,4,2);ctx.restore();
+    } else if(kind==='mist'){
+      ctx.fillStyle=`rgba(190,215,230,${alpha*.38})`;ctx.beginPath();ctx.ellipse(x,y,38+(i%3)*19,8+(i%2)*4,0,0,Math.PI*2);ctx.fill();
+    } else {
+      const rgb=kind==='ember'?[255,135,52]:kind==='wisp'?[184,113,255]:[255,225,170];
+      ctx.fillStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;ctx.beginPath();ctx.arc(x,y,kind==='wisp'?2.1:1.4,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+// Sparse near-camera particles sell depth without obscuring tokens or controls.
+function drawForegroundSceneParticles(world,depth){
+  if(boardDepthMode==='off' || boardDepthReducedMotion?.matches) return;
+  const profile=sceneVisualProfile();
+  const kind=profile.particles;
+  const now=performance.now()/1000;
+  const count=boardDepthCompactViewport?.matches ? 3 : (boardDepthMode==='cinematic'?8:5);
+  const driftX=depth.mapX*-3.2,driftY=depth.mapY*-3.2;
+  ctx.save();
+  ctx.globalCompositeOperation=['ember','mote','wisp'].includes(kind)?'screen':'source-over';
+  for(let i=0;i<count;i++){
+    const lane=(i*61.73)%100;
+    let x=((lane/100)*world.width+Math.sin(now*.19+i*2.1)*95+driftX+world.width)%world.width;
+    let y=((i*137+now*(kind==='rain'?310:kind==='ember'?-30:12)+driftY)%(world.height+180))-90;
+    const pulse=.68+.32*Math.sin(now*.8+i*1.7);
+    if(kind==='ember') y=world.height-(((i*119+now*31-driftY)%(world.height+140))-70);
+    if(kind==='rain'){
+      ctx.strokeStyle=`rgba(178,215,250,${.09+pulse*.07})`;
+      ctx.lineWidth=1.4+(i%3)*.55;
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-14,y+42+(i%3)*9);ctx.stroke();
+    } else if(kind==='leaf'){
+      ctx.save();ctx.translate(x,y);ctx.rotate(now*.42+i*1.4);
+      ctx.fillStyle=`rgba(111,171,92,${.1+pulse*.08})`;
+      ctx.beginPath();ctx.ellipse(0,0,7+(i%2)*3,2.8,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    } else if(kind==='mist'){
+      ctx.filter='blur(9px)';
+      ctx.fillStyle=`rgba(198,218,229,${.018+pulse*.014})`;
+      ctx.beginPath();ctx.ellipse(x,y,105+(i%3)*44,18+(i%2)*8,-.08,0,Math.PI*2);ctx.fill();
+      ctx.filter='none';
+    } else {
+      const rgb=kind==='ember'?[255,112,35]:kind==='wisp'?[187,105,255]:profile.glow;
+      const radius=kind==='wisp'?7+(i%3)*3:kind==='ember'?3.4+(i%2)*2:4+(i%3)*2;
+      const halo=ctx.createRadialGradient(x,y,0,x,y,radius*4.5);
+      halo.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${.16+pulse*.1})`);
+      halo.addColorStop(.24,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${.07+pulse*.05})`);
+      halo.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+      ctx.fillStyle=halo;ctx.beginPath();ctx.arc(x,y,radius*4.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${.2+pulse*.18})`;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function foregroundMapForUrl(url=''){
+  const registry=window.MOOVABLES_FOREGROUND_MAPS || {};
+  return registry[url] || registry[String(url).replace(/^\.\//,'')] || '';
+}
+function loadBoardForegroundLayer(url=null){
+  const source=url==null ? foregroundMapForUrl(mapUrl) : url;
+  boardForegroundUrl=source;
+  boardForegroundImage=null;
+  if(!source) return;
+  const image=new Image();
+  const resolved=resolveHostedMapUrl(source);
+  if(/^https?:\/\//i.test(resolved)) image.crossOrigin='anonymous';
+  image.onload=()=>{ if(boardForegroundUrl===source){ boardForegroundImage=image; draw(); } };
+  image.src=resolved;
+}
+function drawBoardForegroundFrame(world,depth){
+  if(boardDepthMode==='off') return;
+  ctx.save();
+  if(boardForegroundImage?.complete && boardForegroundImage.naturalWidth){
+    const offsetX=depth.mapX*-1.65, offsetY=depth.mapY*-1.65;
+    ctx.globalAlpha=.96;
+    ctx.drawImage(boardForegroundImage,offsetX,offsetY,world.width,world.height);
+  } else {
+    const profile=sceneVisualProfile();
+    const rgb=profile.glow;
+    const edge=ctx.createRadialGradient(world.width*.5,world.height*.48,Math.min(world.width,world.height)*.34,world.width*.5,world.height*.5,Math.max(world.width,world.height)*.76);
+    edge.addColorStop(0,'rgba(0,0,0,0)');
+    edge.addColorStop(.76,'rgba(3,4,7,.035)');
+    edge.addColorStop(1,'rgba(1,2,4,.27)');
+    ctx.fillStyle=edge;ctx.fillRect(0,0,world.width,world.height);
+    ctx.globalAlpha=.08;
+    ctx.fillStyle=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    ctx.filter='blur(10px)';
+    ctx.beginPath();
+    ctx.ellipse(world.width*.08+depth.mapX*-2,world.height*.88+depth.mapY*-2,world.width*.2,world.height*.1,-.35,0,Math.PI*2);
+    ctx.ellipse(world.width*.92+depth.mapX*-2,world.height*.12+depth.mapY*-2,world.width*.16,world.height*.08,-.4,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+function updateCinematicFocusButton(){
+  const button=document.getElementById('cinematic-focus-toggle');
+  if(button){ button.textContent=`Focus: ${cinematicFocusEnabled?'On':'Off'}`;button.classList.toggle('active',cinematicFocusEnabled); }
+}
+function toggleCinematicFocus(){
+  cinematicFocusEnabled=!cinematicFocusEnabled;
+  localStorage.setItem('dndCinematicFocus',cinematicFocusEnabled?'1':'0');
+  if(!cinematicFocusEnabled && cinematicFocusHome){
+    const home={...cinematicFocusHome};
+    stopCinematicFocus();
+    camera={...camera,...home};
+    clampCamera();draw();
+  }
+  updateCinematicFocusButton();
+}
+function stopCinematicFocus(clearHome=true){
+  if(cinematicFocusFrame) cancelAnimationFrame(cinematicFocusFrame);
+  clearTimeout(cinematicFocusTimer);
+  cinematicFocusFrame=null;cinematicFocusTimer=null;
+  if(clearHome) cinematicFocusHome=null;
+}
+function cameraPoseForPoint(x,y,scale){
+  const world=mapWorldSize();
+  const next={scale:Math.max(.45,Math.min(4,scale)),x:canvas.width/2-x*scale,y:canvas.height/2-y*scale};
+  const scaledW=world.width*next.scale,scaledH=world.height*next.scale;
+  next.x=scaledW<=canvas.width?(canvas.width-scaledW)/2:Math.min(0,Math.max(canvas.width-scaledW,next.x));
+  next.y=scaledH<=canvas.height?(canvas.height-scaledH)/2:Math.min(0,Math.max(canvas.height-scaledH,next.y));
+  return next;
+}
+function animateCameraPose(from,to,duration=420,done){
+  const started=performance.now();
+  const tick=now=>{
+    const raw=Math.min(1,(now-started)/duration),t=raw<.5?2*raw*raw:1-Math.pow(-2*raw+2,2)/2;
+    camera.x=from.x+(to.x-from.x)*t;camera.y=from.y+(to.y-from.y)*t;camera.scale=from.scale+(to.scale-from.scale)*t;
+    updateZoomLabel();draw();
+    if(raw<1) cinematicFocusFrame=requestAnimationFrame(tick); else {cinematicFocusFrame=null;done?.();}
+  };
+  cinematicFocusFrame=requestAnimationFrame(tick);
+}
+function focusMapAtWorldPoint(x,y,{hold=520,zoom=1.1}={}){
+  if(!cinematicFocusEnabled || boardDepthMode!=='cinematic' || boardDepthReducedMotion?.matches || !Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return;
+  const origin=cinematicFocusHome ? {...cinematicFocusHome} : {...camera};
+  stopCinematicFocus(false);
+  cinematicFocusHome=origin;
+  const target=cameraPoseForPoint(Number(x),Number(y),Math.min(4,Math.max(camera.scale,camera.scale*zoom)));
+  animateCameraPose({...camera},target,360,()=>{
+    cinematicFocusTimer=setTimeout(()=>animateCameraPose({...camera},origin,440,()=>{cinematicFocusHome=null;}),hold);
+  });
+}
+function focusTurnEntity(id){
+  const entity=characterById(id) || enemyByUid(id);
+  if(entity) focusMapAtWorldPoint(characterX(entity)??entity.x,characterY(entity)??entity.y,{hold:360,zoom:1.06});
+}
+function drawBoardContactShadow(x,y,size=34,power=1){
+  if(!(BOARD_DEPTH_PRESETS[boardDepthMode]||BOARD_DEPTH_PRESETS.subtle).shadows) return;
+  const radius=Math.max(10,size*.48);
+  ctx.save();
+  ctx.translate(x+radius*.14,y+radius*.47);
+  ctx.scale(1,.34);
+  const shadow=ctx.createRadialGradient(0,0,0,0,0,radius);
+  shadow.addColorStop(0,`rgba(0,0,0,${.5*power})`);
+  shadow.addColorStop(.48,`rgba(0,0,0,${.28*power})`);
+  shadow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=shadow;
+  ctx.beginPath();
+  ctx.arc(0,0,radius,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+function setBoardDepthMode(value){
+  boardDepthMode=BOARD_DEPTH_PRESETS[value] ? value : 'subtle';
+  localStorage.setItem('dndBoardDepthMode',boardDepthMode);
+  const select=document.getElementById('board-depth-select');
+  if(select) select.value=boardDepthMode;
+  startBoardDepthFallbackLoop();
+  draw();
+}
+function startBoardDepthFallbackLoop(){
+  if(boardDepthFallbackFrame || boardDepthMode==='off') return;
+  let lastDraw=0;
+  const tick=now=>{
+    if(boardDepthMode==='off'){
+      boardDepthFallbackFrame=null;
+      return;
+    }
+    if(!document.hidden && !rpMode && !animatedFogFrame && now-lastDraw>=33){
+      lastDraw=now;
+      draw();
+    }
+    boardDepthFallbackFrame=requestAnimationFrame(tick);
+  };
+  boardDepthFallbackFrame=requestAnimationFrame(tick);
 }
 function drawMapGrid(world){
   if(!showMapGrid) return;
@@ -4442,6 +4794,7 @@ function drawAnimatedFogLayer(world){
 
 function draw(){
   const world=mapWorldSize();
+  const depth=boardDepthFrameState();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#12141a';
   ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -4454,7 +4807,7 @@ function draw(){
   ctx.save();
   ctx.setTransform(camera.scale,0,0,camera.scale,camera.x,camera.y);
   if(mapImg){
-    ctx.drawImage(mapImg,0,0,world.width,world.height);
+    drawBoardSurface(world,depth);
   } else {
     ctx.fillStyle='#1d2430';
     ctx.fillRect(0,0,world.width,world.height);
@@ -4469,8 +4822,11 @@ function draw(){
   drawMapGrid(world);
   ensureAnimatedFogPlaying();
   drawSceneMood(world);
+  drawBoardDepthLighting(world,depth);
+  drawDynamicBoardLights();
   drawAnimatedFogLayer(world);
   drawImpactDecals();
+  drawSceneAtmosphere(world);
   drawLivePings();
   drawSpellHoverPreview();
   drawMeasureAndTemplates();
@@ -4479,6 +4835,8 @@ function draw(){
   drawSoundZones();
   drawPlayers();
   drawActionAnimations();
+  drawBoardForegroundFrame(world,depth);
+  drawForegroundSceneParticles(world,depth);
   ctx.restore();
   updateSoundZonePlayback();
 }
@@ -4524,22 +4882,16 @@ function storeRemoteCharacter(ch){
   return ch;
 }
 function drawSceneMood(world){
-  const styles={
-    cave:'rgba(5,7,16,.22)',
-    forest:'rgba(8,38,26,.16)',
-    lava:'rgba(95,28,4,.18)',
-    temple:'rgba(255,224,150,.12)',
-    eldritch:'rgba(71,22,105,.18)'
-  };
-  const tint=styles[scenePreset];
-  if(!tint) return;
+  const profile=sceneVisualProfile();
+  const rgb=profile.glow;
   ctx.save();
   ctx.globalCompositeOperation='source-over';
-  ctx.fillStyle=tint;
+  ctx.fillStyle=profile.tint;
   ctx.fillRect(0,0,world.width,world.height);
-  const glow=ctx.createRadialGradient(world.width*.5,world.height*.5,0,world.width*.5,world.height*.5,Math.max(world.width,world.height)*.72);
-  glow.addColorStop(0,'rgba(255,220,140,.035)');
-  glow.addColorStop(1,'rgba(0,0,0,.24)');
+  const glow=ctx.createRadialGradient(world.width*.5,world.height*.45,0,world.width*.5,world.height*.5,Math.max(world.width,world.height)*.72);
+  glow.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.055)`);
+  glow.addColorStop(.52,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},.012)`);
+  glow.addColorStop(1,`rgba(0,0,0,${profile.vignette})`);
   ctx.fillStyle=glow;
   ctx.fillRect(0,0,world.width,world.height);
   ctx.restore();
@@ -5087,9 +5439,9 @@ function stylePalette(style='arcane'){
 }
 function addImpactDecal(x,y,style='arcane',radius=42){
   if(!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return;
-  const shortLived=['weapon','piercing','blunt'].includes(style);
-  impactDecals.push({x:Number(x),y:Number(y),style,radius:Number(radius)||42,started:performance.now(),duration:shortLived?2100:4200,seed:Math.random()*1000});
-  impactDecals=impactDecals.slice(-28);
+  const durations={weapon:2100,piercing:2100,blunt:2400,lightning:3600,force:4200,arcane:5200,frost:6200,fire:7200,acid:7600,poison:7600,necrotic:8200,grease:9000};
+  impactDecals.push({x:Number(x),y:Number(y),style,radius:Number(radius)||42,started:performance.now(),duration:durations[style]||5600,seed:Math.random()*1000});
+  impactDecals=impactDecals.slice(-36);
 }
 function drawImpactDecals(){
   if(!impactDecals.length) return;
@@ -5374,11 +5726,16 @@ function drawPlacedIcons(){
     if(ic.kind==='enemy' && !defeated) enemyDeathAnimations.delete(ic.uid);
     const death=defeated ? enemyDeathVisual(ic) : null;
     const showEnemyTacticalDetails=isDM();
+    if(isBoss && rev && !cinematicSeenBosses.has(ic.uid)){
+      cinematicSeenBosses.add(ic.uid);
+      setTimeout(()=>focusMapAtWorldPoint(ic.x,ic.y,{hold:700,zoom:1.14}),80);
+    }
     const iconSize=tokenDrawSize(ic,isBoss?46:30);
     const ringRadius=Math.max(isBoss?42:31,iconSize/2+8);
     const targetRadius=Math.max(isBoss?37:25,iconSize/2+4);
     const labelY=ic.y+iconSize/2+(isBoss?5:2);
     const barY=labelY+(isBoss?17:13);
+    drawBoardContactShadow(ic.x,ic.y,iconSize,defeated ? .28 : (isBoss ? 1.18 : .92));
     ctx.font=Math.round(tokenDrawSize(ic,isBoss?34:22))+'px serif';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -5983,6 +6340,8 @@ function drawPlayers(){
       ctx.setLineDash([]);
     }
     if(x==null||y==null){ ctx.restore(); continue; }
+    const iconSize=tokenDrawSize(p,34);
+    drawBoardContactShadow(x,y,iconSize,p.isMe&&id===activeCharacterId?1.08:.88);
     drawStatusAuras(p,x,y,24);
     const rollBuffs=activeRollBuffs(p);
     if(rollBuffs.length){
@@ -6003,7 +6362,6 @@ function drawPlayers(){
       }
       ctx.restore();
     }
-    const iconSize=tokenDrawSize(p,34);
     const ringRadius=Math.max(25,iconSize/2+7);
     if(id===selectedTargetUid){
       ctx.beginPath();
@@ -6951,7 +7309,7 @@ function setSoundZoneRadius(value){
   scheduleSave();
 }
 function setScenePreset(value='neutral'){
-  scenePreset=['neutral','cave','forest','lava','temple','eldritch'].includes(value) ? value : 'neutral';
+  scenePreset=SCENE_VISUAL_PROFILES[value] ? value : 'neutral';
   localStorage.setItem('dndScenePreset',scenePreset);
   const select=document.getElementById('scene-preset-select');
   if(select) select.value=scenePreset;
@@ -7644,6 +8002,9 @@ canvas.addEventListener('mousedown',e=>{
 canvas.addEventListener('mousemove',e=>{
   const r=canvas.getBoundingClientRect();
   const sx=e.clientX-r.left, sy=e.clientY-r.top;
+  boardDepthPointer.inside=true;
+  boardDepthPointer.targetX=Math.max(-1,Math.min(1,(sx/Math.max(1,r.width)-.5)*2));
+  boardDepthPointer.targetY=Math.max(-1,Math.min(1,(sy/Math.max(1,r.height)-.5)*2));
   if(isPanning){ movePan(sx,sy); return; }
   if(rpMode) return;
   const {x,y}=screenToWorld(sx,sy);
@@ -7728,6 +8089,9 @@ canvas.addEventListener('mouseup',()=>{
 });
 
 canvas.addEventListener('mouseleave',()=>{
+  boardDepthPointer.inside=false;
+  boardDepthPointer.targetX=0;
+  boardDepthPointer.targetY=0;
   if(isPanning) endPan();
   hoveredTokenId=null;
   clearTimeout(hoverSheetTimer);
@@ -8046,6 +8410,7 @@ function normalizeScene(raw={}){
     mapWorldWidth:Number(raw.mapWorldWidth)||mapWorldWidth,
     mapWorldHeight:Number(raw.mapWorldHeight)||mapWorldHeight,
     scenePreset:raw.scenePreset || 'neutral',
+    foregroundUrl:raw.foregroundUrl || '',
     revealRadius:Number(raw.revealRadius)||revealRadius,
     startPreset:baseArea.preset || presetId,
     startArea:baseArea,
@@ -8074,6 +8439,7 @@ function buildSceneSnapshot(name){
     mapWorldWidth,
     mapWorldHeight,
     scenePreset,
+    foregroundUrl:boardForegroundUrl || '',
     revealRadius,
     startArea:currentSceneStartArea(),
     placedIcons:placedIcons.filter(icon=>icon.kind!=='character').map(icon=>JSON.parse(JSON.stringify(icon))),
@@ -8319,7 +8685,7 @@ function applySceneSnapshot(scene,{announce=false,moveLocal=true,saveChange=true
     if(announce) addChatMessage({kind:'scene',character:'DM',label:`Scene transition: ${scene.name}`,detail:`Start area ready · ${scene.placedIcons.filter(icon=>icon.kind==='enemy').length} enemies`});
     if(saveChange) saveState();
   };
-  if(mapUrl) loadMapFromUrl(mapUrl,finish,true);
+  if(mapUrl) loadMapFromUrl(mapUrl,finish,true,scene.foregroundUrl||'');
   else finish();
 }
 function transitionToSelectedScene(){
@@ -12355,6 +12721,7 @@ function playActionAnimation(ch,type='weapon',details={}){
     seed:Math.floor(Math.random()*10000)
   };
   actionAnimations.push(fx);
+  if(Number.isFinite(Number(fx.tx))&&Number.isFinite(Number(fx.ty))) focusMapAtWorldPoint(Number(fx.tx),Number(fx.ty),{hold:type==='spell'?520:360,zoom:details.kind==='aoe'?1.14:1.09});
   trigger3DActionEffect(type,fx,{...details,visualStyle});
   if(Number.isFinite(Number(fx.tx))&&Number.isFinite(Number(fx.ty))){
     addImpactDecal(Number(fx.tx),Number(fx.ty),visualStyle,details.kind==='aoe'?(Number(details.aoeRadius)||70):42);
@@ -12677,6 +13044,7 @@ function advanceTurn(){
   if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
   if(enemyByUid(id)) activeEnemyUid=id;
   handleSlippedStartOfTurn(id);
+  focusTurnEntity(id);
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
   playSfx('turn');
   updateAllPanels();
@@ -12752,6 +13120,7 @@ function updateTurnOrder(){
       turnActionState={};
       if(canControlCharacter(ch)) activeCharacterId=id;
       if(ch.isEnemy) activeEnemyUid=id;
+      focusTurnEntity(id);
       broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState});
       updateAllPanels();
       draw();
@@ -13119,6 +13488,7 @@ function redirectToCampaignManager(){
   window.location.href='campaign_manager.html?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID);
 }
 function loadMapFromDataUrl(dataUrl,done,useImageWorld=false){
+  loadBoardForegroundLayer('');
   const img=new Image();
   img.onload=()=>{
     mapImg=img;
@@ -13134,7 +13504,8 @@ function resolveHostedMapUrl(url){
   if(/^https?:\/\//i.test(trimmed) || /^data:/i.test(trimmed)) return trimmed;
   return new URL(trimmed.replace(/^\/+/,''), window.location.href).href;
 }
-function loadMapFromUrl(url,done,useImageWorld=false){
+function loadMapFromUrl(url,done,useImageWorld=false,foregroundUrl=null){
+  loadBoardForegroundLayer(foregroundUrl==null ? foregroundMapForUrl(url) : foregroundUrl);
   const img=new Image();
   const resolved=resolveHostedMapUrl(url);
   if(/^https?:\/\//i.test(resolved)) img.crossOrigin='anonymous';
@@ -13597,6 +13968,7 @@ function connectWS(){
           const id=turnOrder[activeTurnIndex];
           if(myCharacters.some(c=>c.id===id)) activeCharacterId=id;
           if(enemyByUid(id)) activeEnemyUid=id;
+          focusTurnEntity(id);
           playSfx('turn');
           updateAllPanels();
           draw();
@@ -13821,6 +14193,8 @@ updateCampaignBadge();
 initAudioControls();
 initSoundZoneControls();
 setScenePreset(scenePreset);
+setBoardDepthMode(boardDepthMode);
+updateCinematicFocusButton();
 updateRoleUI();
 document.querySelectorAll('#dm-item-modal input,#dm-item-modal select,#dm-item-modal textarea').forEach(el=>{
   el.addEventListener('input',syncDMGiveItemForm);
