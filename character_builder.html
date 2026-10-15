@@ -740,6 +740,7 @@ label,h3{color:#cba86e}
 <script src="assets/spell-icons/spell_icon_atlas.js"></script>
 <script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
 <script src="spell_data.js"></script>
+<script src="gameplay_rules.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
@@ -798,7 +799,7 @@ const LEVEL_UP_SUGGESTIONS={
 };
 const PLAYER_ICONS=['🧙','🧝','🧟','🧛','🧜','🦸','🤺','🥷','🧑‍🚀','👸','🤴','🧞','🐉','🦊','🐺','🛡️'];
 const BEGINNER_PRESETS={
-  Fighter:{name:'New Fighter',race:'Human',class:'Fighter',background:'Soldier',alignment:'Neutral Good',icon:'🛡️',color:'#48b37f',stats:{STR:16,DEX:12,CON:15,INT:10,WIS:11,CHA:10},weapons:[{name:'Longsword',die:'d8',bonus:3,description:'One-handed melee weapon'},{name:'Shortbow',die:'d6',bonus:2,description:'Ranged backup weapon'}],spells:[],abilities:[{name:'Second Wind',description:'Recover HP once per fight'},{name:'Action Surge',description:'Take one extra action'}],bonusActions:[{name:'Second Wind',description:'Use when hurt'}],inventory:[{name:'Shield',qty:1,description:'+2 AC when equipped'},{name:'Explorer Pack',qty:1,description:'Basic adventuring gear'}]},
+  Fighter:{name:'New Fighter',race:'Human',class:'Fighter',background:'Soldier',alignment:'Neutral Good',icon:'🛡️',color:'#48b37f',stats:{STR:16,DEX:12,CON:15,INT:10,WIS:11,CHA:10},weapons:[{name:'Longsword',die:'d8',bonus:3,description:'One-handed melee weapon'},{name:'Shortbow',die:'d6',bonus:2,description:'Ranged backup weapon'}],spells:[],abilities:[{name:'Second Wind',description:'Recover HP once per short or long rest'},{name:'Action Surge',description:'Take one extra action'}],bonusActions:[{name:'Second Wind',description:'Use when hurt'}],inventory:[{name:'Shield',qty:1,description:'+2 AC when equipped'},{name:'Explorer Pack',qty:1,description:'Basic adventuring gear'}]},
   Wizard:{name:'New Wizard',race:'Elf',class:'Wizard',background:'Sage',alignment:'True Neutral',icon:'🧙',color:'#66a7d8',stats:{STR:8,DEX:14,CON:12,INT:16,WIS:12,CHA:10},weapons:[{name:'Quarterstaff',die:'d6',bonus:1,description:'Simple melee weapon'}],spells:[{name:'Fire Bolt',die:'d10',bonus:3,description:'Ranged spell attack'},{name:'Magic Missile',die:'d4',bonus:1,description:'Reliable force darts'}],abilities:[{name:'Arcane Recovery',description:'Recover some spell power during rest'},{name:'Spellbook',description:'Prepare spells from your book'}],bonusActions:[],inventory:[{name:'Spellbook',qty:1,description:'Contains prepared spells'},{name:'Component Pouch',qty:1,description:'Casting supplies'}]},
   Rogue:{name:'New Rogue',race:'Halfling',class:'Rogue',background:'Criminal',alignment:'Chaotic Good',icon:'🥷',color:'#caa86b',stats:{STR:10,DEX:16,CON:13,INT:12,WIS:12,CHA:11},weapons:[{name:'Dagger',die:'d4',bonus:3,description:'Light finesse weapon'},{name:'Shortbow',die:'d6',bonus:3,description:'Ranged attack'}],spells:[],abilities:[{name:'Sneak Attack',description:'Extra damage when you have advantage or an ally nearby'},{name:'Expertise',description:'Very good at chosen skills'}],bonusActions:[{name:'Cunning Action',description:'Dash, Disengage, or Hide'}],inventory:[{name:'Thieves Tools',qty:1,description:'Pick locks and disarm traps'},{name:'Rope',qty:1,description:'50 feet'}]},
   Cleric:{name:'New Cleric',race:'Dwarf',class:'Cleric',background:'Acolyte',alignment:'Lawful Good',icon:'🧝',color:'#d6d8df',stats:{STR:13,DEX:10,CON:14,INT:10,WIS:16,CHA:12},weapons:[{name:'Mace',die:'d6',bonus:2,description:'Simple melee weapon'}],spells:[{name:'Sacred Flame',die:'d8',bonus:3,description:'Radiant cantrip'},{name:'Healing Word',die:'d4',bonus:3,description:'Quick healing spell'}],abilities:[{name:'Channel Divinity',description:'Call on divine power'},{name:'Turn Undead',description:'Drive undead away'}],bonusActions:[{name:'Healing Word',description:'Heal an ally at range'}],inventory:[{name:'Holy Symbol',qty:1,description:'Spellcasting focus'},{name:'Shield',qty:1,description:'+2 AC when equipped'}]}
@@ -981,7 +982,7 @@ function calculateDerived(character){
     spellSaveDC:8+pb+primary+itemBonuses.spellDcBonus,
     spellAttackBonus:pb+primary+itemBonuses.spellAttackBonus,
     resourceName:cls.resource,resourceMax:Math.max(0,resourceMax),
-    passivePerception:10+abilityMod(stats.WIS)+pb+itemBonuses.passivePerceptionBonus,
+    passivePerception:10+abilityMod(stats.WIS)+pb*(character.skills?.Perception?.expertise?2:character.skills?.Perception?.proficient?1:0)+(Number(character.skills?.Perception?.bonus)||0)+itemBonuses.passivePerceptionBonus,
     revealRadius:Math.min(190,28+pb*6+Math.max(0,abilityMod(stats.WIS))*3)
   };
 }
@@ -1046,13 +1047,22 @@ function hydrateCharacter(raw={}){
     statuses:Array.isArray(raw.statuses)?raw.statuses:[],
     overrides:raw.overrides||{},
     weapons:Array.isArray(raw.weapons)?raw.weapons.map(normalizeActionItem):[],
-    spells:Array.isArray(raw.spells)?raw.spells.map(normalizeActionItem):[],
+    spells:Array.isArray(raw.spells)?raw.spells.map(item=>normalizeActionItem(GameplayRules.spellItem(item))):[],
     inventory:Array.isArray(raw.inventory)?raw.inventory.map(normalizeInventoryItem):[],
     equipment:raw.equipment&&typeof raw.equipment==='object'?raw.equipment:{},
     abilities:Array.isArray(raw.abilities)?raw.abilities.map(normalizeTextItem):[],
     bonusActions:Array.isArray(raw.bonusActions)?raw.bonusActions.map(normalizeTextItem):[],
     spellSlotUsage:raw.spellSlotUsage&&typeof raw.spellSlotUsage==='object'?raw.spellSlotUsage:{},
     featureUsage:raw.featureUsage&&typeof raw.featureUsage==='object'?raw.featureUsage:{},
+    tempHP:Math.max(0,Number(raw.tempHP)||0),
+    resistances:Array.isArray(raw.resistances)?raw.resistances:[],
+    immunities:Array.isArray(raw.immunities)?raw.immunities:[],
+    vulnerabilities:Array.isArray(raw.vulnerabilities)?raw.vulnerabilities:[],
+    savingThrowProficiencies:raw.savingThrowProficiencies,
+    hitDiceUsed:Math.max(0,Number(raw.hitDiceUsed)||0),
+    reactionUsed:!!raw.reactionUsed,
+    speedFeet:Number(raw.speedFeet)||30,
+    difficultTerrain:!!raw.difficultTerrain,
     levelUpBackups:Array.isArray(raw.levelUpBackups)?raw.levelUpBackups.slice(0,3):[],
     accountOwnerUserId:raw.accountOwnerUserId||'',
     campaignId:raw.campaignId||'',
@@ -1688,19 +1698,20 @@ function fillForm(ch){
   renderIconButtons();
   renderAssetPicker(selectedTokenArt);
   renderSkills(ch);
-  renderLive();
   renderActionItems(ch);
   renderInventory(ch);
   renderEquipment(ch);
   renderSpellSlots(ch);
   renderTextItems('ability',ch.abilities||[]);
   renderTextItems('bonus-action',ch.bonusActions||[]);
+  renderLive();
 }
 function readFormFor(existing=null){
   if(!document.getElementById('name')) return null;
   const stats={};
   for(const ab of ABILITIES) stats[ab]=Number(document.getElementById('stat-'+ab).value)||10;
   const base={
+    ...existing,
     id:existing?.id||selectedId,
     name:document.getElementById('name').value.trim()||'Player',
     race:readRaceValue(),
@@ -2088,7 +2099,7 @@ function sortedLevelUpSpellChoices(spells=[],currentMax=0,nextMax=0){
   });
 }
 function spellToActionItem(spell,sourceClass=spellClassName()){
-  return normalizeActionItem({
+  return normalizeActionItem(GameplayRules.spellItem({
     name:spell.name,
     die:spell.die||'d6',
     diceCount:spell.diceCount||diceCountFromFormula(spell.damageFormula)||1,
@@ -2111,7 +2122,7 @@ function spellToActionItem(spell,sourceClass=spellClassName()){
     sourceClass,
     effect:spell.effect||spell.damageType||spell.name,
     description:[spell.range&&`Range: ${spell.range}`,spell.castingTime&&`Cast: ${spell.castingTime}`,spell.concentration?'Concentration':'',spell.attackSave,spell.damageHeal,spell.description].filter(Boolean).join(' · ')
-  });
+  }));
 }
 function renderSpellCatalogue(ch=selected()){
   const levelSelect=document.getElementById('spell-catalog-level');
@@ -2974,6 +2985,13 @@ function applyBeginnerPreset(kind){
   const existing=selected();
   const ch=stampCharacterForCurrentCampaign({
     ...preset,
+    level:2,
+    weapons:(preset.weapons||[]).map(w=>({...w,bonus:abilityMod(statsWithRace(preset)[GameplayRules.weaponAbility(preset,w,statsWithRace(preset))])})),
+    bonusActions:(preset.bonusActions||[]).filter(a=>a.name!=='Healing Word'),
+    spells:(preset.spells||[]).map(item=>{
+      const source=spellCatalogue().find(s=>s.name===item.name);
+      return GameplayRules.spellItem(source?spellToActionItem(source,kind):item);
+    }),
     id:existing?.id||selectedId,
     position:existing?.position||{x:null,y:null},
     accountOwnerUserId:authUser?.id||existing?.accountOwnerUserId||'',
