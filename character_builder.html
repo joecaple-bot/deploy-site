@@ -437,6 +437,7 @@ label,h3{color:#cba86e}
   .savebar{position:sticky;right:auto;bottom:0}
 }
 </style>
+<link rel="stylesheet" href="miniature_editor.css">
 </head>
 <body>
 <div id="app">
@@ -588,6 +589,7 @@ label,h3{color:#cba86e}
               <label>Icon</label>
               <div class="icons" id="icons"></div>
               <div id="asset-picker"></div>
+<button type="button" class="primary" onclick="commitForm();setBuilderTab('equipment');renderEquipment(selected())" style="margin-top:12px;padding:10px">Create 3D map icon</button>
             </div>
           </div>
         </div>
@@ -741,6 +743,10 @@ label,h3{color:#cba86e}
 <script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
 <script src="spell_data.js"></script>
 <script src="gameplay_rules.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="loot_tables.js"></script>
+<script src="bg3_loot_items.js"></script>
+<script src="miniature_editor.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
@@ -1040,6 +1046,7 @@ function hydrateCharacter(raw={}){
     position:{x:raw.position?.x??raw.x??null,y:raw.position?.y??raw.y??null},
     icon:raw.icon||raw.em||'🧙',
     tokenArt:raw.tokenArt||'',
+    miniature:raw.miniature&&typeof raw.miniature==='object'?{...raw.miniature}:undefined,
     tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     color:raw.color||randomColor(),
     gold:Math.max(0,Number(raw.gold)||0),
@@ -1323,7 +1330,7 @@ function preserveBuilderAuthoredFields(local={},merged={}){
   const keep=[
     'name','race','class','subclass','level','background','alignment','notes','stats','skills',
     'overrides','weapons','spells','abilities','bonusActions','icon','color','tokenArt','tokenScale',
-    'levelUpBackups','accountOwnerUserId','owner','updatedAt'
+    'miniature','levelUpBackups','accountOwnerUserId','owner','updatedAt'
   ];
   const out={...merged};
   for(const key of keep){
@@ -1645,6 +1652,7 @@ function setBuilderTab(tab=currentBuilderTab){
   document.querySelectorAll('[data-builder-section]').forEach(section=>{
     section.classList.toggle('active-tab',section.dataset.builderSection===currentBuilderTab);
   });
+  if(currentBuilderTab==='equipment'&&typeof MiniatureEditor!=='undefined'&&selected()){commitForm();renderEquipment(selected());}
   const content=document.querySelector('.builder-content');
   if(content) content.scrollTop=0;
 }
@@ -2774,20 +2782,11 @@ function renderEquipment(ch=selected()){
     return `<span class="body-chip ${cls} ${item?'':'empty'}">${escapeHtml(item?.name||slot)}</span>`;
   };
   el.innerHTML=`
-    <div class="equipment-board">
-      <div class="equip-side">${['Helmet','Pendant','Ring 1','Gloves','Shield'].map(slotHtml).join('')}</div>
-      <div class="silhouette-stage">
-        <div class="humanoid" aria-hidden="true">
-          <div class="aura"></div><div class="head"></div><div class="neck"></div><div class="torso"></div><div class="hips"></div>
-          <div class="arm-l"></div><div class="arm-r"></div><div class="leg-l"></div><div class="leg-r"></div>
-          ${EQUIPMENT_SLOTS.map(chip).join('')}
-        </div>
-      </div>
-      <div class="equip-side">${['Chestplate','Bracelet','Ring 2','Boots','Cloak','Belt'].map(slotHtml).join('')}</div>
-    </div>
+    <div id="miniature-editor"></div>
     <div class="equipment-menu-title"><h3>Slot menu</h3><span class="tiny">Detailed controls</span></div>
     <div class="equipment-grid">${EQUIPMENT_SLOTS.map(detailHtml).join('')}</div>`;
-  el.querySelectorAll('select').forEach(input=>{
+  MiniatureEditor.mount(ch);
+  el.querySelectorAll('select[data-equipment-slot]').forEach(input=>{
     input.addEventListener('change',()=>{
       document.querySelectorAll(`[data-equipment-slot="${input.dataset.equipmentSlot}"]`).forEach(select=>select.value=input.value);
       selected().equipment=readEquipment();

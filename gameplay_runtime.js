@@ -286,6 +286,7 @@ function gameplayBasicAction(id,name,cost='action'){
     broadcast({type:'turnAction',turnActionState});
   } else if(name==='Hide')rollSkillCheck(id,'Stealth');
   else addCharacterStatus(id,name,1,{expiresAt:name==='Dodge'?'start':'end'});
+  gameplayMiniatureAnimation(ch);
   addChatMessage({kind:'feature',character:ch.name,label:name,detail:name==='Disengage'?'Movement does not provoke opportunity attacks this turn.':name==='Dash'?'Movement budget increased by your speed.':name==='Dodge'?'Incoming attacks have disadvantage until your next turn.':'DM resolves hiding from the Stealth result.'});
   gameplaySyncActor(ch);
 }
@@ -374,6 +375,7 @@ async function gameplayMagicMissile(ch,item){
   if(!ch.uid&&!item.freeCast&&!spendSpellSlot(ch,item.castLevel))return false;
   markTurnAction(item.actionCost||'action',gameplayId(ch));gameplaySyncActor(ch);
   if(await gameplayReactionWindow(ch,item,'spell',[...new Set(allocations)].map(gameplayEntity),'Automatic-hit force darts',{magicMissile:true}))return true;
+  gameplayMiniatureAnimation(ch,'spell');
   const roll=rollDiceExpression('1d4',1),counts={};allocations.forEach(id=>counts[id]=(counts[id]||0)+1);
   for(const [id,n] of Object.entries(counts)){
     const target=gameplayEntity(id);if(!target)continue;
@@ -441,6 +443,7 @@ async function gameplayUnarmed(ch){
     const hit=natural!==1&&(natural===20||attack.total>=gameplayEffectiveAC(target));
     const amount=hit?Math.max(0,rollDiceExpression(`1d${die}`,mod).total+(natural===20?rollDiceExpression(`1d${die}`,0).total:0)):0;
     if(hit){gameplayDamage(target,amount,'bludgeoning',natural===20);ch.gameplayLastHit={targetId:target.uid,melee:true};}
+    gameplayMiniatureAnimation(ch);
     addChatMessage({kind:'weapon',character:ch.name,label:'Unarmed strike',detail:`${hit?'Hit':'Miss'} ${target.name}: ${amount} damage; ${turnActionState.flurryRemaining} Flurry strikes remaining`});
   }finally{gameplayBusy=false;gameplaySyncActor(ch);}
 }
@@ -449,5 +452,13 @@ function gameplayAssistedFeature(ch,item){
   if(!confirm(`${item.name} requires DM adjudication of targets, saves, and any form statistics. Spend its ${cost} and feature use? No automatic effects will be applied.`))return;
   gameplayRememberAction(ch.name+': '+item.name);if(!spendFeatureUse(ch,item.name))return;
   gameplayMarkAction(cost,ch.id);gameplaySyncActor(ch);
+  gameplayMiniatureAnimation(ch);
   addChatMessage({kind:'feature',character:ch.name,label:item.name+' — DM-assisted',detail:'Resources spent. DM resolves effects; no automatic status or statistics applied.'});
+}
+
+// Cosmetic-only event for actions that do not use the ordinary attack effect path.
+function gameplayMiniatureAnimation(ch,kind='action'){
+ if(typeof MapWalk==='undefined')return;
+ const effect={kind:'miniature',characterId:gameplayId(ch),miniatureAnimation:kind};
+ MapWalk.trigger(ch,kind,effect);if(typeof emitLiveEffect==='function')emitLiveEffect(effect);if(typeof draw==='function')draw();
 }

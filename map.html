@@ -951,6 +951,7 @@ body.rp-mode .map-tool-dock{display:none}
   .modal-body{grid-template-columns:1fr}
 }
 </style>
+
 </head>
 <body>
 <div id="app">
@@ -1641,6 +1642,8 @@ body.rp-mode .map-tool-dock{display:none}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vendor/three.min.js?v=124-models"></script>
+<script src="miniature_editor.js"></script>
+<script src="map_walk.js"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
 <script src="bg3_loot_items.js"></script>
@@ -1970,6 +1973,7 @@ function hydrateCharacter(raw={}){
     },
     icon:cleanEmoji(raw.icon || raw.em,'\u{1F9D9}'),
     tokenArt:raw.tokenArt || '',
+    miniature:raw.miniature&&typeof raw.miniature==='object'?{...raw.miniature}:undefined,
     tokenScale:Math.max(.5,Math.min(3,Number(raw.tokenScale)||1)),
     color:raw.color || randomColor(),
     gold:Math.max(0,Number(raw.gold)||0),
@@ -3052,8 +3056,9 @@ function getTokenImage(path){
 }
 function drawTokenArt(entity,x,y,size=30,fallback='?'){
   const art=entity?.tokenArt || '';
-  const img=getTokenImage(art);
-  if(img && img.complete && img.naturalWidth){
+  const walking=typeof MapWalk!=='undefined'?MapWalk.frame(entity,x,y):null;
+  const img=walking||getTokenImage(art);
+  if(walking || img && img.complete && img.naturalWidth){
     ctx.save();
     ctx.drawImage(img,x-size/2,y-size/2,size,size);
     ctx.restore();
@@ -11544,7 +11549,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${diceFormulaForAction(castItem)} ${formatBonus(castItem.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx('heal');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
-    playActionAnimation(ch,'spell',effect);
+    playActionAnimation(ch,type,{...effect,sourceType:type});
+    effect.miniatureAnimation=MapWalk.classify(type,{...effect,sourceType:type});
     emitLiveEffect(effect);
     syncCharacter(ch);
     updateCombatPopout();
@@ -11563,7 +11569,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:effectName,kind:actionType,characterId:ch.id,targetCharacterId:target.id,currentHP:updated?.currentHP, statuses:updated?.statuses||target.statuses,casterStatuses:casterAfter?.statuses||ch.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx(actionType==='buff'?'buff':'spell');
     showCritOverlay(effect.text,effect.overlayType,effect.title);
-    playActionAnimation(ch,'spell',effect);
+    playActionAnimation(ch,type,{...effect,sourceType:type});
+    effect.miniatureAnimation=MapWalk.classify(type,{...effect,sourceType:type});
     emitLiveEffect(effect);
     syncCharacter(ch);
     updateCombatPopout();
@@ -11734,7 +11741,7 @@ function useCharacterFeature(characterId,itemId){
   const finish=(effect)=>{
     playSfx(effect.kind==='heal'?'heal':effect.kind==='buff'?'buff':'spell');
     showCritOverlay(effect.text,effect.overlayType||'roll',effect.title||item.name);
-    playActionAnimation(ch,'spell',effect);
+    playActionAnimation(ch,'ability',effect);
     emitLiveEffect(effect);
     syncCharacter(ch);
     updateActiveSummary();
@@ -11865,7 +11872,7 @@ function useCharacterFeature(characterId,itemId){
   const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:item.effect||item.name,kind:actionType,characterId:ch.id,targetCharacterId:target.id,currentHP:updated?.currentHP,statuses:updated?.statuses||target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
   playSfx(actionType==='buff'?'buff':'spell');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
-  playActionAnimation(ch,'spell',effect);
+  playActionAnimation(ch,'ability',effect);
   emitLiveEffect(effect);
   updateCombatPopout();
   scheduleSave();
@@ -12023,7 +12030,8 @@ async function executeEnemyAction(enemyUid,type,itemId){
     const effect={text:`${enemy.name} uses ${item.name}`,overlayType:'roll',title:`Heals ${roll.total}`,kind:'action',characterId:enemy.uid,actionType:'spell',targetUid:target.uid,x:enemy.x,y:enemy.y,tx:target.x,ty:target.y,damage:0,hpBefore:before,hpAfter:target.hp,maxHP:target.maxHP};
     broadcast({type:'iconUpdate',icon:target});
     playSfx('heal');
-    playActionAnimation(enemy,'spell',effect);
+    playActionAnimation(enemy,type,{...effect,sourceType:type});
+    effect.miniatureAnimation=MapWalk.classify(type,{...effect,sourceType:type});
     emitLiveEffect(effect);
     updateCombatPopout();
     return;
@@ -12036,7 +12044,8 @@ async function executeEnemyAction(enemyUid,type,itemId){
     addChatMessage({kind:actionType,character:enemy.name,label:item.name,detail:`${effectName} applied to ${target.name}`});
     const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:effectName,kind:'enemyBuff',characterId:enemy.uid,targetUid:target.uid,statuses:updated?.statuses||target.statuses,x:enemy.x,y:enemy.y,tx:target.x,ty:target.y,actionType:'spell'};
     playSfx('buff');
-    playActionAnimation(enemy,'spell',effect);
+    playActionAnimation(enemy,type,{...effect,sourceType:type});
+    effect.miniatureAnimation=MapWalk.classify(type,{...effect,sourceType:type});
     emitLiveEffect(effect);
     updateCombatPopout();
     return;
@@ -12624,6 +12633,7 @@ function emitLiveEffect(effect){
 }
 function handleLiveEffect(effect){
   if(!effect || effect.campaignId!==CLOUD_CAMPAIGN_ID) return;
+  if(effect.kind==='miniature'){if(typeof MapWalk!=='undefined')MapWalk.trigger(characterById(effect.characterId)||enemyByUid(effect.characterId),'action',effect);draw();return;}
   if(effect.roll) lastRoll=effect.roll;
   playSfx(Number(effect.hpAfter)<=0 && Number(effect.damage)>0 ? 'enemyDown' : sfxForEffect(effect));
   if(effect.kind==='ping'){
@@ -12680,7 +12690,7 @@ function handleLiveEffect(effect){
     draw();
     scheduleSave();
   }
-  if(['heal','buff','utility'].includes(effect.kind)){
+  if(['heal','buff','utility','feature'].includes(effect.kind)){
     const ch=characterById(effect.characterId) || {position:{x:effect.x,y:effect.y},x:effect.x,y:effect.y};
     if(effect.characterId && Array.isArray(effect.casterStatuses)) applyCharacterPatch(effect.characterId,{statuses:effect.casterStatuses});
     if(effect.targetCharacterId) applyCharacterPatch(effect.targetCharacterId,{currentHP:effect.currentHP,statuses:effect.statuses});
@@ -12703,6 +12713,7 @@ function handleLiveEffect(effect){
   updateActiveSummary();
 }
 function playActionAnimation(ch,type='weapon',details={}){
+  if(typeof MapWalk!=='undefined'){details.miniatureAnimation=MapWalk.classify(type,details);MapWalk.trigger(ch,type,details);}
   const world=mapWorldSize();
   const x=characterX(ch) ?? world.width/2;
   const y=characterY(ch) ?? world.height/2;
@@ -14198,5 +14209,6 @@ if(map3DMode){
   render3DLoop();
 }
 </script>
+
 </body>
 </html>
