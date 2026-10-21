@@ -1642,6 +1642,7 @@ body.rp-mode .map-tool-dock{display:none}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vendor/three.min.js?v=124-models"></script>
+<script src="weapon_assets.js"></script>
 <script src="miniature_editor.js"></script>
 <script src="map_walk.js"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
@@ -11692,6 +11693,7 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     tx:target?.x,
     ty:target?.y,
     damage:hitTarget?appliedDamage:0,
+    natural20Hit:!!hitTarget&&keptD20(attack)===20,
     hpBefore,
     hpAfter,
     maxHP:target?.maxHP,
@@ -11980,7 +11982,7 @@ async function rollAoeAction(caster,casterKind,type,item,actionType){
       amount=actionType==='healing' ? damage.total : 0;
       affected++;
     }
-    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,critical:attack?isAttackCrit(attack):false,fumble:attack?isAttackFumble(attack):false,attackTotal:attack?.total,saveTotal:save?.total});
+    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,natural20Hit:!!attack&&hit&&keptD20(attack)===20,critical:attack?isAttackCrit(attack):false,fumble:attack?isAttackFumble(attack):false,attackTotal:attack?.total,saveTotal:save?.total});
   }
   const casterName=caster.name||'Caster';
   const crits=results.filter(result=>result.critical).length;
@@ -11996,7 +11998,7 @@ async function rollAoeAction(caster,casterKind,type,item,actionType){
     templateDraft=template;
     setTimeout(()=>{ if(templateDraft?.x1===template.x1 && templateDraft?.x2===template.x2) templateDraft=null; draw(); },2200);
   }
-  const effect={kind:'aoe',text:targets.length?`${item.name}: ${splitDamage?`${damage.total} split`: `${affected}/${targets.length} affected`}${crits?` (${crits} crit${crits===1?'':'s'})`:''}`:`${item.name}: ${cone?'cone':'area'} cast`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`${cone?'Cone':'Radius'} ${radius}px`,characterId:caster.id||caster.uid,sourceType:type,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:aim.x,ty:aim.y,aoeRadius:radius,aoeShape:cone?'cone':'circle',template,aoeResults:results};
+  const effect={kind:'aoe',natural20Hit:results.some(r=>r.natural20Hit),text:targets.length?`${item.name}: ${splitDamage?`${damage.total} split`: `${affected}/${targets.length} affected`}${crits?` (${crits} crit${crits===1?'':'s'})`:''}`:`${item.name}: ${cone?'cone':'area'} cast`,overlayType:crits?'success':'roll',title:crits?'Critical AoE':`${cone?'Cone':'Radius'} ${radius}px`,characterId:caster.id||caster.uid,sourceType:type,actionType:type,x:characterX(caster)??caster.x,y:characterY(caster)??caster.y,tx:aim.x,ty:aim.y,aoeRadius:radius,aoeShape:cone?'cone':'circle',template,aoeResults:results};
   playSfx(actionType==='healing'?'heal':actionType==='damage'?(affected?'hit':'miss'):'buff');
   showCritOverlay(effect.text,effect.overlayType,effect.title);
   playActionAnimation(caster,type,effect);
@@ -12129,7 +12131,7 @@ async function executeEnemyAction(enemyUid,type,itemId){
   });
   if(hit && hpAfter<=0){ if(targetEnemy) ensureEnemyLoot(targetEnemy); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
   const visual=critical ? {text:`${enemy.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Critical: extra damage dice'} : fumble ? {text:`${enemy.name} misses (natural 1)`,overlayType:'fail',title:'Miss'} : {text:`${enemy.name}: ${hit?'hit':'miss'} ${target.name}`,overlayType:'roll',title:`Attack ${attack.total}`};
-  const effect={kind:'action',...visual,roll:{roll:attack.rolls[0],mod:enemy.attackBonus||0,total:attack.total,character:enemy.name,rolls:attack.d20Rolls,rollMode:attack.rollMode},diceSides:20,diceLabel:item.name,characterId:enemy.uid,sourceType:type,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?appliedDamage:0,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,backfireDamage,backfireHpBefore:backfire?.hpBefore,backfireHpAfter:backfire?.hpAfter,backfireMaxHP:backfire?.maxHP};
+  const effect={kind:'action',...visual,roll:{roll:attack.rolls[0],mod:enemy.attackBonus||0,total:attack.total,character:enemy.name,rolls:attack.d20Rolls,rollMode:attack.rollMode},diceSides:20,diceLabel:item.name,characterId:enemy.uid,sourceType:type,actionType:type,x:enemy.x,y:enemy.y,targetUid:targetEnemy?.uid||null,targetCharacterId:targetCharacter?.id||null,currentHP:targetCharacter?hpAfter:undefined,statuses:targetCharacter?.statuses,tx:characterX(target)||target.x,ty:characterY(target)||target.y,damage:hit?appliedDamage:0,natural20Hit:!!hit&&keptD20(attack)===20,hpBefore,hpAfter,maxHP:targetCharacter?target.derived?.HP:target.maxHP,backfireDamage,backfireHpBefore:backfire?.hpBefore,backfireHpAfter:backfire?.hpAfter,backfireMaxHP:backfire?.maxHP};
   playSfx(critical?'nat20':fumble?'nat1':hit?'hit':'miss');
   if(hit && hpAfter<=0) playSfx('enemyDown');
   showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:enemy.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
@@ -12726,11 +12728,11 @@ function playActionAnimation(ch,type='weapon',details={}){
     tx:Number.isFinite(Number(details.tx))?Number(details.tx):null,
     ty:Number.isFinite(Number(details.ty))?Number(details.ty):null,
     started:performance.now(),
-    duration:type==='spell'?880:620,
+    duration:details.natural20Hit?1800:type==='spell'?880:620,
     angle:-Math.PI/4+(Math.random()-.5)*.8,
     color:palette.css,
     visualStyle,
-    particlePower:details.kind==='aoe'?1.35:Number(details.damage)===0?.62:details.overlayType==='success'?1.25:1,
+    particlePower:details.natural20Hit?3:details.kind==='aoe'?1.35:Number(details.damage)===0?.62:details.overlayType==='success'?1.25:1,
     seed:Math.floor(Math.random()*10000)
   };
   actionAnimations.push(fx);

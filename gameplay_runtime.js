@@ -443,7 +443,7 @@ async function gameplayUnarmed(ch){
     const hit=natural!==1&&(natural===20||attack.total>=gameplayEffectiveAC(target));
     const amount=hit?Math.max(0,rollDiceExpression(`1d${die}`,mod).total+(natural===20?rollDiceExpression(`1d${die}`,0).total:0)):0;
     if(hit){gameplayDamage(target,amount,'bludgeoning',natural===20);ch.gameplayLastHit={targetId:target.uid,melee:true};}
-    gameplayMiniatureAnimation(ch);
+    gameplayMiniatureAnimation(ch,'action',{natural20Hit:hit&&natural===20});
     addChatMessage({kind:'weapon',character:ch.name,label:'Unarmed strike',detail:`${hit?'Hit':'Miss'} ${target.name}: ${amount} damage; ${turnActionState.flurryRemaining} Flurry strikes remaining`});
   }finally{gameplayBusy=false;gameplaySyncActor(ch);}
 }
@@ -457,8 +457,8 @@ function gameplayAssistedFeature(ch,item){
 }
 
 // Cosmetic-only event for actions that do not use the ordinary attack effect path.
-function gameplayMiniatureAnimation(ch,kind='action'){
+function gameplayMiniatureAnimation(ch,kind='action',details={}){
  if(typeof MapWalk==='undefined')return;
- const effect={kind:'miniature',characterId:gameplayId(ch),miniatureAnimation:kind};
+ const effect={...details,kind:'miniature',characterId:gameplayId(ch),miniatureAnimation:kind};
  MapWalk.trigger(ch,kind,effect);if(typeof emitLiveEffect==='function')emitLiveEffect(effect);if(typeof draw==='function')draw();
 }

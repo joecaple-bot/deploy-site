@@ -16,3 +16,5 @@ animation selections, but live multiplayer animation has not been manually verif
 Run the regression suite with Node.js:
 
     node --test tests/*.test.cjs
+
+The Asset-pack weapon selector includes 36 imported Kickin It Studios meshes; usage terms are in assets/weapon-pack/LICENSE.txt. Weapons use an outward grip. Four alternate idle poses cycle between actions, and confirmed natural-20 attack hits trigger extended sword, bow, or spell effects. Preview buttons demonstrate these without spending resources. The suite now contains 52 checks.
