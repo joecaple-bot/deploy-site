@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Miniature customization review</title><link rel="stylesheet" href="../miniature_editor.css"><link rel="stylesheet" href="../miniature_decal_ui.css"><style>body{margin:24px;background:#10171d;color:#eee;font:15px system-ui}main{max-width:1100px;margin:auto}select,input,button{background:#24343e;color:#eee;border:1px solid #657781;padding:8px;border-radius:5px}#saved{max-height:130px;overflow:auto;white-space:pre-wrap}.mini-stage{position:sticky}header{margin-bottom:20px}#saved-icon{width:128px}</style></head><body><main><header><h1>Character customization review</h1><p>Isolated preview. Changes here do not touch saved characters.</p><label>Review race <select id="review-race"></select></label><button id="rear">Rear view</button><button id="reset">Reset test character</button></header><div id="miniature-editor"></div><img id="saved-icon" alt="Saved icon preview"><pre id="saved"></pre></main>
+<script src="../vendor/three.min.js"></script><script src="../miniature_idle.js"></script><script src="../miniature_races.js"></script><script src="../miniature_decals.js"></script><script src="../miniature_decal_ui.js"></script><script src="../miniature_editor.js"></script><script>
+let reviewCharacter={id:'review',race:'Human',class:'Fighter',miniature:{yaw:0,hair:'Short',outfit:'Leather'}};
+const state={myCharacters:[reviewCharacter]},campaignCharacterIds=new Set();
+function selected(){return reviewCharacter;}
+function scheduleSave(){document.getElementById('saved').textContent=JSON.stringify(reviewCharacter.miniature,null,2);}
+function stampCharacterForCurrentCampaign(c){return c;}
+function saveSelectedTokenVisual(v){document.getElementById('saved-icon').src=v.tokenArt;}
+const picker=document.getElementById('review-race');for(const race of Object.keys(MiniatureEditor.races)){const o=document.createElement('option');o.textContent=race;picker.append(o);}
+picker.onchange=()=>{reviewCharacter.race=picker.value;MiniatureEditor.mount(reviewCharacter);};
+document.getElementById('rear').onclick=()=>{reviewCharacter.miniature.yaw=Math.PI;MiniatureEditor.mount(reviewCharacter);};
+document.getElementById('reset').onclick=()=>{reviewCharacter.miniature={yaw:0,hair:'Short',outfit:'Leather'};MiniatureEditor.mount(reviewCharacter);scheduleSave();};
+MiniatureEditor.mount(reviewCharacter);
+</script></body></html>

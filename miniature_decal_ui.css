@@ -1,0 +1,41 @@
+.mini-decal-studio{grid-column:1/-1;box-sizing:border-box;min-width:0;border:1px solid #53626c;border-radius:8px;background:#121a20;color:#e9eceb;overflow:hidden}
+.mini-decal-studio *{box-sizing:border-box}
+.mini-decal-summary{display:flex;flex-direction:column;gap:3px;padding:13px 14px;cursor:pointer;list-style-position:inside;background:#182229;color:#e8d4b0}
+.mini-decal-summary:hover{background:#202c34}
+.mini-decal-summary:focus-visible,.mini-decal-studio button:focus-visible,.mini-decal-studio input:focus-visible,.mini-decal-studio select:focus-visible,.mini-decal-canvas:focus-visible{outline:2px solid #d5b778;outline-offset:2px}
+.mini-decal-kicker{font:9px Segoe UI,sans-serif;letter-spacing:.16em;color:#bca87f}
+.mini-decal-summary-title{font:19px Georgia,serif}
+.mini-decal-body{display:grid;gap:12px;padding:14px;min-width:0}
+.mini-decal-studio button,.mini-decal-studio input,.mini-decal-studio select{font:inherit}
+.mini-decal-studio button{min-height:34px;padding:7px 10px;border:1px solid #53626c;border-radius:5px;background:#25323a;color:#e8eceb;cursor:pointer}
+.mini-decal-studio button:hover:not(:disabled){background:#33434c;border-color:#8a9ba2}
+.mini-decal-studio button:disabled{opacity:.42;cursor:not-allowed}
+.mini-decal-studio input[type=text],.mini-decal-studio select{width:100%;min-width:0;min-height:34px;padding:6px 8px;border:1px solid #53626c;border-radius:5px;background:#0f171c;color:#eef1ef}
+.mini-decal-studio input[type=range]{width:100%;margin:2px 0;accent-color:#c5a46b}
+.mini-decal-studio input[type=color]{width:100%;height:36px;padding:3px;border:1px solid #53626c;border-radius:5px;background:#0f171c;cursor:pointer}
+.mini-decal-toolbar{display:grid;grid-template-columns:minmax(150px,1fr) repeat(3,auto);gap:7px}
+.mini-decal-cap,.mini-decal-empty,.mini-decal-layer-cap,.mini-decal-canvas-help,.mini-decal-place-help,.mini-decal-place-status{margin:0;color:#aebbc0;font-size:11px;line-height:1.45}
+.mini-decal-history{display:flex;gap:7px;justify-content:flex-end}
+.mini-decal-history button{min-height:30px;padding:5px 12px;font-size:11px}
+.mini-decal-basics{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:10px;padding:12px;border:1px solid #35444c;border-radius:7px;background:#172127}
+.mini-decal-field{display:flex;min-width:0;flex-direction:column;gap:6px;margin:0;color:#cbd3d6;font-size:11px}
+.mini-decal-label{min-height:16px}
+.mini-decal-hint{color:#92a0a5}
+.mini-decal-workspace{display:grid;grid-template-columns:minmax(210px,.9fr) minmax(260px,1.1fr);gap:14px;align-items:start;min-width:0}
+.mini-decal-preview{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px;border:1px solid #35444c;border-radius:8px;background:radial-gradient(ellipse at 50% 45%,#3e5059 0,#26343c 52%,#172127 82%)}
+.mini-decal-canvas{display:block;width:100%;max-width:340px;aspect-ratio:1;margin:auto;border:1px solid #60717a;border-radius:6px;background-image:linear-gradient(45deg,#1b272e 25%,transparent 25%),linear-gradient(-45deg,#1b272e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1b272e 75%),linear-gradient(-45deg,transparent 75%,#1b272e 75%);background-position:0 0,0 8px,8px -8px,-8px 0;background-size:16px 16px;touch-action:none;cursor:crosshair}
+.mini-decal-canvas:active{cursor:grabbing}
+.mini-decal-layers{display:grid;gap:10px;min-width:0;padding:12px;border:1px solid #35444c;border-radius:8px;background:#172127}
+.mini-decal-section-head{display:grid;grid-template-columns:auto minmax(100px,1fr) auto;gap:7px;align-items:center}
+.mini-decal-section-head h4{margin:0;color:#e8d4b0;font:18px Georgia,serif}
+.mini-decal-layer-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;max-height:150px;overflow:auto;padding:2px}
+.mini-decal-layer-item{text-align:left;text-transform:capitalize;font-size:11px}
+.mini-decal-layer-item.is-active{border-color:#d0b584;background:#4b4231;color:#fff5dc}
+.mini-decal-layer-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-top:10px;border-top:1px solid #35444c}
+.mini-decal-layer-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mini-decal-danger{color:#f0a097!important;border-color:#80534f!important}
+.mini-decal-placement{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;align-items:center;padding-top:2px}
+.mini-decal-primary{grid-row:1/3;background:#b99a63!important;border-color:#dac395!important;color:#111a20!important;font-weight:700!important}
+.mini-decal-place-status{color:#9ed7b2;min-height:16px}
+@media(max-width:720px){.mini-decal-toolbar{grid-template-columns:1fr 1fr}.mini-decal-picker{grid-column:1/-1}.mini-decal-toolbar .mini-decal-danger{grid-column:1/-1}.mini-decal-basics,.mini-decal-workspace{grid-template-columns:1fr}.mini-decal-layer-actions{grid-template-columns:1fr 1fr}.mini-decal-placement{grid-template-columns:1fr}.mini-decal-primary{grid-row:auto}.mini-decal-summary{padding:12px}.mini-decal-body{padding:11px}}
+@media(prefers-reduced-motion:reduce){.mini-decal-studio *{scroll-behavior:auto!important;transition:none!important}}
