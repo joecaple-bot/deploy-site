@@ -307,6 +307,9 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-actions button .action-full small{display:block;color:#d9c59b;font-size:10px}
 .combat-actions button:hover,.combat-actions button:focus-visible{border-color:rgba(255,221,151,.85);box-shadow:0 0 16px rgba(202,168,107,.2);transform:translateY(-2px) scale(1.03);z-index:5}
 .combat-actions button:hover .action-full,.combat-actions button:focus-visible .action-full{display:block}
+.combat-coach{margin:0 0 9px;padding:8px 10px;border:1px solid rgba(255,213,130,.42);border-radius:9px;background:linear-gradient(90deg,rgba(202,168,107,.16),rgba(20,24,30,.7));color:#ffe6ad;font-size:11px;line-height:1.35;box-shadow:0 0 14px rgba(202,168,107,.14);animation:coachPulse 2.8s ease-in-out infinite}
+.combat-coach b{display:block;color:#fff2ce;font-family:Georgia,'Times New Roman',serif;font-size:12px;margin-bottom:2px}
+@keyframes coachPulse{0%,100%{box-shadow:0 0 10px rgba(202,168,107,.10)}50%{box-shadow:0 0 18px rgba(202,168,107,.24)}}
 .action-cast-wrap{position:relative;display:flex;flex-direction:column;gap:0;min-width:0;overflow:visible}
 .action-cast-wrap>button{width:100%}
 .upcast-tabs{display:flex;align-items:flex-end;gap:3px;min-height:20px;padding:0 8px 0 10px;transform:translateY(2px);pointer-events:auto}
@@ -1647,7 +1650,7 @@ body.rp-mode .map-tool-dock{display:none}
 <script src="miniature_races.js"></script>
 <script src="miniature_decals.js"></script>
 <script src="miniature_decal_ui.js"></script>
-<script src="miniature_editor.js"></script>
+<script src="miniature_layout.js"></script><script src="miniature_editor.js"></script>
 <script src="map_walk.js"></script>
 <script src="vendor/GLTFLoader.js?v=124-models"></script>
 <script src="loot_tables.js"></script>
@@ -1826,7 +1829,9 @@ const SUPABASE_URL = 'https://timefqpkuuiggxysjqap.supabase.co';
 const SUPABASE_PUBLIC_KEY = 'sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
 const CLOUD_TABLE = 'campaign_states';
 const CLOUD_ASSETS_TABLE = 'campaign_assets';
-const CLOUD_STORE_UPLOADED_MAP_ASSETS = false;
+// Uploaded maps live in the separate campaign_assets row so the campaign
+// snapshot stays small while other devices can retrieve the image.
+const CLOUD_STORE_UPLOADED_MAP_ASSETS = true;
 const CLOUD_FALLBACK_POLL_MS = 10000;
 const CLOUD_IDLE_MS = 5 * 60 * 1000;
 const CLOUD_CLIENT_ID = 'client_' + Math.random().toString(36).slice(2,10);
@@ -2873,6 +2878,7 @@ const HOSTED_MAP_LIBRARY = [
   {name:'Camp Map',url:'maps/Camp_Map.png'},
   {name:'Ocean Map',url:'maps/Ocean_Map.png'},
   {name:'Undercity Battlemap',url:'maps/undercity_battlemap.webp'},
+  {name:'Glowing Tree Shrine',url:'maps/glowing-tree-shrine-battle-map.png'},
   {name:'Stonecross - City Overview',url:'maps/stonecross/stonecross_city_overview.png'},
   {name:'Stonecross - Market Square',url:'maps/stonecross/stonecross_market_square.png'},
   {name:'Stonecross - Town Square',url:'maps/stonecross/stonecross_town_square.png'},
@@ -3024,6 +3030,7 @@ let cloudSaveTimer = null;
 let cloudChannel = null;
 let cloudPollTimer = null;
 let cloudLastUpdated = '';
+let cloudSaveError = '';
 let cloudIdleTimer = null;
 let cloudPausedForIdle = false;
 let cloudFogAssetPruned = false;
@@ -6430,7 +6437,16 @@ function setMode(m){
   hideRadialMenu();
   updateMapToolDock();
 }
-function isDM(){ return userRole==='dm'; }
+function sessionCanDM(){
+  const c=campaignInfo||{};
+  // Legacy local/test campaigns predate membership metadata. Preserve their
+  // existing local DM toggle until the campaign is migrated by its creator.
+  if(!c.ownerId) return true;
+  if(c.dmEnabled===false) return false;
+  if(c.ownerId===myId) return true;
+  return c.dmPermissions&&c.dmPermissions[myId]===true;
+}
+function isDM(){ return sessionCanDM() && userRole==='dm'; }
 function canControlCharacter(ch){
   if(!ch) return false;
   if(isDM()) return true;
@@ -6444,6 +6460,7 @@ function requireDM(){
   return false;
 }
 function toggleRole(){
+  if(!sessionCanDM()){ showCritOverlay('The session creator has not granted DM permission','roll','Locked'); return; }
   userRole=isDM()?'player':'dm';
   localStorage.setItem(roleKey(),userRole);
   if(!isDM()){
@@ -9371,6 +9388,16 @@ function sheetTurnUseLabel(id){
   const s=turnActionState.actorId===id?turnActionState:{};
   return (s.actionTaken?(s.attacksRemaining>0?' - '+s.attacksRemaining+' attacks left':' - action used'):' - action ready')+(s.bonusActionTaken?' - bonus used':' - bonus ready')+(gameplayEntity(id)?.reactionUsed?' - reaction used':' - reaction ready');
 }
+function combatCoachHtml(ch,isEnemy=false){
+  if(!combatMode)return '';
+  const id=isEnemy?ch.uid:ch.id,active=currentTurnId()===id;
+  if(!active)return '<div class="combat-coach"><b>Waiting for the active turn</b>Watch the order, choose a target, and keep a reaction ready.</div>';
+  const s=turnActionState.actorId===id?turnActionState:{};
+  if(!s.actionTaken)return '<div class="combat-coach"><b>Your turn</b>Choose a target, then start with an attack, spell, or feature. You can still move and use a bonus action afterward.</div>';
+  if(Number(s.attacksRemaining)>0)return `<div class="combat-coach"><b>Extra Attack ready</b>${s.attacksRemaining} attack${s.attacksRemaining===1?'':'s'} remain in this Attack action.</div>`;
+  if(!s.bonusActionTaken)return '<div class="combat-coach"><b>Action complete</b>Check your bonus actions and movement, then end the turn when ready.</div>';
+  return '<div class="combat-coach"><b>Wrap up the turn</b>Your main resources are used. Move if needed, then pass or end the turn.</div>';
+}
 
 function combatCharacterSummaryHtml(ch){
   const d=ch.derived || calculateDerived(ch);
@@ -9466,6 +9493,7 @@ function updateCombatPopout(){
     title.textContent=`${activeEnemy.name} actions`;
     body.innerHTML=`
       <div class="combat-meta">${turnLabel}</div>
+      ${combatCoachHtml(activeEnemy,true)}
       <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''} <button onclick="clearActiveEnemy()" style="font-size:10px;padding:2px 5px">Release control</button></div>
       <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollEnemyAction('${activeEnemy.uid}','weapon','${w.id}')`,'d6')).join('')}
@@ -9497,6 +9525,7 @@ function updateCombatPopout(){
   body.innerHTML=`
     ${combatCharacterSummaryHtml(ch)}
     <div class="combat-meta">${turnLabel}</div>
+    ${combatCoachHtml(ch)}
     <div class="combat-meta">Target: ${targetLabel} ${selectedTargetUid?`<button onclick="clearTarget()" style="font-size:10px;padding:2px 5px">Clear</button>`:''}</div>
     <div class="combat-actions">
       ${weapons.map(w=>actionButtonHtml('Weapon',w,`rollCharacterAction('${ch.id}','weapon','${w.id}')`,'d8')).join('')}
@@ -12975,7 +13004,7 @@ function updateInitiativePrompt(){
   const prompt=document.getElementById('initiative-prompt');
   if(!prompt) return;
   const ch=getActiveCharacter();
-  const needs=combatMode && ch && !initiativeRolls[ch.id] && !isDM();
+  const needs=combatMode && ch && initiativeRolls[ch.id]==null && !isDM();
   prompt.classList.toggle('show',!!needs);
   const text=document.getElementById('initiative-prompt-text');
   if(text && ch) text.textContent=`Combat has started. Roll initiative for ${ch.name} using your builder bonus (${formatSigned(ch.derived?.initiative||0)}).`;
@@ -13012,8 +13041,10 @@ function updateFloatingEndTurn(){
   if(button) button.onclick=isDM() ? nextTurn : endPlayerTurn;
 }
 function rollPlayerInitiative(id=activeCharacterId){
+  if(!combatMode) return showCritOverlay('Start combat before rolling initiative','roll','Initiative');
   const ch=myCharacters.find(c=>c.id===id)||getActiveCharacter();
   if(!ch) return;
+  if(initiativeRolls[ch.id]!=null) return showCritOverlay(`${ch.name} already has initiative ${initiativeRolls[ch.id]}`,'roll','Initiative');
   const roll=rollDiceExpression('1d20',ch.derived?.initiative||0);
   initiativeRolls[ch.id]=roll.total;
   const currentId=turnOrder[activeTurnIndex] || '';
@@ -13078,6 +13109,7 @@ function rollInitiative(){
   turnOrder=entries.sort((a,b)=>b.total-a.total).map(e=>e.id);
   activeTurnIndex=0;
   addChatMessage({kind:'initiative',character:'Table',label:'Initiative rolled for combat'});
+  broadcast({type:'combatState',...combatStatePayload()});
   updateAllPanels();
   scheduleSave();
 }
@@ -13087,6 +13119,7 @@ function clearInitiative(){
   initiativeRolls={};
   turnOrder=[];
   activeTurnIndex=0;
+  broadcast({type:'combatState',...combatStatePayload()});
   updateAllPanels();
   scheduleSave();
 }
@@ -13268,6 +13301,7 @@ function loadState(){
     if(!raw) return false;
     const state=JSON.parse(raw);
     campaignInfo=state.campaign || campaignInfo;
+    if(campaignInfo.ownerId===myId && campaignInfo.dmEnabled!==false) userRole='dm';
     campaignPortal=normalizeCampaignPortal(state.campaignPortal);
     sceneDeletedIds=mergeSceneDeletedIds(sceneDeletedIds,state.sceneDeletedIds);
     sceneLibrary=mergeSceneLibraries(Array.isArray(state.sceneLibrary) ? state.sceneLibrary : [], sceneLibrary);
@@ -13388,6 +13422,7 @@ function applyPersistedState(state){
   if(!hasCampaignAccess(state)) return redirectToCampaignManager();
   applyingCloudState=true;
   campaignInfo=state.campaign || campaignInfo;
+  if(campaignInfo.ownerId===myId && campaignInfo.dmEnabled!==false) userRole='dm';
   campaignPortal=normalizeCampaignPortal(state.campaignPortal);
   sceneDeletedIds=mergeSceneDeletedIds(sceneDeletedIds,state.sceneDeletedIds);
   sceneLibrary=mergeSceneLibraries(Array.isArray(state.sceneLibrary) ? state.sceneLibrary : [], sceneLibrary);
@@ -13639,16 +13674,24 @@ async function saveCloudState(state){
   state=mergeCloudStateBeforeSave(state);
   state=stripCloudState(state);
   const updatedAt=new Date().toISOString();
-  await cloudClient.from(CLOUD_TABLE).upsert({
+  const {error}=await cloudClient.from(CLOUD_TABLE).upsert({
     id:CLOUD_CAMPAIGN_ID,
     state,
     updated_by:CLOUD_CLIENT_ID,
     updated_at:updatedAt
   });
+  if(error){
+    const status=document.getElementById('status-txt');
+    if(status) status.textContent='Cloud save failed - local copy retained';
+    cloudSaveError=error.message||'Cloud save failed';
+    return false;
+  }
+  cloudSaveError='';
   cloudLastUpdated=updatedAt;
   latestCloudState=state;
   broadcastCloudState(state);
   pruneLegacyCloudFogAsset(state);
+  return true;
 }
 function mergeCloudStateBeforeSave(state){
   if(!latestCloudState) return state;
@@ -13716,7 +13759,15 @@ async function saveCloudAssets(options=false){
   }
   if(includeFog && revealCanvas.width) asset.fog_reveal_data=revealCanvas.toDataURL('image/png');
   else if(includeMap) asset.fog_reveal_data=null;
-  await cloudClient.from(CLOUD_ASSETS_TABLE).upsert(asset);
+  const {error}=await cloudClient.from(CLOUD_ASSETS_TABLE).upsert(asset);
+  if(error){
+    cloudSaveError=error.message||'Cloud asset save failed';
+    const status=document.getElementById('status-txt');
+    if(status) status.textContent='Map asset upload failed - local copy retained';
+    return false;
+  }
+  cloudSaveError='';
+  return true;
 }
 async function pruneLegacyCloudFogAsset(state=latestCloudState){
   if(cloudFogAssetPruned || !cloudReady || !state?.fogRevealEvents?.length) return;
@@ -13757,12 +13808,27 @@ function broadcastCloudEffect(effect){
 }
 
 /* ===== NEW SECTION: Multiplayer character sync ===== */
-let ws=null, wsReady=false, pendingMsgs=[];
+let ws=null, wsReady=false, pendingMsgs=[], outgoingSeq=0, lastRemoteSeq={};
+const RECONNECT_STATE_TYPES=new Set(['characterState','partyState','move','iconUpdate','combatState','combatMode','turnAction','turnAdvance','initiativeRoll']);
+const RECONNECT_QUEUE_TTL_MS=15000;
+function queueKey(msg){
+  if(msg.type==='characterState'||msg.type==='move') return msg.type+':'+(msg.character?.id||'');
+  if(msg.type==='iconUpdate') return msg.type+':'+(msg.icon?.uid||'');
+  if(msg.type==='turnAction'||msg.type==='combatState'||msg.type==='combatMode'||msg.type==='turnAdvance') return 'combat-state';
+  return '';
+}
 function broadcast(msg){
   msg.from=myId;
   msg.campaignId=CLOUD_CAMPAIGN_ID;
+  msg.seq=++outgoingSeq;
+  msg.sentAt=Date.now();
   const str=JSON.stringify(msg);
-  if(ws&&wsReady) ws.send(str); else pendingMsgs.push(str);
+  if(ws&&wsReady){ ws.send(str); return; }
+  const key=queueKey(msg);
+  if(key) pendingMsgs=pendingMsgs.filter(raw=>{try{return queueKey(JSON.parse(raw))!==key}catch(e){return false}});
+  pendingMsgs.push(str);
+  const cutoff=Date.now()-RECONNECT_QUEUE_TTL_MS;
+  pendingMsgs=pendingMsgs.filter(raw=>{try{return Number(JSON.parse(raw).sentAt||0)>=cutoff}catch(e){return false}});
 }
 function syncCharacter(ch,{persist=true}={}){
   if(!ch) return;
@@ -13785,6 +13851,8 @@ function connectWS(){
       wsReady=true;
       dot.className='on';
       stxt.textContent='Online';
+      const cutoff=Date.now()-RECONNECT_QUEUE_TTL_MS;
+      pendingMsgs=pendingMsgs.filter(raw=>{try{return Number(JSON.parse(raw).sentAt||0)>=cutoff}catch(e){return false}});
       pendingMsgs.forEach(m=>ws.send(m));
       pendingMsgs=[];
       syncAllCharacters();
@@ -13793,7 +13861,15 @@ function connectWS(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.from===myId) return;
-        if(msg.campaignId && msg.campaignId!==CLOUD_CAMPAIGN_ID) return;
+        // Every relay message must be scoped to this campaign. The old
+        // optional check allowed unscoped packets from the public relay to
+        // mutate local state.
+        if(msg.campaignId!==CLOUD_CAMPAIGN_ID) return;
+        if(RECONNECT_STATE_TYPES.has(msg.type) && Number.isFinite(Number(msg.seq))){
+          const previous=Number(lastRemoteSeq[msg.from]||0);
+          if(Number(msg.seq)<=previous) return;
+          lastRemoteSeq[msg.from]=Number(msg.seq);
+        }
         if(msg.type?.startsWith('gameplay')){gameplayHandleMessage(msg);return;}
         if(Array.isArray(msg.gameplayActors))gameplayApplyPatches(msg.gameplayActors);
         if(msg.type==='characterState'){
