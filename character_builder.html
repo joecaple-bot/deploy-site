@@ -752,7 +752,7 @@ label,h3{color:#cba86e}
 <script src="miniature_races.js"></script>
 <script src="miniature_decals.js"></script>
 <script src="miniature_decal_ui.js"></script>
-<script src="miniature_editor.js"></script>
+<script src="miniature_layout.js"></script><script src="miniature_editor.js"></script>
 <script>
 const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const SUPABASE_URL='https://timefqpkuuiggxysjqap.supabase.co';
@@ -3091,14 +3091,18 @@ function persistBeforeLeaving(){
 async function goToMap(shouldSave=true){
   if(shouldSave) writeStorage('Character saved');
   else persistBeforeLeaving();
+  // LocalStorage is the immediate handoff contract. Never hold navigation
+  // hostage to a blocked, offline, or slow cloud request.
+  const finish=()=>{ window.location.href='map.html'+campaignQuery(); };
+  const bounded=promise=>Promise.race([promise,new Promise(resolve=>setTimeout(resolve,1500))]).catch(()=>{});
   if(authUser&&accountSyncEnabled){
-    try{ await saveAccountCharacters(); }catch(e){}
+    await bounded(saveAccountCharacters());
   }
   if(cloudReady&&!applyingCloudState){
     clearTimeout(cloudSaveTimer);
-    try{ await saveCloudState(state); }catch(e){}
+    await bounded(saveCloudState(state));
   }
-  window.location.href='map.html'+campaignQuery();
+  finish();
 }
 function exportSelected(){
   commitForm();

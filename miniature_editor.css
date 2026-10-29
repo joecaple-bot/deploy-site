@@ -16,3 +16,30 @@
 @media(max-width:850px){#miniature-editor{grid-template-columns:1fr}.mini-stage{max-width:480px;width:100%;justify-self:center}}
 
 .mini-wardrobe{grid-column:1/-1;border:1px solid #53626c;padding:12px;border-radius:8px;min-width:0}.mini-wardrobe summary{cursor:pointer;color:#e8d4b0;margin-bottom:10px}.mini-wardrobe p{font-size:11px;margin:8px 0}.mini-wardrobe input,.mini-wardrobe select{display:block;width:100%;box-sizing:border-box;margin:8px 0;min-width:0}.mini-worn{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}.mini-worn button{font-size:10px;text-align:left}.mini-controls input[type=range]{width:100%;accent-color:#c5a46b}.mini-stage{position:sticky;top:12px}@media(max-width:850px){.mini-stage{position:relative;top:auto}}
+/* Focused customization panels and persistent model actions. */
+#miniature-editor{grid-template-columns:minmax(260px,1fr) minmax(290px,1.1fr);align-items:start}
+.mini-controls{display:block;min-width:0}
+.mini-tabs{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:12px;border-bottom:1px solid #47515a;margin-bottom:14px}
+.mini-tabs button{flex:1 0 28%;padding:9px 7px;background:#202d36;color:#bdcbd4;border:1px solid #485c69;border-radius:6px}
+.mini-tabs button[aria-selected=true]{background:#d1af68;color:#14212a;border-color:#e4cd99;font-weight:700}
+.mini-tabs button:focus-visible{outline:2px solid #a6daf6;outline-offset:2px}
+.mini-tab-content{max-height:620px;max-height:min(620px,68vh);overflow:auto;overscroll-behavior:contain;padding:2px 8px 10px 2px}
+.mini-tab-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+.mini-tab-panel[hidden]{display:none!important}
+.mini-tab-panel h3,.mini-tab-panel p{grid-column:1/-1}
+.mini-tab-panel select{width:100%;min-width:0}
+.mini-tab-panel .mini-decal-studio{grid-column:1/-1;border:0;padding:0}
+.mini-tab-panel .mini-decal-summary{display:none}
+.mini-stage{top:8px}
+.mini-canvas{max-width:440px;margin:auto}
+.mini-stage-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;border-top:1px solid #47515a}
+.mini-stage-actions label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#c4ccd1}
+.mini-stage-actions button{padding:9px;border-radius:6px}
+.mini-stage-actions .primary{grid-column:1/-1;background:#d1af68;color:#14212a;font-weight:700}
+.mini-stage-actions p{grid-column:1/-1;margin:0}
+.mini-fit-note{font-size:12px;color:#a6bdcc}
+@media(max-width:850px){#miniature-editor{grid-template-columns:1fr}.mini-stage{position:relative;top:0}.mini-canvas{max-width:310px}.mini-tab-content{max-height:560px}.mini-tabs button{flex-basis:28%}}
+
+.mini-tab-panel>*{min-width:0}.mini-tab-panel input,.mini-tab-panel select{box-sizing:border-box;max-width:100%}.mini-tab-content{overflow-x:hidden}
+
+.mini-tab-panel .mini-decal-workspace{grid-template-columns:1fr}.mini-tab-panel .mini-decal-canvas{max-width:240px}.mini-tab-panel .mini-decal-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.mini-tab-panel .mini-decal-picker{grid-column:1/-1}.mini-tab-panel .mini-decal-layer-actions{grid-template-columns:repeat(2,minmax(0,1fr))}

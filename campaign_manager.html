@@ -30,6 +30,7 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
 .actions{display:flex;gap:6px}
 .actions button{font-size:11px;padding:6px 8px}
 .hint{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
+#session-controls[hidden]{display:none}#session-controls .status{font-size:12px;color:var(--muted);margin:8px 0}.permission-row{display:flex;gap:7px;align-items:center;margin-top:8px}.permission-row input{flex:1}
 #toast{position:fixed;right:18px;bottom:18px;background:#14251c;border:1px solid rgba(72,179,127,.7);color:#dcffe9;border-radius:var(--radius);padding:10px 12px;font-size:12px;display:none}
 #toast.show{display:block}
 @media(max-width:850px){.grid{grid-template-columns:1fr}.top{flex-wrap:wrap}}
@@ -56,6 +57,16 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
       </div>
       <p class="hint">This password gates entry in the app. Because this is still browser-only with a public Supabase key, it is not a substitute for real account security yet.</p>
     </section>
+    <section class="panel" id="session-controls" hidden>
+      <h2>Session permissions</h2>
+      <div class="form">
+        <button id="dm-enabled" class="primary" onclick="toggleDmEnabled()">DM mode: on</button>
+        <p class="status" id="session-status">The session creator is the DM automatically.</p>
+        <div class="permission-row"><input id="permission-player" placeholder="Player ID to grant DM tools"><button onclick="grantPermission()">Grant</button></div>
+        <div id="permission-list" class="status"></div>
+      </div>
+      <p class="hint">Use a player ID from the map’s connected-player list. Permission changes are saved with the campaign.</p>
+    </section>
     <section class="panel">
       <h2>Join Live Session</h2>
       <div class="form" style="margin-bottom:14px">
@@ -77,6 +88,7 @@ const SUPABASE_PUBLIC_KEY='sb_publishable__Z5nLiiYOeBdD4GRzgx7OA_7E2yMtKH';
 const CLOUD_TABLE='campaign_states';
 const CLOUD_CAMPAIGN_KEY='fogOfWarDnDCampaignId.v1';
 const CAMPAIGN_UNLOCK_PREFIX='fogOfWarCampaignUnlock.v1';
+const STORAGE_PREFIX='fogOfWarDnDCharacterCreator.v1';
 const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLIC_KEY);
 let campaigns=[];
 function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,42)||'campaign'}
@@ -89,7 +101,7 @@ async function sha256(text){
 function defaultState(id,name,passwordHash){
   return {
     version:1,
-    campaign:{id,name,passwordHash,createdAt:new Date().toISOString()},
+    campaign:{id,name,passwordHash,createdAt:new Date().toISOString(),ownerId:stablePlayerId(),dmEnabled:true,dmPermissions:{}},
     mapImageData:'',
     placedIcons:[],
     areaEffects:[],
@@ -104,6 +116,8 @@ function defaultState(id,name,passwordHash){
     fogRevealData:''
   };
 }
+function stablePlayerId(){let id=localStorage.getItem('fogOfWarDnDCharacterCreator.v1:playerId');if(!id){id='p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem('fogOfWarDnDCharacterCreator.v1:playerId',id)}return id}
+let sessionState=null;
 async function createCampaign(){
   const name=document.getElementById('new-name').value.trim()||'New Campaign';
   const id=slugify(document.getElementById('new-id').value||name);
@@ -114,6 +128,7 @@ async function createCampaign(){
   if(error){toast('Could not create campaign');return}
   if(passwordHash) localStorage.setItem(unlockKey(id),passwordHash);
   localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);
+  sessionState=state;renderSessionControls();
   toast('Campaign created');
   await loadCampaigns();
   location.href='map.html?campaign='+encodeURIComponent(id);
@@ -130,6 +145,27 @@ async function joinCampaign(idArg='',passArg=''){
   localStorage.setItem(CLOUD_CAMPAIGN_KEY,id);
   location.href='map.html?campaign='+encodeURIComponent(id);
 }
+async function loadSessionControls(){
+ const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY)||'';if(!id)return;
+ const {data}=await client.from(CLOUD_TABLE).select('state').eq('id',id).maybeSingle();
+ sessionState=data?.state||null;renderSessionControls();
+}
+function renderSessionControls(){
+ const panel=document.getElementById('session-controls'),c=sessionState?.campaign;if(!panel||!c)return;
+ const owner=c.ownerId===stablePlayerId();panel.hidden=!owner;
+ if(!owner)return;
+ const enabled=c.dmEnabled!==false;const btn=document.getElementById('dm-enabled');btn.textContent='DM mode: '+(enabled?'on':'off');btn.classList.toggle('primary',enabled);
+ const ids=Object.keys(c.dmPermissions||{}).filter(id=>c.dmPermissions[id]);document.getElementById('permission-list').textContent=ids.length?'DM permissions: '+ids.join(', '):'No additional DM permissions.';
+}
+async function saveSession(){
+ const id=localStorage.getItem(CLOUD_CAMPAIGN_KEY);if(!id||!sessionState)return;
+ sessionState.campaign=sessionState.campaign||{};sessionState.campaign.ownerId=sessionState.campaign.ownerId||stablePlayerId();
+ const {error}=await client.from(CLOUD_TABLE).upsert({id,state:sessionState,updated_by:stablePlayerId(),updated_at:new Date().toISOString()});
+ if(error){toast('Could not save session permissions');return false}localStorage.setItem(STORAGE_PREFIX+':'+id,JSON.stringify(sessionState));toast('Session permissions saved');return true;
+}
+async function toggleDmEnabled(){if(!sessionState?.campaign)return;sessionState.campaign.dmEnabled=sessionState.campaign.dmEnabled===false;renderSessionControls();await saveSession()}
+async function grantPermission(){const id=document.getElementById('permission-player').value.trim();if(!id||id===stablePlayerId()||!sessionState?.campaign)return;sessionState.campaign.dmPermissions={...(sessionState.campaign.dmPermissions||{}),[id]:true};document.getElementById('permission-player').value='';renderSessionControls();await saveSession()}
+async function revokePermission(id){if(!sessionState?.campaign)return;delete sessionState.campaign.dmPermissions[id];renderSessionControls();await saveSession()}
 function unlockKey(id){return `${CAMPAIGN_UNLOCK_PREFIX}:${id}`}
 async function loadCampaigns(){
   const {data}=await client.from(CLOUD_TABLE).select('id,updated_at').order('updated_at',{ascending:false}).limit(30);
@@ -164,6 +200,7 @@ if(requested){
 }
 if(location.hash==='#create') setTimeout(()=>document.getElementById('new-name').focus(),80);
 loadCampaigns();
+loadSessionControls();
 </script>
 </body>
 </html>

@@ -161,7 +161,7 @@ function gameplayOpenReactions(){
       const label=prompt('Reaction and trigger (DM resolves its effect):','Opportunity Attack');
       if(!label||!gameplayCanAct(ch,'reaction'))return;
       ch.reactionUsed=true;gameplaySyncActor(ch);addChatMessage({kind:'reaction',character:ch.name,label:`${label} — DM adjudication`});dialog.close();
-    });b.disabled=!!ch.reactionUsed;
+    });b.disabled=!!ch.reactionUsed||!gameplayWindow;
   }
   const note=document.createElement('p');note.textContent='Shield and Counterspell resolve here. Other reactions spend your reaction and require the DM to resolve the effect. Reactions refresh at the start of your next turn.';dialog.append(note);
   gameplayButton(dialog,'Close',()=>dialog.close());dialog.showModal();

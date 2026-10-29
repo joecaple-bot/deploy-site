@@ -2,6 +2,7 @@
 -- Run this after enabling the Discord provider in Supabase Auth.
 -- This does not delete or replace the existing campaign_states tables.
 
+
 create table if not exists public.player_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default 'Player',
@@ -18,6 +19,21 @@ create table if not exists public.campaign_members (
   joined_at timestamptz not null default now(),
   primary key (campaign_id, user_id)
 );
+
+-- Protect the existing snapshot and asset rows using campaign membership.
+-- Confirm the legacy tables use `id` as their campaign key before applying.
+alter table if exists public.campaign_states enable row level security;
+alter table if exists public.campaign_assets enable row level security;
+drop policy if exists "Campaign members read state" on public.campaign_states;
+drop policy if exists "Campaign members insert state" on public.campaign_states;
+drop policy if exists "Campaign members update state" on public.campaign_states;
+create policy "Campaign members read state" on public.campaign_states for select to authenticated using (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid()));
+create policy "Campaign members insert state" on public.campaign_states for insert to authenticated with check (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid()));
+create policy "Campaign members update state" on public.campaign_states for update to authenticated using (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid())) with check (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid()));
+drop policy if exists "Campaign members read assets" on public.campaign_assets;
+drop policy if exists "Campaign members manage assets" on public.campaign_assets;
+create policy "Campaign members read assets" on public.campaign_assets for select to authenticated using (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid()));
+create policy "Campaign members manage assets" on public.campaign_assets for all to authenticated using (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid())) with check (exists (select 1 from public.campaign_members m where m.campaign_id=id and m.user_id=auth.uid()));
 
 create table if not exists public.account_characters (
   id text primary key,
@@ -69,12 +85,14 @@ with check (auth.uid() = user_id);
 
 drop policy if exists "Members can read campaign memberships" on public.campaign_members;
 drop policy if exists "Users can join campaigns" on public.campaign_members;
+drop policy if exists "Users can update their membership" on public.campaign_members;
 create policy "Members can read campaign memberships"
 on public.campaign_members for select to authenticated using (true);
 create policy "Users can join campaigns"
-on public.campaign_members for all to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+on public.campaign_members for insert to authenticated
+with check (auth.uid() = user_id and role = 'player');
+-- Role changes must be performed by a trusted campaign-management path
+-- (service role or a future DM RPC), never by the member's own client.
 
 drop policy if exists "Users read their account characters" on public.account_characters;
 drop policy if exists "Users manage their account characters" on public.account_characters;

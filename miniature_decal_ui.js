@@ -22,7 +22,7 @@
    if(used.has(id))id=uid('decal',used);used.add(id);
    const layers=(Array.isArray(decal.layers)?decal.layers:[]).slice(0,MAX_LAYERS).map(layer=>{
     layer=layer&&typeof layer==='object'?layer:{};
-    return {shape:SHAPES.includes(layer.shape)?layer.shape:'star',color:/^#[0-9a-f]{6}$/i.test(layer.color||'')?layer.color:'#d8b56c',x:clamp(layer.x,0,1,.5),y:clamp(layer.y,0,1,.5),scale:clamp(layer.scale,.05,1.5,.65),rotation:clamp(layer.rotation,-180,180,0),opacity:clamp(layer.opacity,0,1,1)};
+    return {shape:SHAPES.includes(layer.shape)?layer.shape:'star',color:/^#[0-9a-f]{6}$/i.test(layer.color||'')?layer.color:'#d8b56c',x:clamp(layer.x,0,1,.5),y:clamp(layer.y,0,1,.5),scale:clamp(layer.scale,.05,1.5,.65),stretchX:clamp(layer.stretchX,.25,4,1),stretchY:clamp(layer.stretchY,.25,4,1),mirrorX:layer.mirrorX===true,mirrorY:layer.mirrorY===true,rotation:clamp(layer.rotation,-180,180,0),opacity:clamp(layer.opacity,0,1,1)};
    });
    return {id,name:typeof decal.name==='string'&&decal.name.trim()?decal.name.trim().slice(0,80):'Decal '+(index+1),target:'torso',point:Array.isArray(decal.point)?decal.point.slice(0,3).map((n,i)=>clamp(n,-20,20,i===2?.28:0)):[0,0,.28],normal:Array.isArray(decal.normal)?decal.normal.slice(0,3).map((n,i)=>clamp(n,-1,1,i===2?1:0)):[0,0,1],size:clamp(decal.size,.1,1.2,.45),rotation:clamp(decal.rotation,-180,180,0),layers};
   });
@@ -32,7 +32,7 @@
   if(core&&typeof core.sanitize==='function')return copy(core.sanitize(raw));
   return fallbackSanitize(raw);
  }
- function defaultLayer(shape){return {shape:shape||'star',color:'#d8b56c',x:.5,y:.5,scale:.65,rotation:0,opacity:1};}
+ function defaultLayer(shape){return {shape:shape||'star',color:'#d8b56c',x:.5,y:.5,scale:.65,stretchX:1,stretchY:1,mirrorX:false,mirrorY:false,rotation:0,opacity:1};}
  function defaultDecal(existing){return {id:uid('decal',new Set(existing.map(d=>d.id))),name:'Chest decal',target:'torso',point:[0,0,.28],normal:[0,0,1],size:.45,rotation:0,layers:[defaultLayer('star')]};}
  function el(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;}
  function button(text,label){const node=el('button','',text);node.type='button';if(label)node.setAttribute('aria-label',label);return node;}
@@ -91,6 +91,8 @@
    const remove=button('Remove','Remove selected decal');remove.className='mini-decal-danger';remove.disabled=!selected();
    remove.onclick=()=>commit(()=>{const index=decals.findIndex(d=>d.id===selectedId);decals.splice(index,1);selectedId=decals[Math.min(index,decals.length-1)]?.id||null;selectedLayer=0;});
    toolbar.append(picker,add,duplicate,remove);body.append(toolbar);
+   const core=root.MiniatureDecals,presets=Array.isArray(core?.presets)?core.presets:[];
+   if(presets.length&&typeof core.clonePreset==='function'){const presetBar=el('div','mini-decal-presets');const presetPicker=el('select');presetPicker.setAttribute('aria-label','Starter emblem preset');presets.forEach(p=>presetPicker.append(option(p.id,p.name)));const usePreset=button('Use preset','Replace selected decal layers with starter emblem preset');usePreset.disabled=!selected();usePreset.onclick=()=>commit(()=>{const preset=core.clonePreset(presetPicker.value),d=selected();d.name=preset.name;d.layers=preset.layers;selectedLayer=0;});field(presetBar,'Starter emblem',presetPicker);presetBar.append(usePreset);body.append(presetBar);}
    const cap=el('p','mini-decal-cap',decals.length>=MAX_DECALS?'Six decals is the maximum for one miniature. Remove one to add another.':decals.length+' of '+MAX_DECALS+' decal slots used.');cap.setAttribute('role','status');body.append(cap);
 
    const history=el('div','mini-decal-history');const undoButton=button('Undo');undoButton.disabled=!undo.length;undoButton.onclick=()=>restore(undo,redo);const redoButton=button('Redo');redoButton.disabled=!redo.length;redoButton.onclick=()=>restore(redo,undo);history.append(undoButton,redoButton);body.append(history);
@@ -133,7 +135,10 @@
    const placement=el('div','mini-decal-placement');const place=button('Place on miniature','Place selected decal on miniature');place.className='mini-decal-primary';
    const placeHelp=el('p','mini-decal-place-help','Choose Place, then click a surface on the miniature to place this decal.');placeHelp.id=uid('mini-decal-place');place.setAttribute('aria-describedby',placeHelp.id);
    const placeStatus=el('p','mini-decal-place-status');placeStatus.setAttribute('role','status');
-   place.onclick=()=>{onPlace(decal.id);placeStatus.textContent='Placement ready. Click a surface on the miniature.';};placement.append(place,placeHelp,placeStatus);body.append(placement);
+   place.onclick=()=>{onPlace(decal.id);placeStatus.textContent='Placement ready. Click a surface on the miniature.';};
+   const nudges=el('div','mini-decal-nudges');nudges.setAttribute('role','group');nudges.setAttribute('aria-label','Nudge decal along the surface');
+   [['↑','up'],['←','left'],['↓','down'],['→','right']].forEach(([symbol,direction])=>{const control=button(symbol,'Nudge decal '+direction);control.disabled=!core||typeof core.nudge!=='function';control.onclick=()=>commit(()=>{const moved=core.nudge(selected(),direction,.025);if(moved)Object.assign(selected(),moved);});nudges.append(control);});
+   placement.append(place,placeHelp,nudges,placeStatus);body.append(placement);
    paintPreview();
   }
 
@@ -148,6 +153,10 @@
     const finish=()=>{const saved=before;before=null;finishLive(saved);};input.onchange=finish;input.onblur=finish;
    }
    range('Opacity','opacity',0,1,.01,value=>Math.round(value*100)+'%');range('X position','x',0,1,.01,value=>Math.round(value*100)+'%');range('Y position','y',0,1,.01,value=>Math.round(value*100)+'%');range('Scale','scale',.05,1.5,.01,value=>Number(value).toFixed(2));range('Rotation','rotation',-180,180,1,value=>Math.round(value)+'°');
+   range('Stretch width','stretchX',.25,4,.01,value=>Number(value).toFixed(2)+'×');range('Stretch height','stretchY',.25,4,.01,value=>Number(value).toFixed(2)+'×');
+   const transforms=el('div','mini-decal-layer-transforms');transforms.setAttribute('role','group');transforms.setAttribute('aria-label','Mirror selected layer');
+   const mirrorX=button(layer.mirrorX?'Unmirror horizontally':'Mirror horizontally');mirrorX.setAttribute('aria-pressed',String(layer.mirrorX));mirrorX.onclick=()=>commit(()=>{const l=selected().layers[selectedLayer];l.mirrorX=!l.mirrorX;});
+   const mirrorY=button(layer.mirrorY?'Unmirror vertically':'Mirror vertically');mirrorY.setAttribute('aria-pressed',String(layer.mirrorY));mirrorY.onclick=()=>commit(()=>{const l=selected().layers[selectedLayer];l.mirrorY=!l.mirrorY;});transforms.append(mirrorX,mirrorY);panel.append(transforms);
    const actions=el('div','mini-decal-layer-actions');
    const duplicate=button('Duplicate');duplicate.disabled=selected().layers.length>=MAX_LAYERS;duplicate.onclick=()=>commit(()=>{const layers=selected().layers;layers.splice(selectedLayer+1,0,copy(layers[selectedLayer]));selectedLayer++;});
    const remove=button('Delete');remove.className='mini-decal-danger';remove.onclick=()=>commit(()=>{selected().layers.splice(selectedLayer,1);selectedLayer=Math.max(0,Math.min(selectedLayer,selected().layers.length-1));});

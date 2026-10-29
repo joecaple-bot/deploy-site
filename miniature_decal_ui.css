@@ -16,6 +16,7 @@
 .mini-decal-toolbar{display:grid;grid-template-columns:minmax(150px,1fr) repeat(3,auto);gap:7px}
 .mini-decal-cap,.mini-decal-empty,.mini-decal-layer-cap,.mini-decal-canvas-help,.mini-decal-place-help,.mini-decal-place-status{margin:0;color:#aebbc0;font-size:11px;line-height:1.45}
 .mini-decal-history{display:flex;gap:7px;justify-content:flex-end}
+.mini-decal-presets{display:grid;grid-template-columns:minmax(160px,1fr) auto;gap:8px;align-items:end;padding:10px 12px;border:1px solid #35444c;border-radius:7px;background:#172127}
 .mini-decal-history button{min-height:30px;padding:5px 12px;font-size:11px}
 .mini-decal-basics{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:10px;padding:12px;border:1px solid #35444c;border-radius:7px;background:#172127}
 .mini-decal-field{display:flex;min-width:0;flex-direction:column;gap:6px;margin:0;color:#cbd3d6;font-size:11px}
@@ -33,9 +34,11 @@
 .mini-decal-layer-item.is-active{border-color:#d0b584;background:#4b4231;color:#fff5dc}
 .mini-decal-layer-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-top:10px;border-top:1px solid #35444c}
 .mini-decal-layer-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mini-decal-layer-transforms{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .mini-decal-danger{color:#f0a097!important;border-color:#80534f!important}
 .mini-decal-placement{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;align-items:center;padding-top:2px}
 .mini-decal-primary{grid-row:1/3;background:#b99a63!important;border-color:#dac395!important;color:#111a20!important;font-weight:700!important}
 .mini-decal-place-status{color:#9ed7b2;min-height:16px}
+.mini-decal-nudges{display:grid;grid-template-columns:repeat(4,40px);gap:5px}.mini-decal-nudges button{min-width:40px;padding:6px;font-size:16px}
 @media(max-width:720px){.mini-decal-toolbar{grid-template-columns:1fr 1fr}.mini-decal-picker{grid-column:1/-1}.mini-decal-toolbar .mini-decal-danger{grid-column:1/-1}.mini-decal-basics,.mini-decal-workspace{grid-template-columns:1fr}.mini-decal-layer-actions{grid-template-columns:1fr 1fr}.mini-decal-placement{grid-template-columns:1fr}.mini-decal-primary{grid-row:auto}.mini-decal-summary{padding:12px}.mini-decal-body{padding:11px}}
 @media(prefers-reduced-motion:reduce){.mini-decal-studio *{scroll-behavior:auto!important;transition:none!important}}
