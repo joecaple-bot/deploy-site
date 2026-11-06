@@ -37,6 +37,16 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh;min-height:0}
 #toolbar{display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;max-height:112px;overflow:auto}
 #toolbar button{font-size:12px;padding:6px 10px;white-space:nowrap}
+#toolbar .toolbar-menu{position:relative;display:inline-block}
+#toolbar .toolbar-menu>summary{list-style:none;cursor:pointer;font-size:12px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,.045);color:var(--text);white-space:nowrap;user-select:none}
+#toolbar .toolbar-menu>summary::-webkit-details-marker{display:none}
+#toolbar .toolbar-menu>summary:after{content:' ▾';color:#caa86b;font-size:10px}
+#toolbar .toolbar-menu[open]>summary{background:rgba(102,167,216,.18);border-color:rgba(102,167,216,.75)}
+#toolbar .toolbar-menu-panel{position:absolute;z-index:160;top:calc(100% + 5px);left:0;display:grid;grid-template-columns:1fr;gap:5px;min-width:170px;padding:7px;border:1px solid var(--line);border-radius:9px;background:rgba(20,23,28,.98);box-shadow:0 18px 50px rgba(0,0,0,.55)}
+#toolbar .toolbar-menu-panel button,#toolbar .toolbar-menu-panel select,#toolbar .toolbar-menu-panel input{width:100%;box-sizing:border-box}
+#toolbar .toolbar-menu-panel input[type=range]{height:27px}
+#toolbar .toolbar-menu[open]>.toolbar-menu-panel{animation:menuDropIn .16s cubic-bezier(.2,.8,.25,1) both;transform-origin:top left}
+@keyframes menuDropIn{from{opacity:0;transform:translateY(-5px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 #toolbar button.active{background:rgba(102,167,216,.18);border-color:rgba(102,167,216,.75);color:#d9f0ff}
 body:not(.dm-mode) .dm-only{display:none!important}
 .campaign-badge{font-size:11px;color:#dcffe9;border:1px solid rgba(72,179,127,.45);background:rgba(72,179,127,.1);border-radius:999px;padding:5px 9px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -308,6 +318,7 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 .combat-actions button:hover,.combat-actions button:focus-visible{border-color:rgba(255,221,151,.85);box-shadow:0 0 16px rgba(202,168,107,.2);transform:translateY(-2px) scale(1.03);z-index:5}
 .combat-actions button:hover .action-full,.combat-actions button:focus-visible .action-full{display:block}
 .combat-coach{margin:0 0 9px;padding:8px 10px;border:1px solid rgba(255,213,130,.42);border-radius:9px;background:linear-gradient(90deg,rgba(202,168,107,.16),rgba(20,24,30,.7));color:#ffe6ad;font-size:11px;line-height:1.35;box-shadow:0 0 14px rgba(202,168,107,.14);animation:coachPulse 2.8s ease-in-out infinite}
+.combat-coach.combo{border-color:rgba(118,224,255,.58);background:linear-gradient(90deg,rgba(52,164,196,.2),rgba(20,24,30,.74));color:#d8f7ff;box-shadow:0 0 16px rgba(64,202,235,.2)}
 .combat-coach b{display:block;color:#fff2ce;font-family:Georgia,'Times New Roman',serif;font-size:12px;margin-bottom:2px}
 @keyframes coachPulse{0%,100%{box-shadow:0 0 10px rgba(202,168,107,.10)}50%{box-shadow:0 0 18px rgba(202,168,107,.24)}}
 .action-cast-wrap{position:relative;display:flex;flex-direction:column;gap:0;min-width:0;overflow:visible}
@@ -429,6 +440,8 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #confirm-btns{display:flex;gap:8px;justify-content:flex-end}
 #sheet-popup{display:none;position:absolute;z-index:80;width:254px;background:rgba(24,27,32,.98);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px;pointer-events:auto}
 #sheet-popup.show{display:block}
+#sheet-popup.show{animation:popoutIn .18s cubic-bezier(.2,.8,.25,1) both;transform-origin:top left}
+@keyframes popoutIn{from{opacity:0;transform:translateY(7px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 #sheet-popup.enemy{border-color:rgba(224,107,98,.7);box-shadow:0 22px 80px rgba(80,0,0,.45)}
 #sheet-popup.pinned{box-shadow:0 0 0 1px rgba(255,213,112,.28),0 24px 90px rgba(0,0,0,.72),0 0 30px rgba(255,145,45,.18)}
 #sheet-popup.resizable{resize:both;overflow:auto;min-width:250px;min-height:220px;max-width:calc(100% - 24px);max-height:calc(100% - 24px)}
@@ -451,6 +464,17 @@ border:1px solid rgba(202,168,107,.42);border-radius:12px;box-shadow:0 22px 70px
 #sheet-popup.combat-sheet .combat-actions button{min-height:46px}
 #sheet-popup.combat-sheet .combat-actions .action-spell-icon{--icon-size:38px}
 #sheet-popup.combat-sheet .sheet-actions{padding:10px 0 12px}
+#sheet-popup .sheet-fold{margin-top:8px;border:1px solid var(--line);border-radius:var(--radius);background:#111419;overflow:hidden}
+#sheet-popup .sheet-fold>summary{cursor:pointer;padding:7px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;list-style:none;user-select:none}
+#sheet-popup .sheet-fold>summary::-webkit-details-marker{display:none}
+#sheet-popup .sheet-fold>summary:after{content:'+';float:right;color:#caa86b;font-size:13px;line-height:10px}
+#sheet-popup .sheet-fold[open]>summary:after{content:'−'}
+#sheet-popup .sheet-fold-body{padding:0 7px 7px}
+#sheet-popup .sheet-fold[open]>.sheet-fold-body{animation:foldOpen .16s ease-out both;transform-origin:top}
+@keyframes foldOpen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){
+  #toolbar .toolbar-menu[open]>.toolbar-menu-panel,#sheet-popup.show,#sheet-popup .sheet-fold[open]>.sheet-fold-body{animation:none}
+}
 .sheet-top{cursor:grab;user-select:none}
 .sheet-top:active{cursor:grabbing}
 .sheet-window-tools{display:flex;gap:4px;margin-left:auto}
@@ -9145,12 +9169,38 @@ function initSidebarSections(){
   document.querySelectorAll('.side-section[data-section]').forEach(section=>{
     const id=section.dataset.section;
     const stored=localStorage.getItem(sidebarSectionKey(id));
-    const compactDefault=['tips','campaign-backup','place-icons','sound-zones','area-effects'].includes(id);
+    const compactDefault=['tips','campaign-backup','dm-rewards','enemies','place-icons','sound-zones','area-effects'].includes(id);
     const open=stored==null ? !compactDefault : stored==='1';
     section.classList.toggle('collapsed',!open);
     const toggle=section.querySelector('.side-section-toggle');
     if(toggle) toggle.textContent=open ? '-' : '+';
   });
+}
+function initToolbarMenus(){
+  const toolbar=document.getElementById('toolbar');
+  if(!toolbar || toolbar.dataset.grouped==='1') return;
+  const groups=[
+    ['Session',['button[onclick*="goToCampaigns"]','button[onclick*="goToCharacters"]','button[onclick*="goToOverview"]','button[onclick*="openCampaignNotes"]']],
+    ['Map',['button[onclick*="openMapLibrary"]','button[onclick*="openSceneDeck"]','#scene-select','button[onclick*="transitionToSelectedScene"]','button[onclick*="img-input"]','button[onclick*="useHostedMapFromPrompt"]','button[onclick*="gameplayCalibrateMap"]','#scene-preset-select']],
+    ['Tools',['#btn-move','#btn-drag','#btn-place','#btn-ping','#btn-measure','#btn-line','#btn-cone']],
+    ['Combat',['button[onclick*="gameplayActionMenu"]','button[onclick*="gameplayUndo"]','button[onclick*="openReactionPrompt"]','button[onclick*="rollD20"]','#combat-mode-btn']],
+    ['View',['#btn-token-lock','#btn-3d-mode','#btn-3d-edit','#audio-toggle','#audio-pack-select','#audio-volume','button[onclick*="clearFog"]','button[onclick*="resetFog"]','button[onclick*="showConfirm"]','button[onclick*="zoomBy"]','button[onclick*="resetView"]','#board-depth-select','#cinematic-focus-toggle','#radius-slider']]
+  ];
+  groups.forEach(([label,selectors])=>{
+    const nodes=selectors.flatMap(selector=>Array.from(toolbar.querySelectorAll(selector))).filter((node,index,list)=>node && list.indexOf(node)===index);
+    if(!nodes.length) return;
+    const details=document.createElement('details');
+    details.className='toolbar-menu';
+    const summary=document.createElement('summary');
+    summary.textContent=label;
+    const panel=document.createElement('div');
+    panel.className='toolbar-menu-panel';
+    details.append(summary,panel);
+    const anchor=nodes[0];
+    toolbar.insertBefore(details,anchor);
+    nodes.forEach(node=>panel.appendChild(node));
+  });
+  toolbar.dataset.grouped='1';
 }
 function refreshSidebarSectionBadges(){
   const setAlert=(id,on)=>document.querySelector(`.side-section[data-section="${id}"]`)?.classList.toggle('compact-alert',!!on);
@@ -9390,10 +9440,27 @@ function sheetTurnUseLabel(id){
   const s=turnActionState.actorId===id?turnActionState:{};
   return (s.actionTaken?(s.attacksRemaining>0?' - '+s.attacksRemaining+' attacks left':' - action used'):' - action ready')+(s.bonusActionTaken?' - bonus used':' - bonus ready')+(gameplayEntity(id)?.reactionUsed?' - reaction used':' - reaction ready');
 }
+function combatComboSuggestion(ch,isEnemy=false){
+  if(isEnemy || !ch || !selectedTargetUid) return '';
+  const target=enemyByUid(selectedTargetUid);
+  if(!target || Number(target.hp)<=0) return '';
+  const allies=myCharacters.filter(other=>other.id!==ch.id && Number(other.currentHP??1)>0);
+  const nearby=allies.some(other=>Math.hypot(characterX(other)-characterX(ch),characterY(other)-characterY(ch))<150);
+  const targetStatuses=normalizeStatuses(target.statuses).map(status=>String(status.id||status.name||status).toLowerCase());
+  if(targetStatuses.some(status=>status.includes('prone')||status.includes('stun')||status.includes('restrain'))){
+    return `<div class="combat-coach combo"><b>Combo opportunity</b>${escapeHtml(target.name)} is impaired. Focus attacks on the opening before the condition ends.</div>`;
+  }
+  if(nearby){
+    return `<div class="combat-coach combo"><b>Team-up opportunity</b>An ally is nearby. Consider Help, a setup effect, or a coordinated attack on ${escapeHtml(target.name)}.</div>`;
+  }
+  return '';
+}
 function combatCoachHtml(ch,isEnemy=false){
   if(!combatMode)return '';
   const id=isEnemy?ch.uid:ch.id,active=currentTurnId()===id;
   if(!active)return '<div class="combat-coach"><b>Waiting for the active turn</b>Watch the order, choose a target, and keep a reaction ready.</div>';
+  const combo=combatComboSuggestion(ch,isEnemy);
+  if(combo) return combo;
   const s=turnActionState.actorId===id?turnActionState:{};
   if(!s.actionTaken)return '<div class="combat-coach"><b>Your turn</b>Choose a target, then start with an attack, spell, or feature. You can still move and use a bonus action afterward.</div>';
   if(Number(s.attacksRemaining)>0)return `<div class="combat-coach"><b>Extra Attack ready</b>${s.attacksRemaining} attack${s.attacksRemaining===1?'':'s'} remain in this Attack action.</div>`;
@@ -10108,7 +10175,7 @@ function showEnemySheet(enemy,x,y){
       ${dm?`<div class="mini-stat"><b>${enemy.hidden?'Hidden':'Visible'}</b><span>Fog</span></div>
       <div class="mini-stat"><b>${Math.round(enemy.x)},${Math.round(enemy.y)}</b><span>Pos</span></div>`:''}
     </div>
-    ${enemy.hp<=0?`<div class="sheet-detail"><h4>Loot</h4><div class="compact-list">${ensureEnemyLoot(enemy).map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeEnemyLoot('${enemy.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Already looted</span><span></span></div>'}</div></div>`:''}
+    ${enemy.hp<=0?`<div class="sheet-detail"><h4>Loot</h4>${!enemy.lootCheckResolved?`<div class="hint">Search the fallen enemy before taking loot. Choose Investigation to inspect their belongings or Perception to spot what they hid.</div><div class="action-buttons"><button class="primary" onclick="resolveEnemyLootCheck('${enemy.uid}','Investigation')">Investigation</button><button onclick="resolveEnemyLootCheck('${enemy.uid}','Perception')">Perception</button></div>`:''}<div class="compact-list">${ensureEnemyLoot(enemy).map(item=>`<div><span>${escapeHtml(lootEntryLabel(item))} <small>${escapeHtml(lootEntryMeta(item))}</small></span><span><button onclick="takeEnemyLoot('${enemy.uid}','${item.id}')">Take</button></span></div>`).join('') || '<div><span>Already looted</span><span></span></div>'}</div>${enemy.lootCheckResolved?`<div class="hint">${escapeHtml(enemy.lootCheck?.label||'Loot search complete')}</div>`:''}</div>`:''}
     ${dm?`<div class="sheet-detail"><h4>Stat block</h4><div class="compact-list">${ABILITIES.map(ab=>`<div><span>${ab} ${normalizeEnemyStats(enemy.stats)[ab]}</span><span>Save ${formatSigned(normalizeEnemySaves(enemy.savingThrows)[ab])}</span></div>`).join('')}</div></div>`:''}
     ${dm&&enemy.notes?`<div class="sheet-detail"><h4>DM notes</h4><div class="hint">${escapeHtml(enemy.notes)}</div></div>`:''}
     ${dm&&(enemy.statuses||[]).length?`<div class="pill-row">${normalizeStatuses(enemy.statuses).map(s=>`<span class="pill on">${escapeHtml(statusLabel(s))}</span>`).join('')}</div>`:''}
@@ -10467,6 +10534,54 @@ function randomLootForSource(source,count=null){
 function randomLootForEnemy(enemy){
   return randomLootForSource(enemy);
 }
+function lootRarityRank(rarity){ return Math.max(0,ITEM_RARITIES.indexOf(rarity)); }
+function improveEnemyLoot(enemy,total){
+  const tables=lootTables();
+  const boost=Number(total)>=20 ? 2 : Number(total)>=15 ? 1 : 0;
+  if(!boost) return false;
+  let improved=false;
+  const loot=Array.isArray(enemy.loot)?enemy.loot:[];
+  loot.forEach((item,index)=>{
+    if(isGoldLoot(item)) return;
+    const current=lootRarityRank(item.rarity);
+    const target=Math.min(ITEM_RARITIES.length-1,current+boost);
+    const rarity=ITEM_RARITIES[target];
+    const pool=tables[rarity]||[];
+    if(!pool.length || target<=current) return;
+    const base=pool[Math.floor(Math.random()*pool.length)];
+    enemy.loot[index]=normalizeLootEntry({...base,id:item.id,rarity});
+    improved=true;
+  });
+  if(Number(total)>=20 && !loot.some(isGoldLoot)){
+    const gold=maybeGoldDrop({...enemy,boss:true});
+    if(gold) loot.push(gold);
+  }
+  return improved;
+}
+function resolveEnemyLootCheck(uid,skill='Investigation'){
+  const enemy=enemyByUid(uid);
+  const ch=getActiveCharacter();
+  if(!enemy || enemy.hp>0 || !ch || !canControlCharacter(ch)) return showCritOverlay('Select your character first','roll','Loot');
+  if(enemy.lootCheckResolved) return showCritOverlay('This enemy has already been searched','roll','Loot');
+  const chosen=skill==='Perception'?'Perception':'Investigation';
+  ensureEnemyLoot(enemy);
+  const breakdown=skillBreakdown(ch,chosen);
+  const result=rollWithBuffs(ch,'1d20',breakdown.total,'check');
+  const total=result.total;
+  const quality=total>=20?'Exceptional find':total>=15?'Improved find':'Nothing extra found';
+  enemy.lootCheckResolved=true;
+  enemy.lootCheck={skill:chosen,total,natural:result.rolls[0],label:`${quality} (${chosen} ${total})`,characterId:ch.id};
+  improveEnemyLoot(enemy,total);
+  addChatMessage({kind:'skill',character:ch.name,label:`Loot ${chosen}`,detail:`${quality} — ${rollDetailWithBuff(result,skillDetailLabel(chosen,breakdown))}`,total,rolls:result.rolls});
+  const visual=rollVisualEffect(ch.name,total,result.rolls[0],`${chosen} loot search`);
+  playSfx(sfxForRoll(result.rolls[0],true));
+  showDiceRollAnimation({natural:result.rolls[0],total,sides:20,label:`${chosen} loot search`,character:ch.name,rolls:result.d20Rolls,rollMode:result.rollMode});
+  setTimeout(()=>showCritOverlay(`${quality}!`,total>=15?'success':'roll','Loot search'),850);
+  broadcast({type:'iconUpdate',icon:enemy});
+  scheduleSave();
+  showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
+  updateAllPanels();
+}
 function ensureEnemyLoot(enemy){
   if(!enemy || enemy.lootGenerated) return enemy?.loot||[];
   enemy.loot=randomLootForEnemy(enemy);
@@ -10517,6 +10632,8 @@ function lootSourceSnapshot(kind,source){
     uid:source.uid,
     loot:Array.isArray(source.loot)?source.loot.map(normalizeLootEntry):[],
     lootGenerated:source.lootGenerated===true,
+    lootCheckResolved:source.lootCheckResolved===true,
+    lootCheck:source.lootCheck ? {...source.lootCheck} : null,
     opened:source.opened===true
   };
 }
@@ -10526,6 +10643,8 @@ function applyLootSourceSnapshot(source={}){
   if(!target) return null;
   target.loot=Array.isArray(source.loot)?source.loot.map(normalizeLootEntry):[];
   target.lootGenerated=source.lootGenerated===true;
+  target.lootCheckResolved=source.lootCheckResolved===true;
+  target.lootCheck=source.lootCheck ? {...source.lootCheck} : null;
   if(source.kind==='chest') target.opened=source.opened===true;
   draw();
   scheduleSave();
@@ -14244,6 +14363,25 @@ document.getElementById('sheet-popup')?.addEventListener('pointerdown',beginShee
 document.getElementById('sheet-popup')?.addEventListener('pointerenter',()=>{ sheetHoverInside=true; clearTimeout(hoverSheetTimer); });
 document.getElementById('sheet-popup')?.addEventListener('pointerleave',()=>{ sheetHoverInside=false; scheduleHoverSheetHide(); });
 document.getElementById('sheet-popup')?.addEventListener('click',()=>{ sheetHoverPreview=false; });
+function foldSheetDetails(pop){
+  if(!pop) return;
+  pop.querySelectorAll(':scope > .sheet-detail:not([data-folded])').forEach(detail=>{
+    const heading=detail.querySelector(':scope > h4');
+    if(!heading) return;
+    const fold=document.createElement('details');
+    fold.className='sheet-fold';
+    fold.dataset.folded='1';
+    const summary=document.createElement('summary');
+    summary.textContent=heading.textContent;
+    const body=document.createElement('div');
+    body.className='sheet-fold-body';
+    Array.from(detail.children).forEach(child=>{ if(child!==heading) body.appendChild(child); });
+    fold.append(summary,body);
+    detail.replaceWith(fold);
+  });
+}
+const sheetFoldObserver=new MutationObserver(()=>foldSheetDetails(document.getElementById('sheet-popup')));
+sheetFoldObserver.observe(document.getElementById('sheet-popup'),{childList:true,subtree:true});
 document.getElementById('radial-menu')?.addEventListener('pointerdown',beginRPToolDrag);
 wrap.addEventListener('pointerdown',beginRPFloatingDrag);
 window.addEventListener('pointermove',moveSheetDrag);
@@ -14280,6 +14418,7 @@ ensureDefaultEnemies();
 loadLocalTarget();
 initSidebarResize();
 initSidebarSections();
+initToolbarMenus();
 resize();
 updateAllPanels();
 initSupabaseCloud();
