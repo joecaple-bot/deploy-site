@@ -1253,8 +1253,12 @@ body.rp-mode .map-tool-dock{display:none}
           <div id="enemy-action-editor" class="sheet-detail"></div>
           <label style="margin-top:8px">DM notes</label>
           <textarea id="enemy-notes" placeholder="Tactics, resistances, morale, secret triggers"></textarea>
+          <label style="margin-top:8px">Boss phases (JSON)</label>
+          <textarea id="enemy-phases" rows="4" placeholder='[{"hp":75,"name":"Enraged","note":"Summons reinforcements"},{"hp":25,"name":"Final stand","note":"Arena hazard activates"}]'></textarea>
+          <div class="hint">Use percentage thresholds from high to low. The DM confirms each phase when the threshold is reached.</div>
           <div id="confirm-btns" style="margin-top:14px">
             <button onclick="closeEnemyModal()">Cancel</button>
+            <button type="button" onclick="openEnemyBuilder()">Open 3D builder</button>
             <button class="primary" onclick="saveEnemyTemplate()">Save enemy</button>
           </div>
         </div>
@@ -2733,6 +2737,7 @@ function hydrateEnemyTemplate(raw={}){
   const defaultWeapons=[hydrateActionItem({name:'Strike',die:'d6',bonus:2,actionType:'damage',description:'Basic monster attack'})];
   const level=Math.max(1,Math.min(20,Number(raw.level)||1));
   const role=normalizeEnemyRole(raw.role||'Skirmisher');
+  const phases=Array.isArray(raw.phases)?raw.phases.map((phase,index)=>({id:phase.id||`phase_${index+1}`,hp:Math.max(1,Math.min(99,Number(phase.hp)||50)),name:String(phase.name||`Phase ${index+1}`).slice(0,80),note:String(phase.note||'').slice(0,240),confirmed:phase.confirmed===true})).sort((a,b)=>b.hp-a.hp):[];
   return {
     id:raw.id || 'e_'+Date.now()+Math.random().toString(36).slice(2,7),
     name:raw.name || 'Enemy',
@@ -2752,6 +2757,7 @@ function hydrateEnemyTemplate(raw={}){
     color:raw.color || '#e06b62',
     hidden:raw.hidden !== false,
     notes:raw.notes || '',
+    phases,
     rollState:normalizeRollState(raw.rollState || {}),
     weapons:Array.isArray(raw.weapons)&&raw.weapons.length ? raw.weapons.map(hydrateActionItem) : defaultWeapons,
     spells:Array.isArray(raw.spells) ? raw.spells.map(hydrateActionItem) : [],
@@ -9724,7 +9730,7 @@ function selectEnemy(id){
 }
 function enemyToMapIcon(enemy){
   enemy=hydrateEnemyTemplate(enemy||{});
-  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,level:enemy.level||1,role:enemy.role||'Skirmisher',primaryStat:enemy.primaryStat||'DEX',stats:enemy.stats||{},savingThrows:enemy.savingThrows||{},saveDC:enemy.saveDC||12,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',tokenScale:tokenScale(enemy),hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',weapons:enemy.weapons||[],spells:enemy.spells||[],bonusActions:enemy.bonusActions||[],statuses:[],loot:[],lootGenerated:false};
+  return {kind:'enemy',templateId:enemy.id,id:'enemy-'+enemy.id,label:enemy.name,name:enemy.name,level:enemy.level||1,role:enemy.role||'Skirmisher',primaryStat:enemy.primaryStat||'DEX',stats:enemy.stats||{},savingThrows:enemy.savingThrows||{},saveDC:enemy.saveDC||12,em:enemy.icon,icon:enemy.icon,tokenArt:enemy.tokenArt||'',tokenScale:tokenScale(enemy),hp:enemy.hp,maxHP:enemy.hp,ac:enemy.ac,attackBonus:enemy.attackBonus,boss:enemy.boss===true,color:enemy.color,hidden:enemy.hidden,notes:enemy.notes||'',phases:enemy.phases||[],phasePending:null,weapons:enemy.weapons||[],spells:enemy.spells||[],bonusActions:enemy.bonusActions||[],statuses:[],loot:[],lootGenerated:false};
 }
 function placeSelectedEnemy(){
   if(!isDM()) return requireDM();
@@ -9753,6 +9759,7 @@ function openEnemyModal(id=null){
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
+  document.getElementById('enemy-phases').value=JSON.stringify(enemy.phases||[],null,2);
   renderEnemyStatGrid(enemy);
   pendingEnemyActions={
     weapons:(enemy.weapons||[]).map(hydrateActionItem),
@@ -9761,6 +9768,35 @@ function openEnemyModal(id=null){
   };
   renderEnemyActionEditor();
   document.getElementById('enemy-modal-overlay').classList.add('show');
+}
+function openEnemyBuilder(){
+  const id=pendingEnemyEditId||pendingEnemyPlacedUid||('draft_'+Date.now());
+  const current=hydrateEnemyTemplate({
+    id,
+    name:document.getElementById('enemy-name').value.trim()||'Enemy',
+    role:document.getElementById('enemy-role').value||'Skirmisher',
+    hp:Number(document.getElementById('enemy-hp').value)||7,
+    ac:Number(document.getElementById('enemy-ac').value)||13,
+    icon:cleanEmoji(document.getElementById('enemy-icon').value,'👹'),
+    tokenArt:pendingEnemyTokenArt||'',
+    tokenScale:Number(document.getElementById('enemy-token-scale').value)||1,
+    color:document.getElementById('enemy-color').value||'#e06b62'
+  });
+  localStorage.setItem(`fogOfWarEnemyBuilder.v1:${CLOUD_CAMPAIGN_ID}`,JSON.stringify({enemyId:id,enemy:current,returnUrl:`map.html?campaign=${encodeURIComponent(CLOUD_CAMPAIGN_ID)}`}));
+  window.open(`character_builder.html?campaign=${encodeURIComponent(CLOUD_CAMPAIGN_ID)}&enemyId=${encodeURIComponent(id)}`,'_blank','noopener');
+}
+function applyEnemyBuilderHandoff(){
+  const key=`fogOfWarEnemyBuilder.v1:${CLOUD_CAMPAIGN_ID}`;
+  try{
+    const handoff=JSON.parse(localStorage.getItem(key)||'null');
+    if(!handoff?.completed||!handoff.enemyId||!handoff.enemy) return;
+    const enemy=handoff.enemy;
+    const template=enemyTemplates.find(item=>item.id===handoff.enemyId);
+    if(template) Object.assign(template,{tokenArt:enemy.tokenArt||'',tokenScale:enemy.tokenScale||1,icon:enemy.icon||template.icon,color:enemy.color||template.color});
+    placedIcons.filter(icon=>icon.kind==='enemy'&&(icon.templateId===handoff.enemyId||icon.id===`enemy-${handoff.enemyId}`)).forEach(icon=>Object.assign(icon,{tokenArt:enemy.tokenArt||'',tokenScale:enemy.tokenScale||1,icon:enemy.icon||icon.icon,color:enemy.color||icon.color}));
+    localStorage.removeItem(key);
+    scheduleSave();
+  }catch(e){}
 }
 function openPlacedEnemyModal(uid){
   if(!isDM()) return requireDM();
@@ -9784,6 +9820,7 @@ function openPlacedEnemyModal(uid){
   document.getElementById('enemy-color').value=enemy.color;
   document.getElementById('enemy-hidden').value=String(enemy.hidden);
   document.getElementById('enemy-notes').value=enemy.notes||'';
+  document.getElementById('enemy-phases').value=JSON.stringify(enemy.phases||[],null,2);
   renderEnemyStatGrid(enemy);
   pendingEnemyActions={
     weapons:(enemy.weapons||[]).map(hydrateActionItem),
@@ -9923,6 +9960,9 @@ function removeEnemyAction(kind,id){
 function saveEnemyTemplate(){
   if(!isDM()) return requireDM();
   const block=readEnemyStats();
+  let phases=[];
+  try{ phases=JSON.parse(document.getElementById('enemy-phases').value||'[]'); if(!Array.isArray(phases)) throw Error('Phases must be an array'); }
+  catch(e){ return showCritOverlay('Boss phases JSON is invalid','fail','Enemy'); }
   const data=hydrateEnemyTemplate({
     id:pendingEnemyEditId,
     name:document.getElementById('enemy-name').value.trim()||'Enemy',
@@ -9942,6 +9982,7 @@ function saveEnemyTemplate(){
     color:document.getElementById('enemy-color').value,
     hidden:document.getElementById('enemy-hidden').value==='true',
     notes:document.getElementById('enemy-notes').value.trim(),
+    phases,
     weapons:pendingEnemyActions.weapons,
     spells:pendingEnemyActions.spells,
     bonusActions:pendingEnemyActions.bonusActions
@@ -10210,6 +10251,7 @@ function showSheet(ch,x,y,{hover=false}={}){
   prepareSheetWindow(pop,x,y,{dock:true});
 }
 function showEnemySheet(enemy,x,y){
+  maybeOfferEnemyPhase(enemy);
   const pop=document.getElementById('sheet-popup');
   if(!sheetCanReplace('enemy',enemy.uid)) return;
   pop.classList.remove('combat-sheet');
@@ -10245,6 +10287,7 @@ function showEnemySheet(enemy,x,y){
       <button onclick="adjustEnemyHP('${enemy.uid}',1)">+</button>
     </div>`:''}
     ${dm?`<div class="sheet-actions">
+      ${enemy.phasePending?`<button class="primary" onclick="confirmEnemyPhase('${enemy.uid}')">Confirm phase change</button>`:''}
       ${pendingEnemyAi?.enemyUid===enemy.uid?`<button class="primary" onclick="confirmEnemyAiAttack('${enemy.uid}')">Confirm AI attack</button>`:''}
       <button class="primary" onclick="setTarget('${enemy.uid}')">${selectedTargetUid===enemy.uid?'Targeted':'Target'}</button>
       <button onclick="setActiveEnemy('${enemy.uid}')">${activeEnemyUid===enemy.uid?'Unlock control':'Control enemy'}</button>
@@ -10256,6 +10299,34 @@ function showEnemySheet(enemy,x,y){
     </div>`:''}`;
   setSheetIdentity(pop,'enemy',enemy.uid);
   prepareSheetWindow(pop,x,y,{dock:true});
+}
+function maybeOfferEnemyPhase(enemy){
+  if(!enemy?.boss || !Array.isArray(enemy.phases)||!enemy.phases.length || enemy.hp<=0) return;
+  const ratio=Math.max(0,Math.min(100,(Number(enemy.hp)/Math.max(1,Number(enemy.maxHP)||Number(enemy.hp)))*100));
+  const phase=enemy.phases.find(item=>!item.confirmed && ratio<=Number(item.hp));
+  if(phase && enemy.phasePending!==phase.id){
+    enemy.phasePending=phase.id;
+    broadcast({type:'iconUpdate',icon:enemy});
+    if(isDM()) addChatMessage({kind:'boss',character:'Table',label:`${enemy.name} phase ready`,detail:`${phase.name} is ready for DM confirmation.`});
+    scheduleSave();
+  }
+}
+function updateEnemyDamageVisual(enemy){
+  if(!enemy) return;
+  const ratio=Number(enemy.hp)/Math.max(1,Number(enemy.maxHP)||Number(enemy.hp));
+  enemy.damageVisualStage=ratio<=.25?2:ratio<=.5?1:0;
+  enemy.miniature={...(enemy.miniature||{}),damageStage:enemy.damageVisualStage,injured:ratio<.2};
+}
+function confirmEnemyPhase(uid){
+  if(!isDM()) return requireDM();
+  const enemy=enemyByUid(uid); if(!enemy) return;
+  const phase=(enemy.phases||[]).find(item=>item.id===enemy.phasePending); if(!phase) return;
+  phase.confirmed=true; enemy.phasePending=null;
+  addChatMessage({kind:'boss',character:'Table',label:`${enemy.name}: ${phase.name}`,detail:phase.note||'Boss phase changed.'});
+  showCritOverlay(`${enemy.name}: ${phase.name}`,'success','Boss phase');
+  broadcast({type:'iconUpdate',icon:enemy});
+  showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
+  scheduleSave();
 }
 function showIconSheet(icon,x,y){
   if(icon.kind==='chest') return showChestSheet(icon,x,y);
@@ -11463,6 +11534,7 @@ function applyCharacterPatch(id,patch={}){
   if(!ch) return null;
   if(patch.hitDiceUsed!=null)ch.hitDiceUsed=Math.max(0,Number(patch.hitDiceUsed)||0);
   if(patch.currentHP!=null) ch.currentHP=Math.max(0,Math.min(ch.derived?.HP||patch.currentHP,Number(patch.currentHP)||0));
+  if(patch.currentHP!=null){const ratio=ch.currentHP/Math.max(1,Number(ch.derived?.HP)||ch.currentHP);ch.miniature={...(ch.miniature||{}),damageStage:ratio<=.25?2:ratio<=.5?1:0,injured:ratio<.2};}
   if(patch.currentHP>0){ch.deathSaves={success:0,fail:0};ch.statuses=normalizeStatuses(ch.statuses||[]).filter(s=>s.name!=='Unconscious');}
   if(patch.gold!=null) ch.gold=Math.max(0,Number(patch.gold)||0);
   if(Array.isArray(patch.inventory)) ch.inventory=patch.inventory.map(normalizeInventoryItem);
@@ -11806,6 +11878,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     const hpAfter=Math.max(0,target.hp-appliedDamage);
     if(isDM()) pushDMUndo('save spell damage');
     target.hp=gameplayDamage(target,appliedDamage,gameplayDamageType(castItem));
+    if(typeof updateEnemyDamageVisual==='function') updateEnemyDamageVisual(target);
+    if(typeof maybeOfferEnemyPhase==='function') maybeOfferEnemyPhase(target);
     campaignStat('damageDealt',appliedDamage);
     if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
     broadcast({type:'iconUpdate',icon:target});
@@ -11854,6 +11928,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
   if(hitTarget){
     if(isDM()) pushDMUndo('attack damage');
     gameplayDamage(target,appliedDamage,gameplayDamageType(castItem),critical);
+    if(typeof updateEnemyDamageVisual==='function') updateEnemyDamageVisual(target);
+    if(typeof maybeOfferEnemyPhase==='function') maybeOfferEnemyPhase(target);
     hpAfter=target.hp;
     campaignStat('damageDealt',appliedDamage);
     if(hpBefore>0 && target.hp<=0){ ensureEnemyLoot(target); noteEnemyDefeated(target,ch.name); addChatMessage({kind:'enemy',character:'Table',label:`${target.name} is down`}); }
@@ -14536,6 +14612,7 @@ document.querySelectorAll('#dm-item-modal input,#dm-item-modal select,#dm-item-m
 loadState();
 ensureDefaultCharacter();
 ensureDefaultEnemies();
+applyEnemyBuilderHandoff();
 loadLocalTarget();
 initSidebarResize();
 initSidebarSections();

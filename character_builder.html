@@ -771,6 +771,8 @@ function roleKey(){return `${STORAGE_PREFIX}:role:${CLOUD_CAMPAIGN_ID}`}
 const BUILDER_QUERY=new URLSearchParams(location.search);
 const REQUESTED_CHARACTER_ID=BUILDER_QUERY.get('character')||'';
 const REQUESTED_DM_EDIT=BUILDER_QUERY.get('dmEdit')==='1';
+const ENEMY_BUILDER_ID=BUILDER_QUERY.get('enemyId')||'';
+const ENEMY_BUILDER_KEY=`fogOfWarEnemyBuilder.v1:${BUILDER_QUERY.get('campaign')||'default-campaign'}`;
 function builderIsDM(){return localStorage.getItem(roleKey())==='dm'}
 function playerIdKey(){return `${STORAGE_PREFIX}:playerId`}
 function stablePlayerId(){let id=localStorage.getItem(playerIdKey());if(!id){id='p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem(playerIdKey(),id)}return id}
@@ -1596,6 +1598,19 @@ function readStorage(){
     campaignInfo=state.campaign||campaignInfo;
   }catch(e){}
   state.myCharacters=(state.myCharacters||[]).map(hydrateCharacter);
+  if(ENEMY_BUILDER_ID){
+    try{
+      const handoff=JSON.parse(localStorage.getItem(ENEMY_BUILDER_KEY)||'null');
+      const enemy=handoff?.enemy;
+      if(enemy && enemy.enemyId===ENEMY_BUILDER_ID){
+        const id=`enemy-builder:${ENEMY_BUILDER_ID}`;
+        const existing=state.myCharacters.find(ch=>ch.id===id);
+        const draft=hydrateCharacter({...existing,id,name:enemy.name||'Enemy',race:'Custom',class:'Custom',icon:enemy.icon||'👹',tokenArt:enemy.tokenArt||'',tokenScale:enemy.tokenScale||1,color:enemy.color||'#e06b62',owner:BUILDER_PLAYER_ID});
+        if(existing) state.myCharacters=state.myCharacters.map(ch=>ch.id===id?draft:ch); else state.myCharacters.push(draft);
+        state.activeCharacterId=id;
+      }
+    }catch(e){}
+  }
   if(!state.myCharacters.length) state.myCharacters=[hydrateCharacter({})];
   ensureRequestedCharacterAvailable();
   selectedId=(REQUESTED_CHARACTER_ID&&state.myCharacters.some(ch=>ch.id===REQUESTED_CHARACTER_ID)?REQUESTED_CHARACTER_ID:null)||state.activeCharacterId||state.myCharacters[0].id;
@@ -3063,7 +3078,19 @@ function saveSelected(){
   renderList();
   writeStorage('Character saved');
 }
-function saveAndReturn(){ goToMap(true); }
+function saveAndReturn(){
+  if(ENEMY_BUILDER_ID){
+    commitForm();
+    const ch=selected();
+    try{
+      const handoff=JSON.parse(localStorage.getItem(ENEMY_BUILDER_KEY)||'{}');
+      localStorage.setItem(ENEMY_BUILDER_KEY,JSON.stringify({...handoff,completed:true,enemyId:ENEMY_BUILDER_ID,enemy:{...(handoff.enemy||{}),name:ch.name,tokenArt:ch.tokenArt||'',tokenScale:ch.tokenScale||1,icon:ch.icon,color:ch.color}}));
+    }catch(e){}
+    location.href=`map.html?campaign=${encodeURIComponent(BUILDER_QUERY.get('campaign')||'default-campaign')}`;
+    return;
+  }
+  goToMap(true);
+}
 function campaignQuery(){return '?campaign='+encodeURIComponent(CLOUD_CAMPAIGN_ID)}
 function persistBeforeLeaving(){
   if(document.getElementById('name')&&selectedId){
