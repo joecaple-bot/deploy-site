@@ -1608,6 +1608,7 @@ body.rp-mode .map-tool-dock{display:none}
             <div class="actions">
               <button class="dm-only" onclick="event.stopPropagation();rollInitiative()">Roll</button>
               <button class="dm-only" onclick="event.stopPropagation();nextTurn()">Next</button>
+              <button id="enemy-ai-btn" class="dm-only" onclick="event.stopPropagation();toggleEnemyAI()">Enemy AI: Off</button>
               <button class="side-section-toggle" type="button">-</button>
             </div>
           </div>
@@ -2964,6 +2965,8 @@ let turnOrder = [];
 let initiativeRolls = {};
 let activeTurnIndex = 0;
 let combatMode = false;
+let enemyAiEnabled = false;
+let pendingEnemyAi = null;
 let turnActionState = {};
 const COMBAT_MOVE_BUDGET_PX = 180;
 let lastCombatMoveWarn = 0;
@@ -4977,12 +4980,34 @@ function drawActionAnimations(){
     if(fx.type==='aoe') drawAoeBurst(fx,t);
     else if(fx.type==='spell') drawSpellBurst(fx,t);
     else drawWeaponSlash(fx,t);
+    if(fx.critical) drawCriticalBurst(fx,t);
   }
   for(const fx of damageBursts){
     const t=Math.max(0,Math.min(1,(now-fx.started)/fx.duration));
     drawDamageBurst(fx,t);
   }
   drawFxParticles(now);
+}
+function drawCriticalBurst(fx,t){
+  const x=Number.isFinite(fx.tx)?fx.tx:fx.x, y=Number.isFinite(fx.ty)?fx.ty:fx.y;
+  const p=Math.min(1,t/.78),fade=Math.max(0,1-p),ease=1-Math.pow(1-p,3);
+  const pal=stylePalette(fx.visualStyle||'weapon');
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  ctx.globalAlpha=fade*.9;
+  ctx.strokeStyle='rgba(255,226,124,.96)';
+  ctx.shadowColor=pal.css;
+  ctx.shadowBlur=24;
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(x,y,18+ease*58,0,Math.PI*2);ctx.stroke();
+  ctx.globalAlpha=fade*.72;
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI*2/12+(fx.seed%17)*.04;
+    const inner=10+ease*24, outer=inner+18+ease*32;
+    ctx.beginPath();ctx.moveTo(x+Math.cos(a)*inner,y+Math.sin(a)*inner);ctx.lineTo(x+Math.cos(a)*outer,y+Math.sin(a)*outer);ctx.stroke();
+  }
+  ctx.fillStyle='rgba(255,245,185,.92)';ctx.beginPath();ctx.arc(x,y,4+fade*8,0,Math.PI*2);ctx.fill();
+  ctx.restore();
 }
 
 function enemyDeathVisual(enemy){
@@ -9212,6 +9237,7 @@ function refreshSidebarSectionBadges(){
 }
 
 function updateAllPanels(){
+  updateEnemyAIButton();
   validateLocalTarget();
   updateRoleUI();
   updateMapLibraryUI();
@@ -9450,10 +9476,33 @@ function combatComboSuggestion(ch,isEnemy=false){
   if(targetStatuses.some(status=>status.includes('prone')||status.includes('stun')||status.includes('restrain'))){
     return `<div class="combat-coach combo"><b>Combo opportunity</b>${escapeHtml(target.name)} is impaired. Focus attacks on the opening before the condition ends.</div>`;
   }
+  if(target.comboSetup && target.comboSetup.by!==ch.id){
+    return `<div class="combat-coach combo"><b>Follow-up ready</b>${escapeHtml(target.name)} is set up by an ally. Your next hit gets a coordinated strike bonus.</div>`;
+  }
   if(nearby){
-    return `<div class="combat-coach combo"><b>Team-up opportunity</b>An ally is nearby. Consider Help, a setup effect, or a coordinated attack on ${escapeHtml(target.name)}.</div>`;
+    return `<div class="combat-coach combo"><b>Team-up opportunity</b>An ally is nearby. <button onclick="prepareComboSetup()" style="margin-top:5px;font-size:10px;padding:5px 8px">Set up ${escapeHtml(target.name)}</button></div>`;
   }
   return '';
+}
+function prepareComboSetup(){
+  const ch=getActiveCharacter();
+  const target=selectedTargetUid?enemyByUid(selectedTargetUid):null;
+  if(!ch || currentTurnId()!==ch.id || !target || Number(target.hp)<=0) return showCritOverlay('Choose a living enemy on your turn','roll','Combo');
+  if(turnActionState.bonusActionTaken) return showCritOverlay('Your bonus action is already used','roll','Combo');
+  markTurnAction('bonus',ch.id);
+  target.comboSetup={by:ch.id,characterName:ch.name,turn:turnActionState.at,expiresAt:turnActionState.at+1};
+  addChatMessage({kind:'combo',character:ch.name,label:'Setup',detail:`${target.name} is marked for a coordinated follow-up attack.`});
+  broadcast({type:'iconUpdate',icon:target});
+  showCritOverlay(`${target.name} is set up`,'success','Combo');
+  updateCombatPopout();
+  showEnemySheet(target,worldToScreen(target.x,target.y).x,worldToScreen(target.x,target.y).y);
+  scheduleSave();
+}
+function consumeComboSetup(target){
+  const setup=target?.comboSetup;
+  if(!setup || Number(setup.expiresAt)<Number(turnActionState.at)) return null;
+  target.comboSetup=null;
+  return setup;
 }
 function combatCoachHtml(ch,isEnemy=false){
   if(!combatMode)return '';
@@ -10191,6 +10240,7 @@ function showEnemySheet(enemy,x,y){
       <button onclick="adjustEnemyHP('${enemy.uid}',1)">+</button>
     </div>`:''}
     ${dm?`<div class="sheet-actions">
+      ${pendingEnemyAi?.enemyUid===enemy.uid?`<button class="primary" onclick="confirmEnemyAiAttack('${enemy.uid}')">Confirm AI attack</button>`:''}
       <button class="primary" onclick="setTarget('${enemy.uid}')">${selectedTargetUid===enemy.uid?'Targeted':'Target'}</button>
       <button onclick="setActiveEnemy('${enemy.uid}')">${activeEnemyUid===enemy.uid?'Unlock control':'Control enemy'}</button>
       <button onclick="toggleEnemyBoss('${enemy.uid}')">${enemy.boss?'Boss: On':'Boss: Off'}</button>
@@ -11777,7 +11827,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     scheduleSave();
     return;
   }
-  const attackBonus=gameplayAttackBonus(ch,type,castItem);
+  const comboSetup=target && typeof consumeComboSetup==='function' ? consumeComboSetup(target) : null;
+  const attackBonus=gameplayAttackBonus(ch,type,castItem)+(comboSetup?2:0);
   const attack=rollWithBuffs(ch,'1d20',attackBonus,'attack','',target);
   const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
   markTurnAction(type==='weapon'&&actionCost==='action'?'attack':actionCost,characterId);
@@ -11787,7 +11838,7 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
   if(await gameplayReactionWindow(ch,castItem,type,[target],'Attack '+attack.total+' vs AC '+gameplayEffectiveAC(target),{attackTotal:attack.total,natural}))return;
   const hitTarget=target && !fumble && (critical || attack.total>=gameplayEffectiveAC(target));
   const rageBonus=type==='weapon'&&ch.gameplayAttackAbility==='STR'&&ch.gameplayMelee&&hasStatusNamed(ch,'Rage')?(ch.level>=16?4:ch.level>=9?3:2):0;
-  const rolledDamage=damage.total+rageBonus;
+  const rolledDamage=damage.total+rageBonus+(hitTarget&&comboSetup?2:0);
   if(hitTarget&&type==='weapon')ch.gameplayLastHit={targetId:target.uid,melee:ch.gameplayMelee,turn:turnActionState.at};
   const riderResult=hitTarget ? applyDamageRiders(ch,target,critical,castItem) : {total:0,detail:'',riders:[]};
   const appliedDamage=hitTarget ? rolledDamage+(critical?rollDiceExpression(diceFormulaForAction(castItem),0).total:0)+riderResult.total : 0;
@@ -11811,7 +11862,7 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     kind:type,
     character:ch.name,
     label:item.name,
-    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,attackBonus)}] - Damage ${rolledDamage} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]${critical?' + critical dice':''}${riderResult.detail?` + ${riderResult.detail}`:''} = ${appliedDamage}${castLevel?` using L${castLevel}`:''}${backfireDamage?` - Nat 1 backfire ${backfireDamage} to ${ch.name}`:''}`,
+    detail:`Attack ${attack.total} [${rollD20AttackDetail(attack,attackBonus)}] - Damage ${rolledDamage} [${damage.rolls.join(', ')} ${formatBonus(item.bonus)}]${comboSetup?' + coordinated strike':''}${critical?' + critical dice':''}${riderResult.detail?` + ${riderResult.detail}`:''} = ${appliedDamage}${castLevel?` using L${castLevel}`:''}${backfireDamage?` - Nat 1 backfire ${backfireDamage} to ${ch.name}`:''}`,
     total:appliedDamage,
     rolls:damage.rolls
   });
@@ -11820,14 +11871,14 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
       kind:'target',
       character:'Table',
       label:`${hitTarget?'Hit':'Miss'} ${target.name}`,
-      detail:`Attack ${attack.total} (${rollD20AttackDetail(attack,attackBonus)}) vs AC ${target.ac}${hitTarget?` - ${appliedDamage} damage${riderResult.detail?` (${riderResult.detail})`:''}, HP ${target.hp}/${target.maxHP}`:backfireDamage?` - Nat 1, ${ch.name} takes ${backfireDamage}`:''}`
+      detail:`Attack ${attack.total} (${rollD20AttackDetail(attack,attackBonus)}) vs AC ${target.ac}${hitTarget?` - ${appliedDamage} damage${comboSetup?' (coordinated strike)':''}${riderResult.detail?` (${riderResult.detail})`:''}, HP ${target.hp}/${target.maxHP}`:backfireDamage?` - Nat 1, ${ch.name} takes ${backfireDamage}`:''}`
     });
   }
   const effect=critical
     ? {text:`${ch.name} lands a critical hit for ${appliedDamage}`,overlayType:'success',title:'Critical: extra damage dice'}
     : fumble
       ? {text:`${ch.name} misses (natural 1)`,overlayType:'fail',title:'Miss'}
-      : {text:`${item.name}: attack ${attack.total}, damage ${appliedDamage}`,overlayType:'roll',title:attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:actionFormulaSummary(castItem)};
+    : {text:comboSetup&&hitTarget?`${ch.name} lands a coordinated strike for ${appliedDamage}`:`${item.name}: attack ${attack.total}, damage ${appliedDamage}`,overlayType:comboSetup&&hitTarget?'success':'roll',title:comboSetup&&hitTarget?'Coordinated strike':attack.buff?`${attack.rolls[0]} + ${attack.buffRoll} ${attack.buff.label}`:actionFormulaSummary(castItem)};
   playSfx(critical?'nat20':fumble?'nat1':hitTarget?'hit':'miss');
   if(hitTarget && target?.hp<=0) playSfx('enemyDown');
   showDiceRollAnimation({natural:attack.rolls[0],total:attack.total,sides:20,label:item.name,character:ch.name,rolls:attack.d20Rolls,rollMode:attack.rollMode});
@@ -12886,6 +12937,7 @@ function playActionAnimation(ch,type='weapon',details={}){
     angle:-Math.PI/4+(Math.random()-.5)*.8,
     color:palette.css,
     visualStyle,
+    critical:details.natural20Hit===true,
     particlePower:details.natural20Hit?3:details.kind==='aoe'?1.35:Number(details.damage)===0?.62:details.overlayType==='success'?1.25:1,
     seed:Math.floor(Math.random()*10000)
   };
@@ -13039,7 +13091,7 @@ function showCritOverlay(text='Critical success',type='success',titleText=''){
   critTimer=setTimeout(()=>overlay.classList.remove('show'),2100);
 }
 function combatStatePayload(){
-  return {combatMode,initiativeRolls,turnOrder,activeTurnIndex,turnActionState};
+  return {combatMode,enemyAiEnabled,initiativeRolls,turnOrder,activeTurnIndex,turnActionState};
 }
 function syncCombatState({persist=true,broadcastChange=true}={}){
   turnOrder=turnOrder.filter(id=>turnEntityById(id));
@@ -13109,7 +13161,7 @@ function toggleCombatMode(){
     addChatMessage({kind:'initiative',character:'DM',label:'Combat ended',detail:'Free movement restored.'});
     showCritOverlay('Free movement restored','roll','Combat');
   }
-  broadcast({type:'combatMode',combatMode,initiativeRolls,turnOrder,activeTurnIndex,turnActionState,gameplayActors:gameplayActors().map(gameplayPatch)});
+  broadcast({type:'combatMode',combatMode,enemyAiEnabled,initiativeRolls,turnOrder,activeTurnIndex,turnActionState,gameplayActors:gameplayActors().map(gameplayPatch)});
   playSfx('turn');
   updateAllPanels();
   scheduleSave();
@@ -13186,6 +13238,57 @@ function endPlayerTurn(){
   addChatMessage({kind:'initiative',character:ch.name,label:'Ended turn'});
   advanceTurn();
 }
+function updateEnemyAIButton(){
+  const button=document.getElementById('enemy-ai-btn');
+  if(button){button.textContent=`Enemy AI: ${enemyAiEnabled?'On':'Off'}`;button.classList.toggle('active',enemyAiEnabled);}
+}
+function toggleEnemyAI(){
+  if(!isDM()) return requireDM();
+  enemyAiEnabled=!enemyAiEnabled;
+  if(!enemyAiEnabled) pendingEnemyAi=null;
+  addChatMessage({kind:'initiative',character:'DM',label:`Enemy AI ${enemyAiEnabled?'enabled':'disabled'}`,detail:enemyAiEnabled?'Enemies move on their initiative turns and wait for DM attack confirmation.':'Enemies return to manual control.'});
+  broadcast({type:'enemyAI',enabled:enemyAiEnabled,pendingEnemyAi});
+  updateEnemyAIButton();
+  updateAllPanels();
+  scheduleSave();
+}
+function runEnemyAiTurn(id){
+  if(!enemyAiEnabled || !isDM() || !combatMode) return;
+  const enemy=enemyByUid(id);
+  if(!enemy || Number(enemy.hp)<=0) return;
+  const targets=Object.values(allCharactersById()).filter(ch=>Number(ch.currentHP??1)>0 && characterX(ch)!=null && characterY(ch)!=null);
+  if(!targets.length) return;
+  const target=targets.sort((a,b)=>Math.hypot(characterX(a)-enemy.x,characterY(a)-enemy.y)-Math.hypot(characterX(b)-enemy.x,characterY(b)-enemy.y))[0];
+  const dx=characterX(target)-enemy.x,dy=characterY(target)-enemy.y;
+  const distance=Math.hypot(dx,dy)||1;
+  const meleeRange=95;
+  if(distance>meleeRange){
+    const budget=Math.min(Number(enemy.movementPx)||30*gameplayScale(),Math.max(0,distance-meleeRange));
+    enemy.x+=dx/distance*budget;
+    enemy.y+=dy/distance*budget;
+    broadcast({type:'iconUpdate',icon:enemy});
+    addChatMessage({kind:'initiative',character:enemy.name,label:'Enemy moved',detail:`Moved toward ${target.name} under DM-controlled AI.`});
+  }
+  const weapon=(enemy.weapons||[])[0];
+  if(!weapon){addChatMessage({kind:'initiative',character:enemy.name,label:'AI waiting',detail:'No weapon action configured; DM control required.'});return;}
+  pendingEnemyAi={enemyUid:enemy.uid,targetId:target.id,weaponId:weapon.id,turn:turnActionState.at};
+  selectedTargetUid=target.id;
+  addChatMessage({kind:'initiative',character:enemy.name,label:'Attack awaiting DM',detail:`${enemy.name} wants to attack ${target.name}. Confirm it from the enemy sheet.`});
+  showCritOverlay(`${enemy.name} is ready to attack`,'roll','DM confirmation');
+  showEnemySheet(enemy,worldToScreen(enemy.x,enemy.y).x,worldToScreen(enemy.x,enemy.y).y);
+  updateAllPanels();
+}
+function confirmEnemyAiAttack(uid){
+  if(!isDM() || !pendingEnemyAi || pendingEnemyAi.enemyUid!==uid) return;
+  const pending={...pendingEnemyAi};
+  const enemy=enemyByUid(uid);
+  const target=characterById(pending.targetId);
+  if(!enemy || !target) return showCritOverlay('AI target is no longer available','roll','Enemy AI');
+  pendingEnemyAi=null;
+  setActiveEnemy(uid,true);
+  setTarget(target.id);
+  rollEnemyAction(uid,'weapon',enemy.weapons?.find(w=>w.id===pending.weaponId)?.id || enemy.weapons?.[0]?.id);
+}
 function advanceTurn(){
   if(!turnOrder.length) return;
   if(gameplayWindow||gameplayBusy)return showCritOverlay('Resolve the action first','roll','Combat');
@@ -13197,6 +13300,7 @@ function advanceTurn(){
   if(enemyByUid(id)) activeEnemyUid=id;
   gameplayBoundary(id,'start');
   handleSlippedStartOfTurn(id);
+  if(enemyByUid(id) && typeof runEnemyAiTurn==='function') runEnemyAiTurn(id);
   focusTurnEntity(id);
   broadcast({type:'turnAdvance',activeTurnIndex,turnOrder,initiativeRolls,turnActionState,gameplayActors:gameplayActors().map(gameplayPatch)});
   playSfx('turn');
@@ -13394,6 +13498,7 @@ function buildPersistedState(){
     initiativeRolls,
     activeTurnIndex,
     combatMode,
+    enemyAiEnabled,
     turnActionState,
     tradeOffers:normalizeTradeOffers(tradeOffers),
     chatMessages:chatMessages.slice(-40),
@@ -13462,6 +13567,7 @@ function loadState(){
     initiativeRolls=state.initiativeRolls || {};
     activeTurnIndex=Number(state.activeTurnIndex)||0;
     combatMode=state.combatMode===true;
+    enemyAiEnabled=state.enemyAiEnabled===true;
     turnActionState=state.turnActionState || {};
     chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
     document.getElementById('radius-slider').value=revealRadius;
@@ -13598,6 +13704,7 @@ function applyPersistedState(state){
   initiativeRolls=state.initiativeRolls || {};
   activeTurnIndex=Number(state.activeTurnIndex)||0;
   combatMode=state.combatMode===true;
+  enemyAiEnabled=state.enemyAiEnabled===true;
   turnActionState=state.turnActionState || {};
   tradeOffers=mergeTradeOffers(state.tradeOffers||[],tradeOffers);
   chatMessages=Array.isArray(state.chatMessages) ? state.chatMessages.slice(-40) : [];
@@ -14110,6 +14217,7 @@ function connectWS(){
           }
         } else if(msg.type==='combatMode'){
           combatMode=msg.combatMode===true;
+          enemyAiEnabled=msg.enemyAiEnabled===true;
           initiativeRolls=msg.initiativeRolls||{};
           turnOrder=Array.isArray(msg.turnOrder)?msg.turnOrder:[];
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
@@ -14119,12 +14227,19 @@ function connectWS(){
           scheduleSave();
         } else if(msg.type==='combatState'){
           combatMode=msg.combatMode===true;
+          enemyAiEnabled=msg.enemyAiEnabled===true;
           initiativeRolls=msg.initiativeRolls||initiativeRolls;
           turnOrder=Array.isArray(msg.turnOrder)?msg.turnOrder:turnOrder;
           activeTurnIndex=Number(msg.activeTurnIndex)||0;
           turnActionState=msg.turnActionState||{};
           updateAllPanels();
           draw();
+          scheduleSave();
+        } else if(msg.type==='enemyAI'){
+          enemyAiEnabled=msg.enabled===true;
+          pendingEnemyAi=msg.pendingEnemyAi||null;
+          updateEnemyAIButton();
+          updateAllPanels();
           scheduleSave();
         } else if(msg.type==='rpMode'){
           const nextRpMode=msg.rpMode===true;
@@ -14408,6 +14523,7 @@ setScenePreset(scenePreset);
 setBoardDepthMode(boardDepthMode);
 updateCinematicFocusButton();
 updateRoleUI();
+updateEnemyAIButton();
 document.querySelectorAll('#dm-item-modal input,#dm-item-modal select,#dm-item-modal textarea').forEach(el=>{
   el.addEventListener('input',syncDMGiveItemForm);
   el.addEventListener('change',syncDMGiveItemForm);
