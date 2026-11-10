@@ -4947,12 +4947,26 @@ function drawRPModeBackground(){
 function remoteCharacterKey(ch){
   return `${ch?.owner || 'remote'}:${ch?.id || ''}`;
 }
+function dedupeCharacters(list=[]){
+  const byId=new Map();
+  for(const raw of Array.isArray(list)?list:[]){
+    if(!raw?.id) continue;
+    const current=byId.get(raw.id);
+    if(!current){ byId.set(raw.id,raw); continue; }
+    const currentTime=Date.parse(current.updatedAt||'')||0;
+    const incomingTime=Date.parse(raw.updatedAt||'')||0;
+    if(incomingTime>=currentTime || raw.owner===myId || raw.claimedBy===myId) byId.set(raw.id,raw);
+  }
+  return [...byId.values()];
+}
 function storeRemoteCharacter(ch){
   if(!ch || !ch.id) return null;
   if(!characterBelongsToCurrentCampaign(ch,{allowLegacy:true})) return null;
   ch=stampCharacterForCurrentCampaign(ch);
   const key=remoteCharacterKey(ch);
-  if(ch.owner && remoteCharacters[ch.id]?.owner===ch.owner) delete remoteCharacters[ch.id];
+  for(const [existingKey,existing] of Object.entries(remoteCharacters)){
+    if(existing?.id===ch.id && existing?.owner===ch.owner) delete remoteCharacters[existingKey];
+  }
   remoteCharacters[key]=ch;
   return ch;
 }
@@ -13537,7 +13551,7 @@ function scheduleSave(){
 function buildPersistedState(){
   reconcileLocalClaims();
   const partyById={};
-  myCharacters=campaignScopedCharacters(myCharacters);
+  myCharacters=dedupeCharacters(campaignScopedCharacters(myCharacters));
   for(const ch of campaignScopedCharacters(Object.values(remoteCharacters))) partyById[ch.id]=stampCharacterForCurrentCampaign(ch);
   for(const ch of myCharacters) partyById[ch.id]=stampCharacterForCurrentCampaign({...ch,owner:myId,claimedBy:myId});
   const partyCharacters=pruneGeneratedDefaultGhosts(Object.values(partyById));
@@ -13667,8 +13681,8 @@ function loadState(){
 function applyCharacterStateFromCampaign(state){
   const ownerId=state.myId || state.ownerId || '';
   characterClaims=normalizeCharacterClaims(state.characterClaims || characterClaims);
-  const incomingParty=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.partyCharacters) ? state.partyCharacters : []));
-  const incomingLocal=pruneGeneratedDefaultGhosts(campaignScopedCharacters(Array.isArray(state.myCharacters) ? state.myCharacters : []));
+  const incomingParty=pruneGeneratedDefaultGhosts(dedupeCharacters(campaignScopedCharacters(Array.isArray(state.partyCharacters) ? state.partyCharacters : [])));
+  const incomingLocal=pruneGeneratedDefaultGhosts(dedupeCharacters(campaignScopedCharacters(Array.isArray(state.myCharacters) ? state.myCharacters : [])));
   const allIncoming=pruneGeneratedDefaultGhosts(incomingParty.length ? incomingParty : incomingLocal.map(ch=>({...ch,owner:ownerId||ch.owner})));
   const incomingIds=new Set(allIncoming.map(ch=>ch.id).filter(Boolean));
   if(incomingIds.size){
@@ -14192,8 +14206,9 @@ function connectWS(){
           draw();
         } else if(msg.type==='partyState'){
           if(msg.characterClaims) characterClaims=normalizeCharacterClaims({...characterClaims,...msg.characterClaims});
-          for(const raw of pruneGeneratedDefaultGhosts(msg.characters || [])){
+          for(const raw of dedupeCharacters(pruneGeneratedDefaultGhosts(msg.characters || []))){
             if(!acceptsRemoteCharacterUpdate(raw?.id,msg.from)) continue;
+            if(!remoteCharacterIsNewer({...raw,owner:msg.from})) continue;
             const ch=hydrateCharacter({...raw,owner:msg.from});
             storeRemoteCharacter(ch);
             if(characterX(ch)!=null) revealAt(characterX(ch),characterY(ch),getCharacterRevealRadius(ch));
