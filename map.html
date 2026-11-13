@@ -2136,15 +2136,18 @@ function validDiceFormula(value=''){return /^\d+d(4|6|8|10|12)$/i.test(String(va
 function diceCountFromFormula(value=''){const m=String(value).trim().match(/^(\d+)d/i);return m?Number(m[1]):0}
 function dieFromFormula(value=''){const m=String(value).trim().match(/d(4|6|8|10|12)$/i);return m?'d'+m[1]:''}
 function inferSaveAbility(item={}){
+  if(item.resolutionMode==='attack'||item.resolutionMode==='automatic')return '';
+  if(item.resolutionMode!=='save'&&/spell attack/i.test(item.attackSave||''))return '';
   const raw=String(item.saveAbility||'').toUpperCase();
   if(ABILITIES.includes(raw)) return raw;
-  const text=`${item.attackSave||''} ${item.description||''} ${item.name||''}`.toUpperCase();
+  const text=String(item.attackSave||'').toUpperCase();
   const match=text.match(/\b(STR|DEX|CON|INT|WIS|CHA|STRENGTH|DEXTERITY|CONSTITUTION|INTELLIGENCE|WISDOM|CHARISMA)\b/);
   const map={STRENGTH:'STR',DEXTERITY:'DEX',CONSTITUTION:'CON',INTELLIGENCE:'INT',WISDOM:'WIS',CHARISMA:'CHA'};
   return match ? (map[match[1]]||match[1]) : '';
 }
 function inferSaveHalfDamage(item={}){
-  if(item.saveHalf===true || item.saveHalf==='true') return true;
+  if(typeof item.saveHalf==='boolean')return item.saveHalf;
+  if(item.saveHalf==='true')return true;
   const text=`${item.attackSave||''} ${item.description||''} ${item.damageHeal||''}`.toLowerCase();
   return /half\s*(dam|dmg|damage)|\(half|save.*half/.test(text);
 }
@@ -2159,6 +2162,7 @@ function bonusDamageFormulaForAction(item={}){
 }
 function actionFormulaSummary(item={},defaultDie='d6'){
   if(GameplayRules.key(item.name)==='magic_missile')return `${2+Math.max(1,Number(item.castLevel)||1)} darts × (1d4 + 1)`;
+  if(item.projectileCount)return `${item.projectileCount} beams × (${item.damageFormula})`;
   const base=diceFormulaForAction(item)||defaultDie;
   const flat=Number(item.bonus)?` ${formatBonus(item.bonus)}`:'';
   const rider=bonusDamageFormulaForAction(item);
@@ -2343,8 +2347,7 @@ function useCharacterConsumable(characterId,itemId){
   if(profile.type==='healing'){
     const roll=rollDiceExpression(profile.formula||('1'+profile.die),profile.bonus);
     const before=target.currentHP ?? target.derived.HP;
-    const after=Math.min(target.derived.HP,before+roll.total);
-    applyCharacterPatch(target.id,{currentHP:after});
+    const after=gameplayHeal(target,roll.total);
     campaignStat('healingDone',Math.max(0,after-before));
     decrementInventoryItem(ch,item.id);
     addChatMessage({kind:'heal',character:ch.name,label:`Uses ${item.name}`,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})`,total:roll.total,rolls:roll.rolls});
@@ -6342,12 +6345,12 @@ function setSpellHoverPreview(caster,casterKind,item){
 function previewCharacterSpellTemplate(characterId,itemId){
   const ch=characterById(characterId);
   const item=[...(ch?.spells||[]),...equippedSpellActions(ch||{})].find(s=>String(s.id)===String(itemId));
-  setSpellHoverPreview(ch,'character',item);
+  setSpellHoverPreview(ch,'character',item?gameplaySpellForCast(ch,item):item);
 }
 function previewEnemySpellTemplate(enemyUid,itemId){
   const enemy=enemyByUid(enemyUid);
   const item=(enemy?.spells||[]).find(s=>String(s.id)===String(itemId));
-  setSpellHoverPreview(enemy,'enemy',item);
+  setSpellHoverPreview(enemy,'enemy',item?gameplaySpellForCast(enemy,item):item);
 }
 function clearSpellHoverPreview(){
   if(!spellHoverPreview) return;
@@ -7563,7 +7566,7 @@ function canMoveCharacterNow(ch){
 }
 function getCombatMoveBudget(ch){
   const speed=Number(ch?.speedFeet)||30;
-  const base=Number(ch?.movementPx||ch?.speedPx)||speed*gameplayScale();
+  const base=Math.max(0,(Number(ch?.movementPx||ch?.speedPx)||speed*gameplayScale())-(hasStatusNamed(ch,'Ray of Frost slow')?10*gameplayScale():0));
   const dash=turnActionState.actorId===ch?.id?Number(turnActionState.dashCount)||0:0;
   return Math.max(0,base*(1+dash));
 }
@@ -9474,15 +9477,16 @@ function sheetActionFormulaLabel(item,defaultDie){
   return actionFormulaSummary(item,defaultDie);
 }
 function sheetActionButtonHtml(prefix,item,onClick,defaultDie){
+  const assisted=prefix==='Spell'&&!GameplayRules.automatedSpells.has(GameplayRules.key(item.name));
   return `<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
-    <span class="action-label">${sheetActionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(sheetActionFormulaLabel(item,defaultDie))}</span></span>
-    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} - ${escapeHtml(item.actionType||'damage')} ${escapeHtml(actionFormulaSummary(item,defaultDie))}${isAoeAction(item)?` - AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
+    <span class="action-label">${sheetActionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${assisted?'DM outcome':escapeHtml(sheetActionFormulaLabel(item,defaultDie))}</span></span>
+    <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} - ${assisted?'DM enters targets and outcome':escapeHtml(item.actionType||'damage')+' '+escapeHtml(actionFormulaSummary(item,defaultDie))}${!assisted&&isAoeAction(item)?` - AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
 }
 function sheetSpellActionHtml(character,item,onClick,defaultDie){
   const assisted=!GameplayRules.automatedSpells.has(GameplayRules.key(item.name));
   const display=gameplaySpellForCast(character,item);
-  return `<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,item)}${assisted?'<small>DM-assisted</small>':''}${sheetActionButtonHtml('Spell',display,onClick,defaultDie)}</div>`;
+  return `<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,display)}${assisted?'<small>DM resolves targets and outcome</small>':''}${sheetActionButtonHtml('Spell',display,onClick,defaultDie)}</div>`;
 }
 function sheetFeatureButtonHtml(item,onClick){
   return `<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
@@ -9620,8 +9624,8 @@ function updateCombatPopout(){
     <span class="action-label">${actionIconHtml(prefix,item)}<span class="action-label-text">${prefix}: ${escapeHtml(item.name)}</span><span class="action-roll-tag">${escapeHtml(actionFormulaLabel(item,defaultDie))}</span></span>
     <span class="action-full"><b>${prefix}: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'action')} · ${escapeHtml(item.actionType||'damage')} ${escapeHtml(actionFormulaSummary(item,defaultDie))}${isAoeAction(item)?` · AoE ${item.aoeRadius}`:''}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
   </button>`;
-  const spellActionHtml=(character,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewCharacterSpellTemplate('${escapeAttr(character.id)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${upcastTabsHtml(character,item)}${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
-  const enemySpellActionHtml=(enemy,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewEnemySpellTemplate('${escapeAttr(enemy.uid)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${actionButtonHtml('Spell',item,onClick,defaultDie)}</div>`;
+  const spellActionHtml=sheetSpellActionHtml;
+  const enemySpellActionHtml=(enemy,item,onClick,defaultDie)=>`<div class="action-cast-wrap" onmouseenter="previewEnemySpellTemplate('${escapeAttr(enemy.uid)}','${escapeAttr(item.id)}')" onmouseleave="clearSpellHoverPreview()">${sheetActionButtonHtml('Spell',gameplaySpellForCast(enemy,item),onClick,defaultDie)}</div>`;
   const featureButtonHtml=(item,onClick)=>`<button title="${escapeHtml(item.description||item.name)}" onclick="${onClick}">
     <span class="action-label">${actionIconHtml('Feature',item)}<span class="action-label-text">Feature: ${escapeHtml(item.name)}</span></span>
     <span class="action-full"><b>Feature: ${escapeHtml(item.name)}</b><small>${escapeHtml(item.actionCost||'passive')} Â· ${escapeHtml(item.actionType||'utility')}</small>${item.description?`<small>${escapeHtml(item.description)}</small>`:''}</span>
@@ -11411,9 +11415,11 @@ function rollModeInfo(actor,rollType='check',target=null){
   const poisoned=normalizeStatuses(actor?.statuses||[]).some(s=>s.name==='Poisoned');
   if(poisoned && ['attack','check'].includes(rollType)) sources.push({mode:'disadvantage',label:'Poisoned'});
   if(rollType==='attack'&&normalizeStatuses(actor.statuses||[]).some(s=>s.name==='Reckless')&&currentTurnId()===gameplayId(actor)&&actor.gameplayAttackAbility==='STR'&&actor.gameplayMelee)sources.push({mode:'advantage',label:'Reckless Attack'});
+  if(rollType==='attack'&&target&&/undead/i.test(String(actor.creatureType||actor.type||''))&&normalizeStatuses(actor.statuses||[]).some(s=>s.name==='Chill Touch'&&s.sourceId===gameplayId(target)))sources.push({mode:'disadvantage',label:'Chill Touch'});
   if(rollType==='attack' && target){
     if(normalizeStatuses(target.statuses||[]).some(s=>s.name==='Dodge'||s.name==='Patient Defense'))sources.push({mode:'disadvantage',label:'Dodge'});
     const targetStatuses=normalizeStatuses(target.statuses||[]);
+    if(targetStatuses.some(s=>s.name==='Guiding Bolt'))sources.push({mode:'advantage',label:'Guiding Bolt'});
     if(targetStatuses.some(s=>s.name==='Slipped' || s.name==='Prone')) sources.push({mode:'advantage',label:'Target slipped'});
     if(targetStatuses.some(s=>s.name==='Reckless')) sources.push({mode:'advantage',label:'Target reckless'});
   }
@@ -11502,6 +11508,7 @@ function rollWithBuffs(ch,expression,baseBonus=0,rollType='check',manualBuffKey=
     base={...base,d20Rolls:[base.rolls[0]],rollMode:'normal',rollModeSources:modeInfo.sources};
   }
   if(isD20) consumeNextRollState(ch);
+  if(isD20&&rollType==='attack'&&target&&hasStatusNamed(target,'Guiding Bolt')){target.statuses=normalizeStatuses(target.statuses||[]).filter(s=>s.name!=='Guiding Bolt');gameplaySyncActor(target);}
   const available=activeRollBuffs(ch,rollType);
   const selected=manualBuffKey ? available.find(b=>b.key===manualBuffKey) : null;
   const auto=selected || (rollType==='attack' ? available.find(b=>b.key==='bless') : null);
@@ -11814,8 +11821,9 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
   if(!ch) return;
   if(!canControlCharacter(ch)) return showCritOverlay('That character belongs to another player','roll','Locked');
   const collection=type==='spell' ? [...(ch.spells||[]),...equippedSpellActions(ch)] : (ch[type+'s']||[]);
-  const item=collection.find(x=>x.id===itemId);
-  if(!item) return;
+  const raw=collection.find(x=>x.id===itemId);
+  if(!raw) return;
+  const item=type==='spell'?gameplaySpellForCast(ch,raw):raw;
   const actionCost=item.actionCost||inferActionCost(item);
   if(!canUseTurnAction(ch,actionCost,type==='weapon'&&actionCost==='action')) return;
   ch.derived=ch.derived || calculateDerived(ch);
@@ -11828,11 +11836,16 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     if(!castLevel&&!item.freeCast)return showCritOverlay('No spell slot available','roll','Spell slots');
     return gameplayMagicMissile(ch,{...item,castLevel});
   }
+  if(type==='spell'&&item.volley){
+    if(item.spellLevel>0&&!item.freeCast&&!castLevel)return showCritOverlay('No spell slot available','roll','Spell slots');
+    return gameplaySpellVolley(ch,{...item,castLevel});
+  }
   if(type==='spell' && Number(item.spellLevel)>0 && !item.freeCast){
     if(!castLevel) return showCritOverlay('No spell slot available','fail','Spell slots');
     if(!spendSpellSlot(ch,castLevel)) return showCritOverlay(`No L${castLevel} slots left`,'fail','Spell slots');
   }
   const castItem=type==='spell' ? gameplaySpellForCast(ch,{...item,castLevel}) : item;
+  if(type==='spell')gameplaySyncActor(ch);
   if(isAoeAction(castItem)){ markTurnAction(type==='weapon'&&actionCost==='action'?'attack':actionCost,characterId); syncCharacter(ch); return rollAoeAction(ch,'character',type,castItem,actionType); }
   const friendly=selectedTargetCharacter();
   if(actionType==='healing'){
@@ -11841,9 +11854,8 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
     if(await gameplayReactionWindow(ch,castItem,type,[target],'Healing spell'))return;
     const roll=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
     const before=target.currentHP ?? target.derived.HP;
-    const after=Math.min(target.derived.HP,before+roll.total);
+    const after=gameplayHeal(target,roll.total);
     campaignStat('healingDone',Math.max(0,after-before));
-    applyCharacterPatch(target.id,{currentHP:after});
     addChatMessage({kind:'heal',character:ch.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${after})${castLevel?` using L${castLevel}`:''}`,total:roll.total,rolls:roll.rolls});
     const effect={text:`${item.name}: ${target.name} heals ${roll.total}`,overlayType:'roll',title:`${diceFormulaForAction(castItem)} ${formatBonus(castItem.bonus)}`,kind:'heal',characterId:ch.id,targetCharacterId:target.id,currentHP:after,statuses:target.statuses,x:characterX(ch),y:characterY(ch),tx:characterX(target),ty:characterY(target),actionType};
     playSfx('heal');
@@ -11886,15 +11898,14 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
   if(actionType==='damage' && saveDC){
     const damage=rollDiceExpression(diceFormulaForAction(castItem),castItem.bonus);
     const saveBonus=saveBonusForEntry({kind:'enemy',entity:target},saveAbility);
-    const save=rollWithBuffs(entry.entity,'1d20',saveBonus,'save');
+    const save=rollWithBuffs(target,'1d20',saveBonus,'save');
     const saved=save.total>=saveDC;
     markTurnAction(type==='weapon'&&actionCost==='action'?'attack':actionCost,characterId);
     if(await gameplayReactionWindow(ch,castItem,type,[target],saveAbility+' save '+save.total+' vs '+saveDC))return;
     const appliedDamage=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
     const hpBefore=target.hp;
-    const hpAfter=Math.max(0,target.hp-appliedDamage);
     if(isDM()) pushDMUndo('save spell damage');
-    target.hp=gameplayDamage(target,appliedDamage,gameplayDamageType(castItem));
+    const hpAfter=gameplayDamage(target,appliedDamage,gameplayDamageType(castItem));
     if(typeof updateEnemyDamageVisual==='function') updateEnemyDamageVisual(target);
     if(typeof maybeOfferEnemyPhase==='function') maybeOfferEnemyPhase(target);
     campaignStat('damageDealt',appliedDamage);
@@ -11933,6 +11944,7 @@ async function executeCharacterAction(characterId,type,itemId,options={}){
   const fumble=isAttackFumble(attack);
   if(await gameplayReactionWindow(ch,castItem,type,[target],'Attack '+attack.total+' vs AC '+gameplayEffectiveAC(target),{attackTotal:attack.total,natural}))return;
   const hitTarget=target && !fumble && (critical || attack.total>=gameplayEffectiveAC(target));
+  if(hitTarget&&type==='spell')gameplaySpellRider(ch,castItem,target);
   const rageBonus=type==='weapon'&&ch.gameplayAttackAbility==='STR'&&ch.gameplayMelee&&hasStatusNamed(ch,'Rage')?(ch.level>=16?4:ch.level>=9?3:2):0;
   const rolledDamage=damage.total+rageBonus+(hitTarget&&comboSetup?2:0);
   if(hitTarget&&type==='weapon')ch.gameplayLastHit={targetId:target.uid,melee:ch.gameplayMelee,turn:turnActionState.at};
@@ -12195,16 +12207,16 @@ function addEnemyStatus(uid,status,rounds=10,meta={}){
   scheduleSave();
   return enemy;
 }
-function applyAoeResult(entry,amount,actionType,effectName){
+function applyAoeResult(entry,amount,actionType,effectName,damageType=''){
   const target=entry.entity;
   const before=entry.kind==='enemy' ? target.hp : target.currentHP;
   let after=before;
   if(actionType==='damage'){
-    after=gameplayDamage(target,amount,gameplayDamageType({name:effectName}));
+    after=gameplayDamage(target,amount,damageType||gameplayDamageType({name:effectName}));
     if(entry.kind==='enemy'&&before>0&&after<=0){ensureEnemyLoot(target);noteEnemyDefeated(target,'AoE');}
   } else if(actionType==='healing'){
-    if(entry.kind==='enemy'){ after=Math.min(target.maxHP,before+amount); target.hp=after; broadcast({type:'iconUpdate',icon:target}); }
-    else { after=Math.min(target.derived?.HP||before,before+amount); campaignStat('healingDone',Math.max(0,after-before)); applyCharacterPatch(target.id,{currentHP:after}); }
+    after=gameplayHeal(target,amount);
+    campaignStat('healingDone',Math.max(0,after-before));
   } else {
     if(entry.kind==='enemy') addEnemyStatus(target.uid,effectName,10);
     else addCharacterStatus(target.id,effectName,10);
@@ -12272,7 +12284,7 @@ async function rollAoeAction(caster,casterKind,type,item,actionType){
         saved=save.total>=saveDC;
         amount=saved ? (saveHalf ? Math.floor(damage.total/2) : 0) : damage.total;
       } else {
-        const atkBonus=casterKind==='character' ? caster.derived?.attackBonus||0 : caster.attackBonus||0;
+        const atkBonus=casterKind==='character' ? (type==='spell'?caster.derived?.spellAttackBonus:caster.derived?.attackBonus)||0 : (type==='spell'?caster.spellAttackBonus??caster.attackBonus:caster.attackBonus)||0;
         attack=rollWithBuffs(caster,'1d20',atkBonus,'attack','',entry.entity);
         const ac=gameplayEffectiveAC(entry.entity);
         const critical=isAttackCrit(attack);
@@ -12285,7 +12297,7 @@ async function rollAoeAction(caster,casterKind,type,item,actionType){
       amount=actionType==='healing' ? damage.total : 0;
       affected++;
     }
-    results.push({...applyAoeResult(entry,amount,actionType,effectName),hit,saved,natural20Hit:!!attack&&hit&&keptD20(attack)===20,critical:attack?isAttackCrit(attack):false,fumble:attack?isAttackFumble(attack):false,attackTotal:attack?.total,saveTotal:save?.total});
+    results.push({...applyAoeResult(entry,amount,actionType,effectName,gameplayDamageType(item)),hit,saved,natural20Hit:!!attack&&hit&&keptD20(attack)===20,critical:attack?isAttackCrit(attack):false,fumble:attack?isAttackFumble(attack):false,attackTotal:attack?.total,saveTotal:save?.total});
   }
   const casterName=caster.name||'Caster';
   const crits=results.filter(result=>result.critical).length;
@@ -12317,10 +12329,11 @@ async function executeEnemyAction(enemyUid,type,itemId){
   if(!enemy) return;
   const baseItem=(enemy[type+'s']||[]).find(x=>x.id===itemId);
   if(!baseItem) return;
-  const item={...(type==='spell'?GameplayRules.spellItem(baseItem):baseItem),saveDC:Number(baseItem.saveDC)||Number(enemy.saveDC)||0};
+  const item={...(type==='spell'?gameplaySpellForCast(enemy,baseItem):baseItem),saveDC:Number(baseItem.saveDC)||Number(enemy.saveDC)||0};
   const actionCost=item.actionCost||inferActionCost(item);
   if(!canUseEnemyTurnAction(enemy,actionCost)) return;
   if(type==='spell'&&GameplayRules.key(item.name)==='magic_missile')return gameplayMagicMissile(enemy,item);
+  if(type==='spell'&&item.volley)return gameplaySpellVolley(enemy,item);
   const actionType=item.actionType||inferActionType(item);
   if(isAoeAction(item)){ markTurnAction(actionCost,enemy.uid); return rollAoeAction(enemy,'enemy',type,item,actionType); }
   const targetCharacter=selectedTargetCharacter();
@@ -12328,9 +12341,10 @@ async function executeEnemyAction(enemyUid,type,itemId){
   if(actionType==='healing'){
     markTurnAction(actionCost,enemy.uid);
     const target=targetEnemy||enemy;
+    if(await gameplayReactionWindow(enemy,item,type,[target],'Healing spell'))return;
     const roll=rollDiceExpression(diceFormulaForAction(item),item.bonus);
     const before=target.hp;
-    target.hp=Math.min(target.maxHP,target.hp+roll.total);
+    target.hp=gameplayHeal(target,roll.total);
     addChatMessage({kind:'heal',character:enemy.name,label:item.name,detail:`${target.name} heals ${roll.total} HP (${before} -> ${target.hp})`,total:roll.total,rolls:roll.rolls});
     const effect={text:`${enemy.name} uses ${item.name}`,overlayType:'roll',title:`Heals ${roll.total}`,kind:'action',characterId:enemy.uid,actionType:'spell',targetUid:target.uid,x:enemy.x,y:enemy.y,tx:target.x,ty:target.y,damage:0,hpBefore:before,hpAfter:target.hp,maxHP:target.maxHP};
     broadcast({type:'iconUpdate',icon:target});
@@ -12345,6 +12359,7 @@ async function executeEnemyAction(enemyUid,type,itemId){
     markTurnAction(actionCost,enemy.uid);
     const target=targetEnemy||enemy;
     const effectName=item.effect||item.name||'Buff';
+    if(await gameplayReactionWindow(enemy,item,type,[target],'Spell effect'))return;
     const updated=addEnemyStatus(target.uid,effectName,10);
     addChatMessage({kind:actionType,character:enemy.name,label:item.name,detail:`${effectName} applied to ${target.name}`});
     const effect={text:`${item.name}: ${target.name}`,overlayType:'roll',title:effectName,kind:'enemyBuff',characterId:enemy.uid,targetUid:target.uid,statuses:updated?.statuses||target.statuses,x:enemy.x,y:enemy.y,tx:target.x,ty:target.y,actionType:'spell'};
@@ -12407,6 +12422,7 @@ async function executeEnemyAction(enemyUid,type,itemId){
   const critical=isAttackCrit(attack);
   const fumble=isAttackFumble(attack);
   const hit=!fumble && (critical || attack.total>=targetAC);
+  if(hit&&type==='spell')gameplaySpellRider(enemy,item,target);
   const rolledDamage=damage.total;
   const appliedDamage=hit ? rolledDamage+(critical?rollDiceExpression(diceFormulaForAction(item),0).total:0) : 0;
   const backfireDamage=0;
@@ -13901,6 +13917,10 @@ function initSupabaseCloud(){
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
       pollCloudState();
     })
+    .on('broadcast',{event:'gameplay'},payload=>{
+      const msg=payload.payload?.message;
+      if(msg&&msg.from!==myId&&msg.campaignId===CLOUD_CAMPAIGN_ID&&msg.type?.startsWith('gameplay'))gameplayHandleMessage(msg);
+    })
     .on('broadcast',{event:'live-effect'},payload=>{
       if(payload.payload?.updated_by===CLOUD_CLIENT_ID) return;
       handleLiveEffect(payload.payload?.effect);
@@ -14148,6 +14168,13 @@ function broadcast(msg){
   msg.campaignId=CLOUD_CAMPAIGN_ID;
   msg.seq=++outgoingSeq;
   msg.sentAt=Date.now();
+  if(msg.type?.startsWith('gameplay')){
+    msg.packetId=myId+':'+msg.sentAt+':'+msg.seq;
+    try{if(cloudReady&&cloudChannel)cloudChannel.send({type:'broadcast',event:'gameplay',payload:{message:msg}})?.catch?.(()=>{});}catch(e){console.warn('Gameplay cloud message failed',e);}
+    // Cast/approval commands must never replay on reconnect.
+    try{if(ws&&wsReady)ws.send(JSON.stringify(msg));}catch(e){console.warn('Gameplay relay message failed',e);}
+    return;
+  }
   const str=JSON.stringify(msg);
   if(ws&&wsReady){ ws.send(str); return; }
   const key=queueKey(msg);

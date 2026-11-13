@@ -9,7 +9,16 @@
   }
   function spellItem(item){
     const name=key(item.name), base={...item};
+    const damage=(level,formula,type,range,saveAbility='',extra={})=>({spellLevel:level,actionCost:'action',actionType:'damage',targetMode:'single',aoeRadius:0,damageFormula:formula,die:formula.slice(formula.indexOf('d')),diceCount:parseInt(formula,10),bonus:0,damageType:type,range,saveAbility,saveDC:0,saveHalf:false,attackSave:saveAbility?saveAbility+' save':'Ranged Spell Attack',resolutionMode:saveAbility?'save':'attack',...extra});
     const defs={
+      poison_spray:damage(0,'1d12','poison','10 ft.','CON',{cantripScaling:true}),
+      inflict_wounds:damage(1,'3d10','necrotic','Touch','',{attackSave:'Melee Spell Attack',upcastDice:'1d10'}),
+      ray_of_frost:damage(0,'1d8','cold','60 ft.','',{cantripScaling:true,rider:'frost'}),
+      chill_touch:damage(0,'1d8','necrotic','120 ft.','',{cantripScaling:true,rider:'chill'}),
+      guiding_bolt:damage(1,'4d6','radiant','120 ft.','',{upcastDice:'1d6',rider:'guiding'}),
+      eldritch_blast:damage(0,'1d10','force','120 ft.','',{volley:'beams'}),
+      scorching_ray:damage(2,'2d6','fire','120 ft.','',{volley:'rays'}),
+      cone_of_cold:damage(5,'8d8','cold','Self (60-foot cone)','CON',{targetMode:'cone',areaFeet:60,saveHalf:true,upcastDice:'1d8'}),
       magic_missile:{spellLevel:1,castLevel:Math.max(1,Number(item.castLevel)||1),actionCost:'action',actionType:'damage',targetMode:'single',aoeRadius:0,die:'d4',diceCount:1,damageFormula:'1d4',bonus:1,saveAbility:'',saveDC:0,attackSave:'Automatic hit',range:'120 ft.',description:'Three darts at level 1; one more per higher slot. Each dart deals 1d4 + 1 force damage. Shield blocks the darts.'},
       fire_bolt:{spellLevel:0,castLevel:0,actionCost:'action',actionType:'damage',die:'d10',diceCount:1,damageFormula:'1d10',bonus:0,saveAbility:'',saveDC:0,attackSave:'Ranged Spell Attack',range:'120 ft.'},
       sacred_flame:{spellLevel:0,castLevel:0,actionCost:'action',actionType:'damage',die:'d8',diceCount:1,damageFormula:'1d8',bonus:0,saveAbility:'DEX',saveHalf:false,attackSave:'DEX save',range:'60 ft.'},
@@ -20,7 +29,12 @@
       counterspell:{spellLevel:3,castLevel:Math.max(3,Number(item.castLevel)||3),actionCost:'reaction',actionType:'utility',range:'60 ft.'},
       shield:{spellLevel:1,castLevel:Math.max(1,Number(item.castLevel)||1),actionCost:'reaction',actionType:'buff',targetMode:'single',aoeRadius:0,effect:'Shield',range:'Self'}
     };
-    return defs[name]?{...base,...defs[name]}:base;
+    if(!defs[name])return base;
+    const spell={...base,targetMode:'single',aoeRadius:0,upcastDice:'',saveAbility:'',saveHalf:false,concentration:false,...defs[name]};
+    spell.castLevel=spell.spellLevel===0?0:Math.max(spell.spellLevel,Number(item.castLevel)||spell.spellLevel);
+    spell.resolutionMode=spell.resolutionMode||(spell.saveAbility?'save':spell.actionType==='damage'?'attack':spell.actionType);
+    if(name==='magic_missile')spell.resolutionMode='automatic';
+    return spell;
   }
   function tickStatuses(statuses,phase){
     return statuses.flatMap(s=>{
@@ -77,7 +91,7 @@
     if(k&&list('vulnerabilities').includes(k))n*=2;
     return n;
   }
-  const automatedSpells=new Set(['magic_missile','fire_bolt','sacred_flame','healing_word','cure_wounds','burning_hands','fireball','shield','counterspell']);
+  const automatedSpells=new Set(['magic_missile','fire_bolt','sacred_flame','healing_word','cure_wounds','burning_hands','fireball','shield','counterspell','poison_spray','inflict_wounds','ray_of_frost','chill_touch','guiding_bolt','eldritch_blast','scorching_ray','cone_of_cold']);
   const api={key,attacksPerAction,spellItem,tickStatuses,shortRestRefresh,rest,saveBonus,weaponAbility,damageAmount,automatedSpells};
   if(typeof module==='object'&&module.exports) module.exports=api;
   root.GameplayRules=api;
