@@ -1109,6 +1109,7 @@ body.rp-mode .map-tool-dock{display:none}
         <div id="quick-use-body" class="quick-empty">No active character.</div>
       </div>
       <div id="roll-chat-popout">
+        <div id="dm-rolls-host"></div>
         <div class="panel-head">
           <h3>Roll chat</h3>
           <button onclick="clearChat()" style="font-size:11px;padding:5px 8px">Clear</button>
@@ -1691,6 +1692,7 @@ body.rp-mode .map-tool-dock{display:none}
 <script src="bg3_loot_items.js"></script>
 <script src="spell_data.js"></script>
 <script src="gameplay_rules.js"></script>
+<script src="dm_rolls.js"></script>
 <script src="gameplay_runtime.js"></script>
 <script src="assets/spell-icons/spell_icon_atlas.js"></script>
 <script src="assets/spell-icons/spell_icon_runtime_patch.js"></script>
@@ -9268,6 +9270,7 @@ function refreshSidebarSectionBadges(){
 }
 
 function updateAllPanels(){
+  if(typeof DmRolls!=='undefined')DmRolls.mount(document.getElementById('dm-rolls-host'));
   updateEnemyAIButton();
   validateLocalTarget();
   updateRoleUI();
@@ -12954,6 +12957,7 @@ function emitLiveEffect(effect){
 }
 function handleLiveEffect(effect){
   if(!effect || effect.campaignId!==CLOUD_CAMPAIGN_ID) return;
+  if(effect.kind==='resolvedAction'){gameplayPlayResolvedEffect(effect);return;}
   if(effect.kind==='miniature'){if(typeof MapWalk!=='undefined')MapWalk.trigger(characterById(effect.characterId)||enemyByUid(effect.characterId),'action',effect);draw();return;}
   if(effect.roll) lastRoll=effect.roll;
   playSfx(Number(effect.hpAfter)<=0 && Number(effect.damage)>0 ? 'enemyDown' : sfxForEffect(effect));

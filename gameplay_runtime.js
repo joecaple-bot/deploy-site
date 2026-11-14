@@ -8,6 +8,7 @@ const gameplayTransportPackets=new Set();
 const gameplayStateVersions=new Map();
 const gameplayRemoteWindowVersions=new Map();
 let gameplayWindowSequence=0;
+const gameplayResolvedEffectIds=new Set();
 let gameplayUndoHistory=[];
 function gameplayEntity(id){return enemyByUid(id)||characterById(id);}
 function gameplayId(ch){return ch?.uid||ch?.id;}
@@ -305,8 +306,9 @@ async function gameplaySpellVolley(ch,item){
     if(await gameplayReactionWindow(ch,item,index===0?'spell':'spell-ray',[target],`Beam ${index+1}/${count}: attack ${attack.total}`,{attackTotal:attack.total,natural}))return;
     const hit=natural!==1&&(natural===20||attack.total>=gameplayEffectiveAC(target));
     const damage=hit?rollDiceExpression(item.damageFormula,item.bonus).total+(natural===20?rollDiceExpression(item.damageFormula,0).total:0):0;
+    const before=target.uid?target.hp:target.currentHP;
     if(hit)applyAoeResult({entity:target,kind:target.uid?'enemy':'character'},damage,'damage',item.name,item.damageType);
-    gameplayMiniatureAnimation(ch,'spell',{natural20Hit:hit&&natural===20});
+    gameplayEmitResolvedEffect(ch,item,target,{kind:'damage',amount:damage,before,natural20Hit:hit&&natural===20});
     addChatMessage({kind:'spell',character:ch.name,label:item.name,detail:`Beam ${index+1}/${count}: ${target.name}, attack ${attack.total} — ${hit?damage+' '+item.damageType+' damage':'miss'}`,total:damage});
   }
   updateAllPanels();draw();scheduleSave();
@@ -351,6 +353,7 @@ async function gameplayAssistedSpell(ch,item){
   if(item.concentration&&!ch.uid)setConcentration(ch.id,item.name);
   for(const row of outcome.targets){
     const target=gameplayEntity(row.id);if(!target)continue;
+    const before=target.uid?target.hp:target.currentHP;
     if(outcome.kind==='damage')applyAoeResult({entity:target,kind:target.uid?'enemy':'character'},row.amount,'damage',item.name,outcome.damageType);
     if(outcome.kind==='healing')applyAoeResult({entity:target,kind:target.uid?'enemy':'character'},row.amount,'healing',item.name);
     if(outcome.condition){
@@ -358,13 +361,14 @@ async function gameplayAssistedSpell(ch,item){
       if(target.uid)addEnemyStatus(target.uid,outcome.condition,outcome.rounds,meta);else addCharacterStatus(target.id,outcome.condition,outcome.rounds,meta);
       gameplaySyncActor(target);
     }
+    gameplayEmitResolvedEffect(ch,{...item,damageType:outcome.damageType},target,{kind:outcome.kind,amount:row.amount,before,sourceType:outcome.visualType||'spell'});
   }
-  gameplayMiniatureAnimation(ch,'spell');
   addChatMessage({kind:'spell',character:ch.name,label:item.name+' — DM resolved',detail:outcome.kind==='narrative'?outcome.note:outcome.targets.map(row=>`${gameplayEntity(row.id)?.name||row.id}: ${outcome.kind==='condition'?'':row.amount+' '+outcome.kind}${outcome.condition?' '+outcome.condition+' ('+outcome.rounds+' rounds)':''}`).join('; ')});
   gameplaySyncActor(ch);
 }
 function gameplayValidOutcome(outcome){
   if(!outcome||!['damage','healing','condition','narrative'].includes(outcome.kind)||!Array.isArray(outcome.targets))return false;
+  if(outcome.visualType&&!['spell','weapon'].includes(outcome.visualType))return false;
   if(outcome.kind==='narrative')return outcome.targets.length===0&&typeof outcome.note==='string'&&outcome.note.trim().length>0&&outcome.note.length<=500;
   if(!outcome.targets.length||outcome.targets.length>200||outcome.targets.some(r=>!r||typeof r.id!=='string')||new Set(outcome.targets.map(r=>r.id)).size!==outcome.targets.length)return false;
   if(outcome.targets.some(r=>!gameplayEntity(r.id)||!Number.isFinite(r.amount)||r.amount<0||r.amount>100000))return false;
@@ -373,14 +377,42 @@ function gameplayValidOutcome(outcome){
   if(outcome.condition&&(typeof outcome.condition!=='string'||outcome.condition.length>80||!Number.isInteger(outcome.rounds)||outcome.rounds<0||outcome.rounds>10000))return false;
   return true;
 }
+function gameplayRollOutcomeAmounts(windowId,ids,formula,shared=true){
+  if(!isDM()||!gameplayWindow?.manual||gameplayWindow.id!==windowId)throw Error('This spell is no longer waiting for a DM outcome.');
+  if(!Array.isArray(ids)||!ids.length||ids.some(id=>!gameplayEntity(id)))throw Error('Select at least one target first.');
+  const common=shared?DmRolls.rollFormula(formula):null;
+  return ids.map(id=>{const roll=common||DmRolls.rollFormula(formula);return {id,amount:Math.max(0,roll.total),roll};});
+}
+function gameplayEmitResolvedEffect(caster,item,target,details={}){
+  const from=entityPoint(caster),to=entityPoint(target);
+  if([from.x,from.y,to.x,to.y].some(n=>n==null||!Number.isFinite(Number(n))))return;
+  const after=target.uid?target.hp:target.currentHP;
+  const effect={kind:'resolvedAction',resolutionEffectId:'resolved_'+Date.now()+'_'+Math.random().toString(36).slice(2),characterId:gameplayId(caster),targetUid:target.uid||null,targetCharacterId:target.uid?null:target.id,sourceType:details.sourceType||'spell',actionType:details.kind==='healing'?'healing':details.kind==='condition'?'buff':'damage',text:item.name+': '+target.name,title:item.name,damageType:item.damageType||gameplayDamageType(item),x:from.x,y:from.y,tx:to.x,ty:to.y,damage:details.kind==='damage'?Math.max(0,Number(details.amount)||0):0,hpBefore:details.before,hpAfter:after,maxHP:target.uid?target.maxHP:target.derived?.HP,natural20Hit:!!details.natural20Hit};
+  gameplayPlayResolvedEffect(effect);
+  emitLiveEffect(effect);
+}
+function gameplayPlayResolvedEffect(effect){
+  if(!effect.resolutionEffectId||gameplayResolvedEffectIds.has(effect.resolutionEffectId))return;
+  gameplayResolvedEffectIds.add(effect.resolutionEffectId);
+  if(gameplayResolvedEffectIds.size>500)gameplayResolvedEffectIds.delete(gameplayResolvedEffectIds.values().next().value);
+  const caster=gameplayEntity(effect.characterId)||{position:{x:effect.x,y:effect.y},x:effect.x,y:effect.y};
+  // HP and conditions arrive through gameplay state messages. Visuals must
+  // never reapply a stale snapshot or resolve damage a second time.
+  playActionAnimation(caster,effect.sourceType||'spell',{...effect,kind:effect.actionType==='damage'?'action':effect.actionType==='healing'?'heal':'buff'});
+}
 function gameplayAdjudicationDialog(w){
   if(!isDM()||gameplayWindow?.id!==w.id)return;
   const d=gameplayDialog(w.actionName+' — DM outcome');
-  const field=(title,tag='input')=>{const label=document.createElement('label');label.textContent=title+' ';const el=document.createElement(tag);el.setAttribute('aria-label',title);label.append(el);d.append(label,document.createElement('br'));return el;};
+  const field=(title,tag='input',parent=d)=>{const label=document.createElement('label');label.textContent=title+' ';const el=document.createElement(tag);el.setAttribute('aria-label',title);label.append(el);parent.append(label,document.createElement('br'));return el;};
   const options=(el,values)=>{for(const [value,label] of values){const o=document.createElement('option');o.value=value;o.textContent=label;el.append(o);}};
   const note=document.createElement('p');note.textContent=(w.description||'')+' Enter the outcome after saves. Damage resistance is applied by the app. Conditions are markers; special rules and ongoing effects remain DM-managed.';d.append(note);
   const kind=field('Outcome','select');options(kind,[['damage','Damage'],['healing','Healing'],['condition','Condition only'],['narrative','Narrative / no mechanical effect']]);
   const damageType=field('Damage type','select');options(damageType,['acid','bludgeoning','cold','fire','force','lightning','necrotic','piercing','poison','psychic','radiant','slashing','thunder'].map(x=>[x,x]));
+  const visualType=field('Animation','select');options(visualType,[['spell','Spell toward each target'],['weapon','Attack toward each target']]);
+  const amountMode=field('Amount entry','select');options(amountMode,[['manual','Enter amounts'],['roll','Roll dice']]);
+  const rollControls=document.createElement('section');rollControls.hidden=true;d.append(rollControls);
+  const formula=field('Damage / healing dice','input',rollControls);formula.placeholder='e.g. 3d6+2';formula.maxLength=40;
+  const rollSummary=document.createElement('p');rollSummary.setAttribute('role','status');rollSummary.style.cssText='font-size:12px;color:#e6cca0;margin:8px 0';rollControls.append(rollSummary);
   const condition=field('Condition (optional)');condition.maxLength=80;
   const rounds=field('Condition rounds (0 = until removed)');rounds.type='number';rounds.min='0';rounds.max='10000';rounds.value='1';
   const narrative=field('Ruling / narrative');narrative.maxLength=500;
@@ -390,11 +422,25 @@ function gameplayAdjudicationDialog(w){
     const check=document.createElement('input');check.type='checkbox';check.style.cssText='width:18px;height:18px;flex:none;margin:0';check.setAttribute('aria-label','Affect '+actor.name);
     const name=document.createElement('span');name.textContent=actor.name+' ';name.style.flex='1';
     const amount=document.createElement('input');amount.type='number';amount.min='0';amount.max='100000';amount.placeholder='Amount';amount.setAttribute('aria-label',actor.name+' amount');amount.style.width='90px';
-    label.append(check,name,amount);d.append(label);rows.push({id:gameplayId(actor),check,amount});
+    label.append(check,name,amount);d.append(label);
+    const row={id:gameplayId(actor),check,amount};
+    row.rollButton=gameplayButton(label,'Roll',()=>rollAmounts([row],true));row.rollButton.setAttribute('aria-label','Roll for '+actor.name);row.rollButton.hidden=true;
+    rows.push(row);
   }
+  function rollAmounts(selected,shared){
+    try{
+      const rolled=gameplayRollOutcomeAmounts(w.id,selected.map(row=>row.id),formula.value,shared);
+      for(const result of rolled){const row=selected.find(row=>row.id===result.id);row.check.checked=true;row.amount.value=String(result.amount);}
+      rollSummary.textContent=rolled.map(result=>`${gameplayEntity(result.id)?.name}: ${result.roll.formula} [${result.roll.rolls.join(', ')}] = ${result.roll.total}`).join('; ')+' — review amounts for saves, then Apply outcome. Nothing applied yet.';
+    }catch(error){rollSummary.textContent=error.message;}
+  }
+  gameplayButton(rollControls,'Roll once for selected targets',()=>rollAmounts(rows.filter(row=>row.check.checked),true));
+  gameplayButton(rollControls,'Roll separately for selected targets',()=>rollAmounts(rows.filter(row=>row.check.checked),false));
+  const refreshRollControls=()=>{const enabled=amountMode.value==='roll'&&['damage','healing'].includes(kind.value);rollControls.hidden=!enabled;for(const row of rows)row.rollButton.hidden=!enabled;};
+  amountMode.onchange=refreshRollControls;kind.onchange=refreshRollControls;
   gameplayButton(d,'Apply outcome',()=>{
-    if(gameplayWindow?.id!==w.id){d.close();return;}
-    const outcome={kind:kind.value,damageType:damageType.value,condition:condition.value.trim(),rounds:Number(rounds.value),note:narrative.value.trim(),targets:kind.value==='narrative'?[]:rows.filter(r=>r.check.checked).map(r=>({id:r.id,amount:kind.value==='condition'?0:r.amount.value.trim()===''?NaN:Number(r.amount.value)}))};
+    if(!isDM()||gameplayWindow?.id!==w.id){d.close();return;}
+    const outcome={kind:kind.value,visualType:visualType.value,damageType:damageType.value,condition:condition.value.trim(),rounds:Number(rounds.value),note:narrative.value.trim(),targets:kind.value==='narrative'?[]:rows.filter(r=>r.check.checked).map(r=>({id:r.id,amount:kind.value==='condition'?0:r.amount.value.trim()===''?NaN:Number(r.amount.value)}))};
     if(!gameplayValidOutcome(outcome))return showCritOverlay('Choose targets and enter amounts, or enter a narrative ruling','roll','Spell outcome');
     if(gameplayResolve)gameplayCloseWindow(outcome);else broadcast({type:'gameplayResolveWindow',windowId:w.id,outcome});d.close();
   });
@@ -515,12 +561,13 @@ async function gameplayMagicMissile(ch,item){
   if(!ch.uid&&!item.freeCast&&!spendSpellSlot(ch,item.castLevel))return false;
   markTurnAction(item.actionCost||'action',gameplayId(ch));gameplaySyncActor(ch);
   if(await gameplayReactionWindow(ch,item,'spell',[...new Set(allocations)].map(gameplayEntity),'Automatic-hit force darts',{magicMissile:true}))return true;
-  gameplayMiniatureAnimation(ch,'spell');
   const roll=rollDiceExpression('1d4',1),counts={};allocations.forEach(id=>counts[id]=(counts[id]||0)+1);
   for(const [id,n] of Object.entries(counts)){
     const target=gameplayEntity(id);if(!target)continue;
     const damage=gameplayHasShield(target)?0:roll.total*n;
+    const before=target.uid?target.hp:target.currentHP;
     applyAoeResult({kind:target.uid?'enemy':'character',entity:target},damage,'damage','Force');
+    gameplayEmitResolvedEffect(ch,{...item,damageType:'force'},target,{kind:'damage',amount:damage,before});
     addChatMessage({kind:'spell',character:ch.name,label:'Magic Missile',detail:`${target.name}: ${n} dart(s), ${damage} force damage${gameplayHasShield(target)?' — Shield blocks darts':''}`,total:damage});
   }
   updateAllPanels();draw();scheduleSave();return true;

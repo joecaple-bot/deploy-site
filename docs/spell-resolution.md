@@ -16,6 +16,10 @@ Other ordinary spells are labeled **DM outcome**. After the caster confirms reso
 
 This is adjudication, not full automation of the remaining catalogue. Summoning, teleportation, forced movement, complex ongoing effects, mixed damage types and additional spell-specific rules still need DM handling. Custom condition labels are markers, not automatic implementations of arbitrary rules. Other reactions beyond Shield and Counterspell retain their existing manual handling. Enemy spell slots retain the existing DM-managed resource model.
 
+Choose **Amount entry → Roll dice** to roll a formula such as `3d6+2`, either once for all selected targets or separately per target. Individual target rows also have a Roll button. These are private previews: adjust the amounts for saves and then choose **Apply outcome**. Confirmation uses the displayed amounts without rerolling. Damage resistance still applies automatically. The Animation selector chooses a spell or attack effect directed at every affected creature after confirmation. Magic Missile and ray spells also send targeted effects after their reaction windows. These cosmetic messages are deduplicated separately and never apply HP changes.
+
+The **Private dice** panel above Roll chat is visible only in DM mode. It has standard dice and a formula input; results are labeled DM rather than a character. Its latest 20 results stay in page memory, disappear from the panel outside DM mode, and are cleared by reloading. They never enter shared chat, character roll state, campaign saves, or multiplayer messages.
+
 ## Synchronization and checks
 
 Reaction windows and outcomes travel over both the campaign cloud channel and the legacy relay. Packet IDs prevent duplicate application, per-actor versions reject older state, and ordered cast-window metadata prevents a delayed close from hiding the next beam. These transient commands are not queued for reconnect replay. In-flight casts are not persisted across a page reload or caster disconnection.
